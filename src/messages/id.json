@@ -765,7 +765,8 @@
       "paymentMismatch": "Jumlah pembayaran tidak sama dengan total.",
       "invalidPayment": "Rekening transfer tidak valid.",
       "network": "Gagal terhubung. Periksa koneksi lalu coba lagi."
-    }
+    },
+    "printReceipt": "Cetak struk"
   },
   "Receipt": {
     "title": "Struk {invoiceNo}",
@@ -800,6 +801,55 @@
       "MARKETPLACE": "Marketplace",
       "KASBON": "Kas bon"
     },
-    "pageTitle": "Struk"
+    "pageTitle": "Struk",
+    "print": "Cetak / PDF"
+  },
+  "Invoice": {
+    "invoice": "Invoice",
+    "number": "No.",
+    "date": "Tanggal",
+    "cashier": "Kasir",
+    "item": "Item",
+    "qty": "Qty",
+    "price": "Harga",
+    "discount": "Diskon",
+    "amount": "Jumlah",
+    "subtotal": "Subtotal",
+    "itemDiscounts": "Diskon item",
+    "voucher": "Voucher",
+    "service": "Service {rate}",
+    "ppn": "PPN {rate}",
+    "ppnIncluded": "Termasuk PPN {rate}",
+    "total": "Total",
+    "payments": "Pembayaran",
+    "cashReceived": "Tunai diterima",
+    "change": "Kembalian",
+    "npwp": "NPWP",
+    "voided": "DIBATALKAN",
+    "transferTo": "Transfer {bank}",
+    "methods": {
+      "CASH": "Tunai",
+      "TRANSFER": "Transfer",
+      "MARKETPLACE": "Marketplace",
+      "KASBON": "Kas bon"
+    },
+    "pageTitle": "Cetak invoice",
+    "toolbarLabel": "Opsi cetak",
+    "paperSize": "Ukuran kertas",
+    "sizes": {
+      "58mm": "58 mm",
+      "80mm": "80 mm",
+      "a4": "A4"
+    },
+    "language": "Bahasa",
+    "print": "Cetak",
+    "download": "Unduh PDF",
+    "share": "Bagikan",
+    "copyLink": "Salin tautan unduh",
+    "linkCopied": "Tautan unduh disalin. Berlaku {days} hari.",
+    "linkReady": "Tautan unduh (berlaku {days} hari):",
+    "linkFailed": "Tautan gagal dibuat.",
+    "shareFailed": "Berbagi tidak tersedia; PDF diunduh sebagai gantinya.",
+    "back": "Kembali"
   }
 }

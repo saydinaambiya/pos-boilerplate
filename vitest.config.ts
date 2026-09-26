@@ -23,6 +23,7 @@ export default defineConfig({
           env: {
             APP_URL: "http://localhost:3000",
             DATABASE_URL: "postgres://unit:unit@localhost:5432/unused",
+            INVOICE_LINK_SECRET: "unit-test-invoice-link-secret-0123456789",
           },
         },
       },

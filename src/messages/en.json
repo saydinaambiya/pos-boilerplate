@@ -765,7 +765,8 @@
       "paymentMismatch": "The payments do not match the total.",
       "invalidPayment": "The transfer account is not valid.",
       "network": "Could not connect. Check the connection and try again."
-    }
+    },
+    "printReceipt": "Print receipt"
   },
   "Receipt": {
     "title": "Receipt {invoiceNo}",
@@ -800,6 +801,55 @@
       "MARKETPLACE": "Marketplace",
       "KASBON": "Store credit"
     },
-    "pageTitle": "Receipt"
+    "pageTitle": "Receipt",
+    "print": "Print / PDF"
+  },
+  "Invoice": {
+    "invoice": "Invoice",
+    "number": "No.",
+    "date": "Date",
+    "cashier": "Cashier",
+    "item": "Item",
+    "qty": "Qty",
+    "price": "Price",
+    "discount": "Discount",
+    "amount": "Amount",
+    "subtotal": "Subtotal",
+    "itemDiscounts": "Item discounts",
+    "voucher": "Voucher",
+    "service": "Service {rate}",
+    "ppn": "VAT {rate}",
+    "ppnIncluded": "Includes VAT {rate}",
+    "total": "Total",
+    "payments": "Payments",
+    "cashReceived": "Cash received",
+    "change": "Change",
+    "npwp": "Tax ID",
+    "voided": "VOIDED",
+    "transferTo": "Transfer {bank}",
+    "methods": {
+      "CASH": "Cash",
+      "TRANSFER": "Transfer",
+      "MARKETPLACE": "Marketplace",
+      "KASBON": "Store credit"
+    },
+    "pageTitle": "Print invoice",
+    "toolbarLabel": "Print options",
+    "paperSize": "Paper size",
+    "sizes": {
+      "58mm": "58 mm",
+      "80mm": "80 mm",
+      "a4": "A4"
+    },
+    "language": "Language",
+    "print": "Print",
+    "download": "Download PDF",
+    "share": "Share",
+    "copyLink": "Copy download link",
+    "linkCopied": "Download link copied. Valid for {days} days.",
+    "linkReady": "Download link (valid for {days} days):",
+    "linkFailed": "Could not create the link.",
+    "shareFailed": "Sharing is not available; the PDF was downloaded instead.",
+    "back": "Back"
   }
 }

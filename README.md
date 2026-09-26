@@ -68,13 +68,14 @@ owner in Settings, not in code.
 
 ## Environment variables
 
-| Variable                            | Required   | Description                                                  |
-| ----------------------------------- | ---------- | ------------------------------------------------------------ |
-| `APP_URL`                           | Yes        | Public origin of the deployment                              |
-| `DATABASE_URL`                      | Yes        | Postgres URL; Neon **pooled** endpoint in staging/production |
-| `ENABLE_DIAGNOSTICS`                | No         | `true` exposes `/api/v1/diagnostics` and `/ui`; staging only |
-| `UPSTASH_REDIS_REST_URL` / `_TOKEN` | Production | Per-IP login limit; in-memory fallback locally               |
-| `SEED_OWNER_*`                      | Seed only  | Username, name and password for `pnpm db:seed`               |
+| Variable                            | Required   | Description                                                                  |
+| ----------------------------------- | ---------- | ---------------------------------------------------------------------------- |
+| `APP_URL`                           | Yes        | Public origin of the deployment                                              |
+| `DATABASE_URL`                      | Yes        | Postgres URL; Neon **pooled** endpoint in staging/production                 |
+| `ENABLE_DIAGNOSTICS`                | No         | `true` exposes `/api/v1/diagnostics` and `/ui`; staging only                 |
+| `INVOICE_LINK_SECRET`               | Yes        | Signs public invoice download links (≥ 32 chars); rotating revokes all links |
+| `UPSTASH_REDIS_REST_URL` / `_TOKEN` | Production | Per-IP login limit; in-memory fallback locally                               |
+| `SEED_OWNER_*`                      | Seed only  | Username, name and password for `pnpm db:seed`                               |
 
 Variables are validated at startup by `src/config/env.ts`.
 
@@ -84,5 +85,5 @@ Deployments are tag-based ([ADR-0004](docs/adr/0004-tag-based-release.md)):
 merge the release-please PR to create `vX.Y.Z` (production), or push
 `vX.Y.Z-rc.N` to deploy staging. Branch pushes never deploy. The deploy
 workflow applies migrations first, so the GitHub environment needs a
-`DATABASE_URL` secret and the Vercel project needs `DATABASE_URL` and the
-Upstash variables.
+`DATABASE_URL` secret and the Vercel project needs `DATABASE_URL`,
+`INVOICE_LINK_SECRET` and the Upstash variables.

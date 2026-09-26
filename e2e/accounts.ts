@@ -13,3 +13,6 @@ export const accounts = {
 };
 
 export const OWNER_STATE = "playwright/.auth/owner.json";
+
+/** Deterministic sale with extreme data for invoice layout tests (FR-INV-03). */
+export const EXTREME_SALE_ID = "0199a000-0000-7000-8000-00000000c005";

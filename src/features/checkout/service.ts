@@ -252,3 +252,12 @@ export async function getSale(session: Session, saleId: string) {
     return undefined;
   return sale;
 }
+
+/**
+ * Sale detail without a session, for callers that proved access another
+ * way, i.e. a verified signed download link (FR-PDF-04). Never expose this
+ * to user-chosen ids without such proof.
+ */
+export async function getSaleForVerifiedLink(saleId: string) {
+  return findSaleDetail(saleId);
+}

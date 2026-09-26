@@ -31,7 +31,12 @@ interface PaymentDialogProps {
   grandTotal: number;
   lines: () => CheckoutLinePayload[];
   bankAccounts: readonly { id: string; label: string }[];
-  onSuccess: (result: { saleId: string; invoiceNo: string; change: number | null }) => void;
+  onSuccess: (result: {
+    saleId: string;
+    invoiceNo: string;
+    change: number | null;
+    tendered: number | null;
+  }) => void;
 }
 
 const QUICK_CASH = [50_000, 100_000] as const;
@@ -109,6 +114,7 @@ export function PaymentDialog(props: PaymentDialogProps) {
           saleId: result.saleId,
           invoiceNo: result.invoiceNo,
           change: cashDue > 0 && received !== null ? received - cashDue : null,
+          tendered: cashDue > 0 ? received : null,
         });
       } catch {
         setError(t("errors.network"));

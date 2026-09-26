@@ -45,6 +45,7 @@ interface Completed {
   saleId: string;
   invoiceNo: string;
   change: number | null;
+  tendered: number | null;
 }
 
 function matches(product: PosProduct, term: string) {
@@ -401,9 +402,26 @@ export function PosTerminal(props: PosTerminalProps) {
           ) : null}
           <DialogFooter>
             {completed ? (
-              <Button asChild variant="secondary">
-                <Link href={`/pos/sales/${completed.saleId}`}>{t("viewReceipt")}</Link>
-              </Button>
+              <>
+                <Button asChild variant="ghost">
+                  <Link href={`/pos/sales/${completed.saleId}`}>{t("viewReceipt")}</Link>
+                </Button>
+                <Button asChild variant="secondary">
+                  <Link
+                    href={{
+                      pathname: `/print/invoices/${completed.saleId}`,
+                      query: {
+                        print: "1",
+                        ...(completed.tendered === null
+                          ? {}
+                          : { tendered: String(completed.tendered) }),
+                      },
+                    }}
+                  >
+                    {t("printReceipt")}
+                  </Link>
+                </Button>
+              </>
             ) : null}
             <Button
               onClick={() => {

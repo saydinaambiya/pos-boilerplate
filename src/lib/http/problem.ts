@@ -30,7 +30,20 @@ export const problems = {
     status: 400,
     detail,
   }),
+  unauthorized: (): Problem => ({
+    type: "/problems/unauthorized",
+    title: "Unauthorized",
+    status: 401,
+    detail: "Sign in to access this resource.",
+  }),
+  forbidden: (): Problem => ({ type: "/problems/forbidden", title: "Forbidden", status: 403 }),
   notFound: (): Problem => ({ type: "/problems/not-found", title: "Not Found", status: 404 }),
+  tooManyRequests: (retryAfterSeconds: number): Problem => ({
+    type: "/problems/too-many-requests",
+    title: "Too Many Requests",
+    status: 429,
+    detail: `Retry after ${String(retryAfterSeconds)} seconds.`,
+  }),
   methodNotAllowed: (method: string): Problem => ({
     type: "/problems/method-not-allowed",
     title: "Method Not Allowed",

@@ -107,7 +107,13 @@ test.describe("POS terminal and checkout (FR-POS, FR-PAY)", () => {
     const success = page.getByRole("dialog", { name: "Transaksi berhasil" });
     await expect(success).toContainText(/Nomor invoice INV-\d{8}-\d{4}/);
     await expect(success).toContainText(`Kembalian: ${rupiah(100_000 - total)}`);
-    await success.getByRole("link", { name: "Lihat struk" }).click();
+    await success.getByRole("link", { name: "Cetak struk" }).click();
+    await expect(page).toHaveURL(/\/id\/print\/invoices\/[0-9a-f-]+\?print=1&tendered=100000$/);
+    await expect(page.getByTestId("invoice")).toContainText("Kembalian");
+    await expect(page.getByTestId("invoice")).toContainText(rupiah(100_000 - total));
+    await expect(page.getByTestId("invoice")).toContainText("Tunai diterima");
+    const saleId = /invoices\/([0-9a-f-]+)/.exec(page.url())?.[1] ?? "";
+    await page.goto(`/id/pos/sales/${saleId}`);
     await expect(page).toHaveURL(/\/id\/pos\/sales\/[0-9a-f-]+$/);
     await expect(page.getByRole("row", { name: new RegExp(product) })).toContainText(/Rp\s24\.000/);
 
