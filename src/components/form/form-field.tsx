@@ -20,8 +20,8 @@ function useFieldState(name: string, defaultValue: string | undefined) {
 type FormFieldProps = Omit<ComponentProps<"input">, "name" | "id" | "defaultValue"> & {
   name: string;
   label: string;
-  hint?: string;
-  defaultValue?: string;
+  hint?: string | undefined;
+  defaultValue?: string | undefined;
 };
 
 /** Text input wired to the enclosing `ActionForm`'s errors and echoed values. */
@@ -37,11 +37,16 @@ export function FormField({ name, label, hint, defaultValue, ...input }: FormFie
 type FormSelectProps = Omit<ComponentProps<"select">, "name" | "id" | "defaultValue"> & {
   name: string;
   label: string;
-  hint?: string;
-  defaultValue?: string;
+  hint?: string | undefined;
+  defaultValue?: string | undefined;
   options: readonly { value: string; label: string }[];
 };
 
+/**
+ * Native select wired to the enclosing `ActionForm`. It is keyed by its value:
+ * React ignores `defaultValue` changes on a mounted `<select>`, so without a
+ * remount the form reset after a failed submit would restore the first option.
+ */
 export function FormSelect({
   name,
   label,
@@ -54,7 +59,7 @@ export function FormSelect({
   return (
     <Field label={label} hint={hint} error={error}>
       {(control) => (
-        <Select {...select} {...control} name={name} defaultValue={value}>
+        <Select {...select} {...control} key={value} name={name} defaultValue={value}>
           {options.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
@@ -72,8 +77,8 @@ type FormCheckboxProps = Omit<
 > & {
   name: string;
   label: string;
-  hint?: string;
-  defaultChecked?: boolean;
+  hint?: string | undefined;
+  defaultChecked?: boolean | undefined;
 };
 
 /** Checkbox that keeps its submitted state after a failed save; posts `on` when checked. */

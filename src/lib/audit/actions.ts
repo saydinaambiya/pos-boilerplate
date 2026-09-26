@@ -23,6 +23,13 @@ export const auditActions = [
   "marketplace.updated",
   "marketplace.activated",
   "marketplace.deactivated",
+  "category.created",
+  "category.updated",
+  "category.deleted",
+  "product.created",
+  "product.updated",
+  "product.activated",
+  "product.deactivated",
 ] as const;
 
 export type AuditAction = (typeof auditActions)[number];

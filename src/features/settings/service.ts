@@ -3,6 +3,7 @@ import "server-only";
 import { db } from "@/db/client";
 import { isUniqueViolation } from "@/db/errors";
 import { recordAudit } from "@/lib/audit/audit";
+import { changedFields } from "@/lib/audit/diff";
 import { assertPermission } from "@/lib/auth/authorize";
 import type { Session } from "@/lib/auth/session";
 import type { RequestContext } from "@/lib/http/request-context";
@@ -20,15 +21,6 @@ import {
   updateMarketplaceRow,
 } from "./repository";
 import type { BankAccountInput, MarketplaceInput } from "./schemas";
-
-/** Changed fields as `{ field: { from, to } }` for the audit diff. */
-function changes(before: Record<string, unknown>, after: Record<string, unknown>) {
-  return Object.fromEntries(
-    Object.keys(after)
-      .filter((key) => before[key] !== after[key])
-      .map((key) => [key, { from: before[key], to: after[key] }]),
-  );
-}
 
 export async function getSettings<K extends SettingKey>(session: Session, key: K) {
   assertPermission(session, "page:settings");
@@ -53,7 +45,7 @@ export async function updateSettings<K extends SettingKey>(
         action: "settings.updated",
         entity: "settings",
         entityId: key,
-        diff: changes(before, value),
+        diff: changedFields(before, value),
       },
       context,
     );
@@ -116,7 +108,7 @@ export async function updateBankAccount(
         action: "bank-account.updated",
         entity: "bank-account",
         entityId: id,
-        diff: changes(current, input),
+        diff: changedFields(current, input),
       },
       context,
     );
@@ -210,7 +202,7 @@ export async function updateMarketplace(
           action: "marketplace.updated",
           entity: "marketplace",
           entityId: id,
-          diff: changes(current, input),
+          diff: changedFields(current, input),
         },
         context,
       );

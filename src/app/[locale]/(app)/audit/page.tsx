@@ -198,7 +198,15 @@ export default async function AuditPage({ searchParams }: PageProps<"/[locale]/a
   );
 }
 
-const ENTITIES = new Set<string>(["user", "role", "settings", "bank-account", "marketplace"]);
+const ENTITIES = new Set<string>([
+  "user",
+  "role",
+  "settings",
+  "bank-account",
+  "marketplace",
+  "category",
+  "product",
+]);
 
 function isEntity(value: string): value is EntityKey {
   return ENTITIES.has(value);
