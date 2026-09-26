@@ -24,6 +24,10 @@ assertBrandAssets();
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
+  /** Enables `forbidden()` for permission failures (FR-RBAC-02, ADR-0006). */
+  experimental: { authInterrupts: true },
+  /** Native Argon2 binding must stay a runtime require, not be bundled. */
+  serverExternalPackages: ["@node-rs/argon2"],
   headers() {
     return Promise.resolve([{ source: "/:path*", headers: [...staticSecurityHeaders] }]);
   },

@@ -43,6 +43,34 @@
     "description": "The address you opened is not available.",
     "back": "Back to dashboard"
   },
+  "Forbidden": {
+    "title": "Access denied",
+    "description": "Your role does not have permission to open this page.",
+    "back": "Back to dashboard"
+  },
+  "Auth": {
+    "loginTitle": "Sign in",
+    "loginSubtitle": "Sign in to {appName} to continue.",
+    "username": "Username",
+    "secret": "Password or PIN",
+    "secretHint": "Owners use a password, employees use a 6-digit PIN.",
+    "submit": "Sign in",
+    "submitting": "Signing in…",
+    "errorInvalid": "Incorrect username or password/PIN.",
+    "errorLocked": "Account temporarily locked. Try again in {minutes} minutes.",
+    "errorRateLimited": "Too many attempts from this device. Try again in {minutes} minutes.",
+    "changePinTitle": "Create a new PIN",
+    "changePinSubtitle": "For security, replace your initial PIN before continuing.",
+    "newPin": "New PIN",
+    "newPinHint": "6 digits.",
+    "confirmPin": "Repeat new PIN",
+    "savePin": "Save PIN",
+    "errorPinFormat": "The PIN must be 6 digits.",
+    "errorPinSame": "The new PIN must differ from the current one.",
+    "errorPinMismatch": "The PINs do not match.",
+    "logout": "Sign out",
+    "account": "Account: {name} ({role})"
+  },
   "Common": {
     "skipToContent": "Skip to content",
     "close": "Close",

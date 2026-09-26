@@ -3,6 +3,10 @@ allowBuilds:
   unrs-resolver: true
   "@parcel/watcher": false
   "@swc/core": false
+  cpu-features: false
+  esbuild: false
+  protobufjs: false
+  ssh2: false
 minimumReleaseAgeExclude:
   - icu-minify@4.14.7
   - next-intl-swc-plugin-extractor@4.14.7

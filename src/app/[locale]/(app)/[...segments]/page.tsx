@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { navigation } from "@/config/navigation";
+import { requirePermission, requireSession } from "@/lib/auth/guard";
 
 /**
  * Temporary landing for menu entries whose module ships in a later
@@ -32,6 +33,7 @@ export default async function PlaceholderPage({ params }: PageProps<"/[locale]/[
     getTranslations("Navigation"),
     getTranslations("Placeholder"),
   ]);
+  await (item.permission ? requirePermission(item.permission) : requireSession());
 
   return (
     <>

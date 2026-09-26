@@ -12,18 +12,26 @@ rebranded per store by editing one config file.
 
 - Node.js 22.12+ (`.nvmrc`)
 - pnpm 12 (`corepack enable` picks the version from `package.json`)
+- Docker (local Postgres, integration tests and E2E)
 
 ## Getting started
 
 ```bash
 corepack enable
 pnpm install
-cp .env.example .env.local
+cp .env.example .env.local   # set SEED_OWNER_PASSWORD (min. 12 characters)
+pnpm db:up                   # Postgres 17 in Docker (also creates pos_e2e)
+pnpm db:migrate
+pnpm db:seed                 # roles + first owner account
 pnpm dev
 ```
 
-Open http://localhost:3000. With `ENABLE_DIAGNOSTICS=true` the component
-showcase is available at `/id/ui`.
+Open http://localhost:3000 and sign in with the `SEED_OWNER_*` credentials.
+With `ENABLE_DIAGNOSTICS=true` the component showcase is available at `/id/ui`.
+
+Changing the schema: edit `src/db/schema`, run `pnpm db:generate --name <change>`,
+review the SQL in `src/db/migrations`, then `pnpm db:migrate`
+([ADR-0005](docs/adr/0005-database-access.md)).
 
 ## Customising a store
 
@@ -43,22 +51,30 @@ owner in Settings, not in code.
 
 ## Scripts
 
-| Script           | Purpose                                                 |
-| ---------------- | ------------------------------------------------------- |
-| `pnpm dev`       | Development server                                      |
-| `pnpm build`     | Production build (validates `app.config.ts` and assets) |
-| `pnpm lint`      | ESLint with typed rules, zero warnings allowed          |
-| `pnpm typecheck` | Route type generation + `tsc`                           |
-| `pnpm test`      | Unit tests (Vitest)                                     |
-| `pnpm test:e2e`  | Playwright: flows, accessibility, CSP, JS budget        |
-| `pnpm check`     | Lint, typecheck, format check and unit tests            |
+| Script             | Purpose                                                 |
+| ------------------ | ------------------------------------------------------- |
+| `pnpm dev`         | Development server                                      |
+| `pnpm build`       | Production build (validates `app.config.ts` and assets) |
+| `pnpm lint`        | ESLint with typed rules, zero warnings allowed          |
+| `pnpm typecheck`   | Route type generation + `tsc`                           |
+| `pnpm test`        | Unit tests (Vitest)                                     |
+| `pnpm test:int`    | Service tests against Postgres (Testcontainers, Docker) |
+| `pnpm db:up`       | Start local Postgres (`docker-compose.yml`)             |
+| `pnpm db:generate` | Generate a SQL migration from `src/db/schema`           |
+| `pnpm db:migrate`  | Apply pending migrations                                |
+| `pnpm db:seed`     | Create default roles and the first owner (idempotent)   |
+| `pnpm test:e2e`    | Playwright: flows, accessibility, CSP, JS budget        |
+| `pnpm check`       | Lint, typecheck, format check and unit tests            |
 
 ## Environment variables
 
-| Variable             | Required | Description                                                  |
-| -------------------- | -------- | ------------------------------------------------------------ |
-| `APP_URL`            | Yes      | Public origin of the deployment                              |
-| `ENABLE_DIAGNOSTICS` | No       | `true` exposes `/api/v1/diagnostics` and `/ui`; staging only |
+| Variable                            | Required   | Description                                                  |
+| ----------------------------------- | ---------- | ------------------------------------------------------------ |
+| `APP_URL`                           | Yes        | Public origin of the deployment                              |
+| `DATABASE_URL`                      | Yes        | Postgres URL; Neon **pooled** endpoint in staging/production |
+| `ENABLE_DIAGNOSTICS`                | No         | `true` exposes `/api/v1/diagnostics` and `/ui`; staging only |
+| `UPSTASH_REDIS_REST_URL` / `_TOKEN` | Production | Per-IP login limit; in-memory fallback locally               |
+| `SEED_OWNER_*`                      | Seed only  | Username, name and password for `pnpm db:seed`               |
 
 Variables are validated at startup by `src/config/env.ts`.
 
@@ -66,4 +82,7 @@ Variables are validated at startup by `src/config/env.ts`.
 
 Deployments are tag-based ([ADR-0004](docs/adr/0004-tag-based-release.md)):
 merge the release-please PR to create `vX.Y.Z` (production), or push
-`vX.Y.Z-rc.N` to deploy staging. Branch pushes never deploy.
+`vX.Y.Z-rc.N` to deploy staging. Branch pushes never deploy. The deploy
+workflow applies migrations first, so the GitHub environment needs a
+`DATABASE_URL` secret and the Vercel project needs `DATABASE_URL` and the
+Upstash variables.

@@ -2,8 +2,8 @@
 
 | Atribut         | Nilai              |
 | --------------- | ------------------ |
-| Versi dokumen   | 0.7.0 (draft)      |
-| Tanggal         | 2026-09-25         |
+| Versi dokumen   | 0.8.0 (draft)      |
+| Tanggal         | 2026-09-26         |
 | Pemilik         | Owner              |
 | Status          | Menunggu review    |
 | Dokumen terkait | [BRD.md](./BRD.md) |
@@ -19,6 +19,7 @@
 | 0.5.0 | 2026-09-25 | Identitas toko & logo dipindah ke config; appearance.ts digabung menjadi src/config/app.config.ts                   |
 | 0.6.0 | 2026-09-25 | Alamat, telepon, email, NPWP, dan footer invoice kembali ke menu Pengaturan owner                                   |
 | 0.7.0 | 2026-09-25 | Budget JS disesuaikan dengan baseline Next.js 16 yang terukur (NFR-PERF-02); contoh config memakai tipe `AppConfig` |
+| 0.8.0 | 2026-09-26 | Keputusan auth (ADR-0006) dan akses database (ADR-0005); tabel `roles` punya `is_active` untuk FR-RBAC-01           |
 
 Konvensi: **MUST** = wajib v1, **SHOULD** = diusahakan v1, **MAY** = opsional. ID requirement dirujuk dari issue, commit, dan test.
 
@@ -506,20 +507,20 @@ Business logic berada di **service layer** yang sama untuk dua pintu masuk:
 
 ### 10.1 Stack
 
-| Lapisan    | Teknologi                                                                                |
-| ---------- | ---------------------------------------------------------------------------------------- |
-| Framework  | Next.js (App Router, versi stabil terbaru), React, TypeScript                            |
-| Styling    | Tailwind CSS + CSS variables (token), shadcn/ui (Radix)                                  |
-| Database   | PostgreSQL — Neon free tier                                                              |
-| ORM        | Drizzle ORM + Drizzle Kit (migrasi)                                                      |
-| Validasi   | Zod                                                                                      |
-| Auth       | Better Auth (username plugin) atau implementasi session sendiri — diputuskan di ADR-0002 |
-| i18n       | next-intl                                                                                |
-| PDF        | @react-pdf/renderer                                                                      |
-| Rate limit | Upstash Redis (free tier)                                                                |
-| Testing    | Vitest, Testcontainers, Playwright                                                       |
-| Tooling    | pnpm, ESLint, Prettier, commitlint, lefthook                                             |
-| CI/CD      | GitHub Actions → Vercel CLI                                                              |
+| Lapisan    | Teknologi                                                                                       |
+| ---------- | ----------------------------------------------------------------------------------------------- |
+| Framework  | Next.js (App Router, versi stabil terbaru), React, TypeScript                                   |
+| Styling    | Tailwind CSS + CSS variables (token), shadcn/ui (Radix)                                         |
+| Database   | PostgreSQL — Neon free tier (driver postgres.js, [ADR-0005](./adr/0005-database-access.md))     |
+| ORM        | Drizzle ORM + Drizzle Kit (migrasi)                                                             |
+| Validasi   | Zod                                                                                             |
+| Auth       | Implementasi session sendiri + Argon2id ([ADR-0006](./adr/0006-authentication-and-sessions.md)) |
+| i18n       | next-intl                                                                                       |
+| PDF        | @react-pdf/renderer                                                                             |
+| Rate limit | Upstash Redis (free tier)                                                                       |
+| Testing    | Vitest, Testcontainers, Playwright                                                              |
+| Tooling    | pnpm, ESLint, Prettier, commitlint, lefthook                                                    |
+| CI/CD      | GitHub Actions → Vercel CLI                                                                     |
 
 ### 10.2 Struktur folder
 
@@ -633,7 +634,7 @@ Semua tabel memiliki `id` (UUIDv7), `created_at`, `updated_at`; tabel transaksio
 | Entitas               | Field utama                                                                                                                                                                                                                          |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `users`               | username, name, role_id, password_hash / pin_hash, is_active, locale, theme, failed_attempts, locked_until, must_change_pin                                                                                                          |
-| `roles`               | name, is_system                                                                                                                                                                                                                      |
+| `roles`               | name, is_system, is_active                                                                                                                                                                                                           |
 | `role_permissions`    | role_id, permission                                                                                                                                                                                                                  |
 | `sessions`            | user_id, token_hash, expires_at, ip, user_agent                                                                                                                                                                                      |
 | `categories`          | name, sort_order                                                                                                                                                                                                                     |

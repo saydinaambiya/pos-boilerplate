@@ -43,6 +43,34 @@
     "description": "Alamat yang Anda buka tidak tersedia.",
     "back": "Kembali ke dasbor"
   },
+  "Forbidden": {
+    "title": "Akses ditolak",
+    "description": "Role Anda tidak memiliki izin untuk membuka halaman ini.",
+    "back": "Kembali ke dasbor"
+  },
+  "Auth": {
+    "loginTitle": "Masuk",
+    "loginSubtitle": "Masuk ke {appName} untuk melanjutkan.",
+    "username": "Username",
+    "secret": "Password atau PIN",
+    "secretHint": "Owner memakai password, karyawan memakai PIN 6 digit.",
+    "submit": "Masuk",
+    "submitting": "Memproses…",
+    "errorInvalid": "Username atau password/PIN salah.",
+    "errorLocked": "Akun terkunci sementara. Coba lagi dalam {minutes} menit.",
+    "errorRateLimited": "Terlalu banyak percobaan dari perangkat ini. Coba lagi dalam {minutes} menit.",
+    "changePinTitle": "Buat PIN baru",
+    "changePinSubtitle": "Demi keamanan, ganti PIN awal Anda sebelum melanjutkan.",
+    "newPin": "PIN baru",
+    "newPinHint": "6 digit angka.",
+    "confirmPin": "Ulangi PIN baru",
+    "savePin": "Simpan PIN",
+    "errorPinFormat": "PIN harus 6 digit angka.",
+    "errorPinSame": "PIN baru harus berbeda dari PIN saat ini.",
+    "errorPinMismatch": "PIN tidak sama.",
+    "logout": "Keluar",
+    "account": "Akun: {name} ({role})"
+  },
   "Common": {
     "skipToContent": "Langsung ke konten",
     "close": "Tutup",

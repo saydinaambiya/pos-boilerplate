@@ -5,6 +5,7 @@ import { getTranslations } from "next-intl/server";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
+import { requirePermission } from "@/lib/auth/guard";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Dashboard");
@@ -12,7 +13,10 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function DashboardPage() {
-  const t = await getTranslations("Dashboard");
+  const [t] = await Promise.all([
+    getTranslations("Dashboard"),
+    requirePermission("page:dashboard"),
+  ]);
 
   return (
     <>

@@ -50,3 +50,4 @@ next-env.d.ts
 
 # keep the documented example env file
 !.env.example
+/playwright/.auth/

@@ -65,6 +65,12 @@ jobs:
             echo "flag=--prod" >> "$GITHUB_OUTPUT"
           fi
 
+      # Expand-contract migrations run before the new build goes live (PRD §12.2, ADR-0005).
+      - name: Apply database migrations
+        run: pnpm db:migrate
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
       - run: pnpm dlx vercel@latest pull --yes --environment=${{ steps.target.outputs.environment }} --token=${{ secrets.VERCEL_TOKEN }}
       - run: pnpm dlx vercel@latest build ${{ steps.target.outputs.flag }} --token=${{ secrets.VERCEL_TOKEN }}
       - run: pnpm dlx vercel@latest deploy --prebuilt ${{ steps.target.outputs.flag }} --token=${{ secrets.VERCEL_TOKEN }} --meta tag=$TAG
