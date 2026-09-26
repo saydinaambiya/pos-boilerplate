@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useState, useSyncExternalStore } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -32,9 +32,20 @@ interface ConfirmActionProps {
   };
 }
 
-/** Confirmation dialog in front of a destructive Server Action (FR-UX-04). */
+const subscribeNever = () => () => undefined;
+
+/**
+ * Confirmation dialog in front of a destructive Server Action (FR-UX-04).
+ * The dialog needs JavaScript, so the trigger stays disabled until hydration
+ * instead of silently ignoring early clicks.
+ */
 export function ConfirmAction({ action, locale, variant = "danger", labels }: ConfirmActionProps) {
   const [open, setOpen] = useState(false);
+  const hydrated = useSyncExternalStore(
+    subscribeNever,
+    () => true,
+    () => false,
+  );
   const close = useCallback(() => {
     setOpen(false);
   }, []);
@@ -42,7 +53,9 @@ export function ConfirmAction({ action, locale, variant = "danger", labels }: Co
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant={variant}>{labels.trigger}</Button>
+        <Button variant={variant} disabled={!hydrated}>
+          {labels.trigger}
+        </Button>
       </DialogTrigger>
       <DialogContent closeLabel={labels.close}>
         <DialogTitle>{labels.title}</DialogTitle>
