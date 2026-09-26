@@ -3,7 +3,7 @@ import "server-only";
 import { and, desc, eq, isNull, ne, type SQL, sql } from "drizzle-orm";
 
 import { db, type Executor } from "@/db/client";
-import { payments, sales, shifts, users } from "@/db/schema";
+import { kasbons, payments, sales, shifts, users } from "@/db/schema";
 
 const shiftColumns = {
   id: shifts.id,
@@ -74,7 +74,10 @@ export async function closeShiftRow(
 
 /**
  * Per-shift figures (FR-SHF-03/04): settled payments per method on
- * non-voided sales, sale and void counts. One grouped query each.
+ * non-voided sales, sale and void counts, store credit given, and store
+ * credit payments taken in this shift. A payment still awaiting approval
+ * counts because the money is already in hand; a rejected one does not
+ * (FR-KSB-03/04).
  */
 export async function shiftTotals(executor: Executor, shiftId: string) {
   const byMethod = await executor
@@ -101,7 +104,26 @@ export async function shiftTotals(executor: Executor, shiftId: string) {
     .from(sales)
     .where(eq(sales.shiftId, shiftId));
 
+  const [credit] = await executor
+    .select({ total: sql<number>`coalesce(sum(${kasbons.total}), 0)`.mapWith(Number) })
+    .from(kasbons)
+    .innerJoin(sales, eq(sales.id, kasbons.saleId))
+    .where(and(eq(sales.shiftId, shiftId), ne(sales.status, "VOIDED")));
+
+  const collected = await executor
+    .select({
+      method: payments.method,
+      total: sql<number>`coalesce(sum(${payments.amount}), 0)`.mapWith(Number),
+    })
+    .from(payments)
+    .where(and(eq(payments.shiftId, shiftId), ne(payments.status, "FAILED")))
+    .groupBy(payments.method);
+
   return {
+    kasbonIssued: credit?.total ?? 0,
+    kasbonCollected: Object.fromEntries(collected.map((row) => [row.method, row.total])) as Partial<
+      Record<(typeof collected)[number]["method"], number>
+    >,
     byMethod: Object.fromEntries(byMethod.map((row) => [row.method, row.total])) as Partial<
       Record<(typeof byMethod)[number]["method"], number>
     >,

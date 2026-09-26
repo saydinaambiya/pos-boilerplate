@@ -7,6 +7,7 @@ import { FormField } from "@/components/form/form-field";
 import { Card } from "@/components/ui/card";
 import { Chip } from "@/components/ui/chip";
 import { Link } from "@/i18n/navigation";
+import { kasbonPaymentPayload } from "@/features/kasbon/schemas";
 import { voucherValueText } from "@/features/vouchers/format";
 import { voucherApprovalPayload } from "@/features/vouchers/schemas";
 import { formatCurrency } from "@/lib/format/currency";
@@ -49,6 +50,9 @@ export async function ApprovalCard({
   const voided = approval.type === "VOID" ? voidPayload.safeParse(approval.payload) : null;
   const voucher =
     approval.type === "VOUCHER" ? voucherApprovalPayload.safeParse(approval.payload) : null;
+  const kasbon =
+    approval.type === "KASBON_PAYMENT" ? kasbonPaymentPayload.safeParse(approval.payload) : null;
+  const tKasbon = await getTranslations("Kasbon");
   const noteField = <FormField name="note" label={t("decisionNote")} maxLength={200} />;
 
   return (
@@ -69,6 +73,17 @@ export async function ApprovalCard({
                     name: voucher.data.name,
                     value: voucherValueText(voucher.data.type, voucher.data.value, locale),
                   })}
+            </p>
+          ) : null}
+          {kasbon?.success ? (
+            <p className="text-sm [overflow-wrap:anywhere] text-ink">
+              {t("kasbonSummary", {
+                customer: kasbon.data.customerName,
+                invoiceNo: kasbon.data.invoiceNo,
+                amount: formatCurrency(kasbon.data.amount, locale),
+                method: tKasbon(`methods.${kasbon.data.method}`),
+                balance: formatCurrency(kasbon.data.balance, locale),
+              })}
             </p>
           ) : null}
           {voided?.success ? (
@@ -113,6 +128,14 @@ export async function ApprovalCard({
             className="inline-flex min-h-11 items-center text-sm font-medium underline-offset-4 hover:underline"
           >
             {t("openVoucher")}
+          </Link>
+        ) : null}
+        {kasbon?.success ? (
+          <Link
+            href={`/kasbon/${kasbon.data.kasbonId}`}
+            className="inline-flex min-h-11 items-center text-sm font-medium underline-offset-4 hover:underline"
+          >
+            {t("openKasbon")}
           </Link>
         ) : null}
         {approval.type === "VOID" ? (

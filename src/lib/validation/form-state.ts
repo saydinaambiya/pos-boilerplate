@@ -15,7 +15,7 @@ export interface FormState {
 export type FormAction = (previous: FormState, formData: FormData) => Promise<FormState>;
 
 export type ValidationMessage =
-  "required" | "tooShort" | "tooLong" | "tooSmall" | "tooBig" | "invalid";
+  "required" | "tooShort" | "tooLong" | "tooSmall" | "tooBig" | "invalid" | "phone";
 
 type Translate = (message: ValidationMessage, values?: { min?: number; max?: number }) => string;
 
@@ -29,7 +29,8 @@ function messageFor(issue: z.core.$ZodIssue, translate: Translate): string {
     const max = Number(issue.maximum);
     return translate(issue.origin === "string" ? "tooLong" : "tooBig", { max });
   }
-  if (issue.code === "custom" && issue.message === "required") return translate("required");
+  if (issue.code === "custom" && (issue.message === "required" || issue.message === "phone"))
+    return translate(issue.message);
   return translate("invalid");
 }
 

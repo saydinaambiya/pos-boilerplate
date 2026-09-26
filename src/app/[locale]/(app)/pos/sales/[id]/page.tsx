@@ -133,7 +133,19 @@ export default async function SalePage({ params }: PageProps<"/[locale]/pos/sale
                 money(payment.amount),
               ),
             )}
+            {sale.kasbonTotal !== null ? row(t("methods.KASBON"), money(sale.kasbonTotal)) : null}
+            {sale.kasbonBalance !== null
+              ? row(t("kasbonBalance"), money(sale.kasbonBalance), true)
+              : null}
           </dl>
+          {sale.kasbonId && session.permissions.has("page:kasbon") ? (
+            <Link
+              href={`/kasbon/${sale.kasbonId}`}
+              className="mt-2 inline-flex min-h-11 items-center text-sm font-medium underline-offset-4 hover:underline"
+            >
+              {t("openKasbon", { name: sale.customerName ?? "" })}
+            </Link>
+          ) : null}
         </div>
       </Card>
       {sale.status === "VOIDED" || pendingVoid || canRequestVoid ? (

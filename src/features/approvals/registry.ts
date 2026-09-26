@@ -1,6 +1,7 @@
 import "server-only";
 
 import { applyVoid } from "@/features/checkout/void-service";
+import { applyKasbonPayment, settleKasbonPayment } from "@/features/kasbon/service";
 import { applyVoucherApproval, settleVoucherApproval } from "@/features/vouchers/service";
 
 import type { ApprovalHandler, ApprovalType } from "./engine";
@@ -10,8 +11,8 @@ import type { ApprovalHandler, ApprovalType } from "./engine";
  * this registry knows all of them, so the engine itself never depends on a
  * domain module (ADR-0011).
  */
-export const approvalHandlers: Record<ApprovalType, ApprovalHandler | undefined> = {
+export const approvalHandlers: Record<ApprovalType, ApprovalHandler> = {
   VOID: { apply: applyVoid },
   VOUCHER: { apply: applyVoucherApproval, settle: settleVoucherApproval },
-  KASBON_PAYMENT: undefined,
+  KASBON_PAYMENT: { apply: applyKasbonPayment, settle: settleKasbonPayment },
 };

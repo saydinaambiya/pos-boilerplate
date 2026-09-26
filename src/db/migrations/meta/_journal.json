@@ -64,6 +64,13 @@
       "when": 1790418561087,
       "tag": "0008_vouchers",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790420194602,
+      "tag": "0009_kasbon",
+      "breakpoints": true
     }
   ]
 }

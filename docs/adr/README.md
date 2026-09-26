@@ -17,3 +17,4 @@ Records are immutable once accepted; a new record supersedes an old one.
 | [0009](./0009-sale-calculation.md)            | Sale calculation, rounding and inclusive tax    | Accepted |
 | [0010](./0010-invoices-print-and-pdf.md)      | Invoice printing, PDF and signed download links | Accepted |
 | [0011](./0011-generic-approvals.md)           | Generic approval engine                         | Accepted |
+| [0012](./0012-store-credit.md)                | Store credit, installments and the cash drawer  | Accepted |

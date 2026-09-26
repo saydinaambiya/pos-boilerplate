@@ -94,6 +94,12 @@ function Thermal({ document: doc, labels, tendered }: Omit<InvoicePaperProps, "s
       {doc.payments.map((payment, index) => (
         <Row key={index} label={payment.label} value={money(payment.amount)} />
       ))}
+      {doc.kasbon ? (
+        <>
+          <Row label={labels.kasbonBalance} value={money(doc.kasbon.balance)} strong />
+          <Row label={labels.customer} value={doc.kasbon.customerName} />
+        </>
+      ) : null}
       {tendered ? (
         <>
           <Row label={labels.cashReceived} value={money(tendered.received)} />
@@ -179,6 +185,12 @@ function A4({ document: doc, labels, tendered }: Omit<InvoicePaperProps, "size">
         {doc.payments.map((payment, index) => (
           <Row key={index} label={payment.label} value={money(payment.amount)} />
         ))}
+        {doc.kasbon ? (
+          <>
+            <Row label={labels.kasbonBalance} value={money(doc.kasbon.balance)} strong />
+            <Row label={labels.customer} value={doc.kasbon.customerName} />
+          </>
+        ) : null}
         {tendered ? (
           <>
             <Row label={labels.cashReceived} value={money(tendered.received)} />

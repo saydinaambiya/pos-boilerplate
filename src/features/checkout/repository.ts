@@ -5,8 +5,10 @@ import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db, type Executor } from "@/db/client";
 import {
   bankAccounts,
+  customers,
   idempotencyKeys,
   invoiceCounters,
+  kasbons,
   payments,
   products,
   productVariants,
@@ -115,7 +117,7 @@ export async function insertIdempotencyRecord(
   await executor.insert(idempotencyKeys).values(values);
 }
 
-/** A sale with its lines, payments and cashier, for the receipt view. */
+/** A sale with its lines, payments, cashier and any store credit, for the receipt view. */
 export async function findSaleDetail(saleId: string) {
   const [sale] = await db
     .select({
@@ -137,10 +139,16 @@ export async function findSaleDetail(saleId: string) {
       priceIncludesTax: sales.priceIncludesTax,
       grandTotal: sales.grandTotal,
       paidTotal: sales.paidTotal,
+      customerName: customers.name,
+      kasbonId: kasbons.id,
+      kasbonTotal: kasbons.total,
+      kasbonBalance: kasbons.balance,
     })
     .from(sales)
     .innerJoin(users, eq(users.id, sales.cashierId))
     .leftJoin(vouchers, eq(vouchers.id, sales.voucherId))
+    .leftJoin(customers, eq(customers.id, sales.customerId))
+    .leftJoin(kasbons, eq(kasbons.saleId, sales.id))
     .where(eq(sales.id, saleId))
     .limit(1);
   if (!sale) return undefined;

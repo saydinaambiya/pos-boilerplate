@@ -2,7 +2,7 @@
 
 | Atribut         | Nilai              |
 | --------------- | ------------------ |
-| Versi dokumen   | 0.8.0 (draft)      |
+| Versi dokumen   | 0.9.0 (draft)      |
 | Tanggal         | 2026-09-26         |
 | Pemilik         | Owner              |
 | Status          | Menunggu review    |
@@ -10,16 +10,17 @@
 
 ## Riwayat Perubahan
 
-| Versi | Tanggal    | Perubahan                                                                                                           |
-| ----- | ---------- | ------------------------------------------------------------------------------------------------------------------- |
-| 0.1.0 | 2026-09-25 | Draft pertama                                                                                                       |
-| 0.2.0 | 2026-09-25 | Delegasi approval per jenis via permission; total tanpa pembulatan; uang diterima & kembalian tidak disimpan        |
-| 0.3.0 | 2026-09-25 | Varian warna produk: model varian, stok per varian, pemilih varian di POS, perubahan model data                     |
-| 0.4.0 | 2026-09-25 | Pengaturan tampilan hanya lewat src/config/appearance.ts; daftar nilai yang tersedia                                |
-| 0.5.0 | 2026-09-25 | Identitas toko & logo dipindah ke config; appearance.ts digabung menjadi src/config/app.config.ts                   |
-| 0.6.0 | 2026-09-25 | Alamat, telepon, email, NPWP, dan footer invoice kembali ke menu Pengaturan owner                                   |
-| 0.7.0 | 2026-09-25 | Budget JS disesuaikan dengan baseline Next.js 16 yang terukur (NFR-PERF-02); contoh config memakai tipe `AppConfig` |
-| 0.8.0 | 2026-09-26 | Keputusan auth (ADR-0006) dan akses database (ADR-0005); tabel `roles` punya `is_active` untuk FR-RBAC-01           |
+| Versi | Tanggal    | Perubahan                                                                                                             |
+| ----- | ---------- | --------------------------------------------------------------------------------------------------------------------- |
+| 0.1.0 | 2026-09-25 | Draft pertama                                                                                                         |
+| 0.2.0 | 2026-09-25 | Delegasi approval per jenis via permission; total tanpa pembulatan; uang diterima & kembalian tidak disimpan          |
+| 0.3.0 | 2026-09-25 | Varian warna produk: model varian, stok per varian, pemilih varian di POS, perubahan model data                       |
+| 0.4.0 | 2026-09-25 | Pengaturan tampilan hanya lewat src/config/appearance.ts; daftar nilai yang tersedia                                  |
+| 0.5.0 | 2026-09-25 | Identitas toko & logo dipindah ke config; appearance.ts digabung menjadi src/config/app.config.ts                     |
+| 0.6.0 | 2026-09-25 | Alamat, telepon, email, NPWP, dan footer invoice kembali ke menu Pengaturan owner                                     |
+| 0.7.0 | 2026-09-25 | Budget JS disesuaikan dengan baseline Next.js 16 yang terukur (NFR-PERF-02); contoh config memakai tipe `AppConfig`   |
+| 0.8.0 | 2026-09-26 | Keputusan auth (ADR-0006) dan akses database (ADR-0005); tabel `roles` punya `is_active` untuk FR-RBAC-01             |
+| 0.9.0 | 2026-09-26 | Kas bon (ADR-0012): permission `kasbon:pay` untuk FR-KSB-03, pelanggan unik per no. HP, cicilan tunai masuk kas shift |
 
 Konvensi: **MUST** = wajib v1, **SHOULD** = diusahakan v1, **MAY** = opsional. ID requirement dirujuk dari issue, commit, dan test.
 
@@ -181,7 +182,7 @@ Setiap produk memiliki minimal satu varian. Produk tanpa varian memakai satu **v
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------ | --------- |
 | FR-KSB-01 | Data pelanggan kas bon: nama, no. HP (divalidasi format Indonesia), catatan. Pelanggan dapat dipilih ulang untuk kas bon berikutnya. | MUST      |
 | FR-KSB-02 | Kas bon menyimpan total, terbayar (approved), saldo, jatuh tempo opsional.                                                           | MUST      |
-| FR-KSB-03 | Karyawan mencatat cicilan/pelunasan (cash atau transfer) → status `PENDING_APPROVAL`; belum mengurangi saldo.                        | MUST      |
+| FR-KSB-03 | Karyawan dengan `kasbon:pay` mencatat cicilan/pelunasan (cash atau transfer) → status `PENDING_APPROVAL`; belum mengurangi saldo.    | MUST      |
 | FR-KSB-04 | Approver (`approval.kasbon:decide`) menyetujui/menolak (dengan catatan). Disetujui → saldo berkurang; bila saldo 0 → `SETTLED`.      | MUST      |
 | FR-KSB-05 | Nominal cicilan tidak boleh melebihi saldo dikurangi cicilan pending lainnya.                                                        | MUST      |
 | FR-KSB-06 | Daftar kas bon dengan aging (0–30, 31–60, > 60 hari) dan penanda jatuh tempo.                                                        | MUST      |

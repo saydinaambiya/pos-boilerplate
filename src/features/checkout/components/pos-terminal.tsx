@@ -38,6 +38,8 @@ interface PosTerminalProps {
   tax: TaxRules;
   allowNegativeStock: boolean;
   canDiscount: boolean;
+  canKasbon: boolean;
+  today: string;
   bankAccounts: readonly { id: string; label: string }[];
 }
 
@@ -46,6 +48,7 @@ interface Completed {
   invoiceNo: string;
   change: number | null;
   tendered: number | null;
+  kasbonTotal: number;
 }
 
 function matches(product: PosProduct, term: string) {
@@ -372,6 +375,8 @@ export function PosTerminal(props: PosTerminalProps) {
           }))
         }
         bankAccounts={props.bankAccounts}
+        canKasbon={props.canKasbon}
+        today={props.today}
         voucherCode={voucher?.code ?? null}
         onSuccess={(result) => {
           cart.clear();
@@ -416,6 +421,11 @@ export function PosTerminal(props: PosTerminalProps) {
           </DialogDescription>
           {completed?.change != null ? (
             <p className="text-2xl font-semibold text-ink tabular-nums">{`${t("change")}: ${money(completed.change)}`}</p>
+          ) : null}
+          {completed && completed.kasbonTotal > 0 ? (
+            <p className="text-lg font-semibold text-ink tabular-nums">
+              {t("kasbonCreated", { amount: money(completed.kasbonTotal) })}
+            </p>
           ) : null}
           <DialogFooter>
             {completed ? (

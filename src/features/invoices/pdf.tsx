@@ -54,6 +54,7 @@ function pageSize(size: InvoiceSize, doc: InvoiceDocument): "A4" | [number, numb
   const lines =
     24 +
     doc.payments.length +
+    (doc.kasbon ? 2 : 0) +
     doc.items.reduce(
       (count, item) =>
         count + 2 + (item.discount > 0 ? 1 : 0) + Math.floor(item.name.length / perLine),
@@ -112,6 +113,8 @@ function InvoicePdf({
       {doc.payments.map((payment, index) => (
         <View key={index}>{line(payment.label, money(payment.amount))}</View>
       ))}
+      {doc.kasbon ? line(labels.kasbonBalance, money(doc.kasbon.balance), true) : null}
+      {doc.kasbon ? line(labels.customer, doc.kasbon.customerName) : null}
     </>
   );
   const storeLines = [

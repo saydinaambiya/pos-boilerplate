@@ -5,6 +5,7 @@ import { getFormatter, getLocale, getMessages, getTranslations } from "next-intl
 import { ActionForm } from "@/components/form/action-form";
 import { FormField } from "@/components/form/form-field";
 import { SubmitButton } from "@/components/form/submit-button";
+import { storeDate } from "@/features/kasbon/aging";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
@@ -103,6 +104,8 @@ export default async function PosPage() {
           tax={tax}
           allowNegativeStock={operations.allowNegativeStock}
           canDiscount={session.permissions.has("pos:item-discount")}
+          canKasbon={session.permissions.has("kasbon:create")}
+          today={storeDate(new Date(), operations.timeZone)}
           bankAccounts={bankAccounts}
         />
       </NextIntlClientProvider>

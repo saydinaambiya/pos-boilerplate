@@ -137,7 +137,6 @@ export async function decideApproval(
       if (!updated) return { ok: false, reason: "stale" } as const;
 
       const handler = approvalHandlers[current.type];
-      if (!handler) throw new Error(`No handler registered for ${current.type}`);
       const record: ApprovalRecord = { ...current };
       if (input.decision === "approve")
         await handler.apply(tx, record, { id: session.user.id }, context);
@@ -182,7 +181,7 @@ export async function cancelApproval(
       )
       .returning();
     if (!updated) return { ok: false, reason: "stale" } as const;
-    await approvalHandlers[updated.type]?.settle?.(tx, updated, "CANCELLED");
+    await approvalHandlers[updated.type].settle?.(tx, updated, "CANCELLED");
     await recordAudit(
       tx,
       {

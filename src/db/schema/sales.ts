@@ -17,6 +17,7 @@ import { users } from "./access";
 import { productVariants } from "./catalog";
 import { id, timestamps, timestamptz } from "./columns";
 import { bankAccounts } from "./settings";
+import { customers, kasbons } from "./kasbon";
 import { vouchers } from "./vouchers";
 
 const money = () => bigint({ mode: "number" });
@@ -76,7 +77,7 @@ export const sales = pgTable(
     cashierId: uuid()
       .notNull()
       .references(() => users.id, { onDelete: "restrict" }),
-    customerId: uuid(),
+    customerId: uuid().references(() => customers.id, { onDelete: "restrict" }),
     status: saleStatus().notNull(),
     subtotal: money().notNull(),
     itemDiscountTotal: money().notNull(),
@@ -151,7 +152,9 @@ export const payments = pgTable(
   {
     id: id(),
     saleId: uuid().references(() => sales.id, { onDelete: "restrict" }),
-    kasbonId: uuid(),
+    kasbonId: uuid().references(() => kasbons.id, { onDelete: "restrict" }),
+    /** Shift where a store-credit payment was taken; sale payments use the sale's shift. */
+    shiftId: uuid().references(() => shifts.id, { onDelete: "restrict" }),
     method: paymentMethod().notNull(),
     amount: money().notNull(),
     bankAccountId: uuid().references(() => bankAccounts.id, { onDelete: "restrict" }),
@@ -164,6 +167,8 @@ export const payments = pgTable(
   (table) => [
     index("payments_sale_id_idx").on(table.saleId),
     index("payments_method_created_at_idx").on(table.method, table.createdAt),
+    index("payments_kasbon_id_idx").on(table.kasbonId),
+    index("payments_shift_id_idx").on(table.shiftId),
     check("payments_amount_positive", sql`${table.amount} > 0`),
   ],
 );

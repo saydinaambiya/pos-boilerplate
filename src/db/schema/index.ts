@@ -6,3 +6,4 @@ export * from "./stock";
 export * from "./sales";
 export * from "./approvals";
 export * from "./vouchers";
+export * from "./kasbon";

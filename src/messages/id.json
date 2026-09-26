@@ -44,7 +44,10 @@
     "lowStockCaption": "Varian dengan stok pada atau di bawah minimum",
     "pendingApprovalsTitle": "Menunggu persetujuan",
     "pendingApprovalsDescription": "{count} pengajuan menunggu keputusan Anda.",
-    "pendingApprovalsAction": "Buka persetujuan"
+    "pendingApprovalsAction": "Buka persetujuan",
+    "kasbonTitle": "Piutang kas bon",
+    "kasbonDescription": "{amount} dari {count} kas bon · {overdue} lewat jatuh tempo",
+    "kasbonAction": "Lihat kas bon"
   },
   "Placeholder": {
     "title": "Segera hadir",
@@ -132,7 +135,8 @@
     "invalid": "Format tidak valid.",
     "tooShort": "Minimal {min} karakter.",
     "tooSmall": "Minimal {min}.",
-    "tooBig": "Maksimal {max}."
+    "tooBig": "Maksimal {max}.",
+    "phone": "Nomor HP Indonesia tidak valid, mis. 0812-3456-7890."
   },
   "Permissions": {
     "groups": {
@@ -172,7 +176,9 @@
       "audit_view": "Lihat audit log",
       "category_manage": "Kelola kategori",
       "pos_item-discount": "Diskon manual per item di kasir",
-      "sale_void": "Ajukan void transaksi"
+      "sale_void": "Ajukan void transaksi",
+      "kasbon_create": "Jadikan sisa tagihan kas bon",
+      "kasbon_pay": "Catat cicilan kas bon"
     }
   },
   "Employees": {
@@ -303,7 +309,8 @@
       "shift": "Shift",
       "sale": "Penjualan",
       "approval": "Persetujuan",
-      "voucher": "Voucher"
+      "voucher": "Voucher",
+      "kasbon": "Kas bon"
     },
     "actions": {
       "auth_login_succeeded": "Login berhasil",
@@ -354,7 +361,10 @@
       "approval_cancelled": "Pengajuan dibatalkan",
       "voucher_revision-approved": "Ketentuan voucher disetujui",
       "voucher_activated": "Voucher diaktifkan",
-      "voucher_deactivated": "Voucher dinonaktifkan"
+      "voucher_deactivated": "Voucher dinonaktifkan",
+      "kasbon_opened": "Kas bon dibuat",
+      "kasbon_payment-recorded": "Cicilan kas bon dicatat",
+      "kasbon_payment-approved": "Cicilan kas bon disetujui"
     }
   },
   "Settings": {
@@ -667,7 +677,7 @@
     "salesCount": "Transaksi",
     "revenue": "Penjualan",
     "expectedCash": "Kas seharusnya",
-    "expectedHint": "Modal awal + pembayaran tunai",
+    "expectedHint": "Modal awal + tunai dari penjualan dan cicilan kas bon",
     "close": "Tutup shift",
     "closeTitle": "Tutup shift",
     "closeDescription": "Hitung uang di laci lalu masukkan jumlahnya. Selisih dengan kas seharusnya akan dicatat.",
@@ -704,7 +714,8 @@
     "previous": "Sebelumnya",
     "next": "Berikutnya",
     "pagination": "Navigasi halaman",
-    "pageLabel": "Halaman {page}"
+    "pageLabel": "Halaman {page}",
+    "kasbonCollected": "Cicilan kas bon diterima"
   },
   "Pos": {
     "search": "Cari produk",
@@ -785,7 +796,9 @@
       "voucherExpired": "Voucher sudah kedaluwarsa.",
       "voucherNotStarted": "Voucher belum berlaku.",
       "voucherQuota": "Kuota voucher sudah habis.",
-      "voucherMinPurchase": "Total belanja belum mencapai minimum voucher."
+      "voucherMinPurchase": "Total belanja belum mencapai minimum voucher.",
+      "kasbonForbidden": "Anda tidak memiliki izin membuat kas bon.",
+      "kasbonDueDate": "Jatuh tempo tidak boleh sebelum hari ini."
     },
     "printReceipt": "Cetak struk",
     "voucher": "Voucher",
@@ -794,7 +807,20 @@
     "removeVoucher": "Hapus voucher",
     "voucherApplied": "Voucher {code}",
     "voucherMinPurchase": "Minimal belanja {amount} untuk voucher ini.",
-    "checkingVoucher": "Memeriksa…"
+    "checkingVoucher": "Memeriksa…",
+    "kasbon": "Kas bon",
+    "downPayment": "Uang muka tunai (opsional)",
+    "downPaymentTooHigh": "Uang muka harus lebih kecil dari total.",
+    "kasbonRemainder": "Dijadikan kas bon: {amount}",
+    "customer": "Pelanggan",
+    "customerPhone": "No. HP",
+    "customerPhoneInvalid": "Nomor HP Indonesia tidak valid, mis. 0812-3456-7890.",
+    "customerName": "Nama pelanggan",
+    "customerNameRequired": "Nama pelanggan wajib diisi.",
+    "customerNote": "Catatan (opsional)",
+    "customerSuggestions": "Pelanggan sebelumnya",
+    "dueDate": "Jatuh tempo (opsional)",
+    "kasbonCreated": "Kas bon: {amount}"
   },
   "Receipt": {
     "title": "Struk {invoiceNo}",
@@ -840,7 +866,9 @@
     "voidedNotice": "Transaksi ini sudah dibatalkan (void).",
     "errorAlreadyPending": "Sudah ada pengajuan void untuk transaksi ini.",
     "errorNotVoidable": "Transaksi ini tidak dapat di-void.",
-    "errorNotFound": "Transaksi tidak ditemukan."
+    "errorNotFound": "Transaksi tidak ditemukan.",
+    "kasbonBalance": "Sisa kas bon",
+    "openKasbon": "Buka kas bon {name}"
   },
   "Invoice": {
     "invoice": "Invoice",
@@ -888,7 +916,9 @@
     "linkReady": "Tautan unduh (berlaku {days} hari):",
     "linkFailed": "Tautan gagal dibuat.",
     "shareFailed": "Berbagi tidak tersedia; PDF diunduh sebagai gantinya.",
-    "back": "Kembali"
+    "back": "Kembali",
+    "customer": "Pelanggan",
+    "kasbonBalance": "Sisa kas bon"
   },
   "Approvals": {
     "title": "Persetujuan",
@@ -939,7 +969,9 @@
       "reactivate": "Aktivasi ulang voucher"
     },
     "voucherSummary": "{code} · {name} · {value}",
-    "openVoucher": "Lihat voucher"
+    "openVoucher": "Lihat voucher",
+    "kasbonSummary": "{customer} · {invoiceNo}: {amount} {method} (saldo {balance})",
+    "openKasbon": "Buka kas bon"
   },
   "Vouchers": {
     "title": "Voucher",
@@ -1020,5 +1052,86 @@
     "errorNotEditable": "Voucher dalam status ini tidak dapat diubah.",
     "errorAlreadyPending": "Masih ada pengajuan yang menunggu untuk voucher ini.",
     "errorNotFound": "Voucher tidak ditemukan."
+  },
+  "Kasbon": {
+    "title": "Kas bon",
+    "subtitle": "Sisa tagihan pelanggan, cicilan, dan umur piutang.",
+    "agingTitle": "Umur piutang",
+    "outstanding": "Total piutang",
+    "outstandingCount": "{count} kas bon aktif · {overdue} lewat jatuh tempo",
+    "aging": {
+      "current": "0–30 hari",
+      "days31to60": "31–60 hari",
+      "over60": "> 60 hari"
+    },
+    "search": "Cari",
+    "searchPlaceholder": "Nama, no. HP, atau no. invoice",
+    "filter": "Tampilkan",
+    "apply": "Terapkan",
+    "reset": "Reset",
+    "filters": {
+      "open": "Belum lunas",
+      "overdue": "Lewat jatuh tempo",
+      "settled": "Lunas",
+      "all": "Semua"
+    },
+    "emptyTitle": "Tidak ada kas bon",
+    "emptyDescription": "Kas bon dibuat dari layar kasir saat sisa tagihan belum dibayar.",
+    "listCaption": "Daftar kas bon, belum lunas dan terlama di atas",
+    "customer": "Pelanggan",
+    "invoice": "Invoice",
+    "total": "Total",
+    "balance": "Saldo",
+    "age": "Umur",
+    "dueDate": "Jatuh tempo",
+    "status": "Status",
+    "open": "Buka kas bon {name} ({invoiceNo})",
+    "pendingAmount": "{amount} menunggu persetujuan",
+    "ageDays": "{days, plural, =0 {Hari ini} one {# hari} other {# hari}}",
+    "statuses": {
+      "OPEN": "Belum dibayar",
+      "PARTIALLY_PAID": "Dicicil",
+      "SETTLED": "Lunas"
+    },
+    "overdue": "Lewat jatuh tempo {date}",
+    "dueToday": "Jatuh tempo hari ini",
+    "dueOn": "Jatuh tempo {date}",
+    "pagination": "Navigasi halaman",
+    "previous": "Sebelumnya",
+    "next": "Berikutnya",
+    "pageLabel": "Halaman {page}",
+    "detailSubtitle": "{phone} · {invoiceNo}",
+    "back": "Kembali",
+    "summary": "Ringkasan",
+    "createdAt": "Tanggal",
+    "cashier": "Kasir",
+    "paid": "Terbayar",
+    "pending": "Menunggu persetujuan",
+    "customerNote": "Catatan pelanggan",
+    "payments": "Riwayat pembayaran",
+    "noPayments": "Belum ada pembayaran.",
+    "paymentsCaption": "Pembayaran kas bon, terbaru di atas",
+    "paymentDate": "Waktu",
+    "method": "Metode",
+    "amount": "Nominal",
+    "actions": "Aksi",
+    "methods": {
+      "CASH": "Tunai",
+      "TRANSFER": "Transfer"
+    },
+    "recordPayment": "Catat pembayaran",
+    "recordPaymentDescription": "Maksimal {amount}. Saldo berkurang setelah disetujui.",
+    "amountHint": "Rupiah, contoh 50.000.",
+    "bankAccount": "Rekening tujuan",
+    "reference": "No. referensi",
+    "transferOnly": "Hanya untuk transfer.",
+    "submitPayment": "Catat pembayaran",
+    "paymentPending": "Pembayaran dicatat dan menunggu persetujuan.",
+    "paymentApproved": "Pembayaran dicatat dan langsung disetujui.",
+    "errorExceedsBalance": "Melebihi sisa yang bisa dibayar ({amount}).",
+    "errorNoOpenShift": "Buka shift dulu untuk menerima pembayaran tunai.",
+    "errorBankAccount": "Pilih rekening yang aktif.",
+    "errorSettled": "Kas bon ini sudah lunas.",
+    "errorNotFound": "Kas bon tidak ditemukan."
   }
 }

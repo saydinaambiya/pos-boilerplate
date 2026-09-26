@@ -1,6 +1,6 @@
-import { BadgeCheck, ChartColumn, PackageCheck, TriangleAlert } from "lucide-react";
+import { BadgeCheck, ChartColumn, NotebookPen, PackageCheck, TriangleAlert } from "lucide-react";
 import type { Metadata } from "next";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,9 +9,11 @@ import { PageHeader } from "@/components/ui/page-header";
 import { toneClasses } from "@/components/ui/tone";
 import { StockCell } from "@/features/catalog/components/stock-cell";
 import { countPendingForViewer } from "@/features/approvals/service";
+import { getKasbonSummary } from "@/features/kasbon/service";
 import { getLowStock } from "@/features/stock/service";
 import { Link } from "@/i18n/navigation";
 import { requirePermission } from "@/lib/auth/guard";
+import { formatCurrency } from "@/lib/format/currency";
 import { variantLabel } from "@/lib/format/variant-label";
 import { readSetting } from "@/lib/settings/store";
 import { cn } from "@/lib/utils/cn";
@@ -22,14 +24,16 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function DashboardPage() {
-  const [t, session, profile] = await Promise.all([
+  const [t, locale, session, profile] = await Promise.all([
     getTranslations("Dashboard"),
+    getLocale(),
     requirePermission("page:dashboard"),
     readSetting("store.profile"),
   ]);
-  const [lowStock, pendingApprovals] = await Promise.all([
+  const [lowStock, pendingApprovals, kasbon] = await Promise.all([
     session.permissions.has("page:stock") ? getLowStock(session, 5) : null,
     countPendingForViewer(session),
+    getKasbonSummary(session),
   ]);
   const profileIncomplete =
     session.permissions.has("settings:manage") && (profile.address === "" || profile.phone === "");
@@ -71,6 +75,30 @@ export default async function DashboardPage() {
           </div>
           <Button asChild variant="secondary">
             <Link href="/approvals">{t("pendingApprovalsAction")}</Link>
+          </Button>
+        </Card>
+      ) : null}
+      {kasbon && kasbon.count > 0 ? (
+        <Card
+          role="status"
+          className={cn(
+            "mb-6 flex flex-col gap-3 sm:flex-row sm:items-center",
+            kasbon.overdue > 0 ? toneClasses.warning : toneClasses.neutral,
+          )}
+        >
+          <NotebookPen className="size-6 shrink-0" aria-hidden="true" />
+          <div className="flex flex-1 flex-col gap-1">
+            <CardTitle className="text-base text-inherit">{t("kasbonTitle")}</CardTitle>
+            <CardDescription className="text-inherit">
+              {t("kasbonDescription", {
+                amount: formatCurrency(kasbon.total, locale),
+                count: kasbon.count,
+                overdue: kasbon.overdue,
+              })}
+            </CardDescription>
+          </div>
+          <Button asChild variant="secondary">
+            <Link href="/kasbon">{t("kasbonAction")}</Link>
           </Button>
         </Card>
       ) : null}

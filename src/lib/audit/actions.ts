@@ -49,6 +49,9 @@ export const auditActions = [
   "voucher.revision-approved",
   "voucher.activated",
   "voucher.deactivated",
+  "kasbon.opened",
+  "kasbon.payment-recorded",
+  "kasbon.payment-approved",
 ] as const;
 
 export type AuditAction = (typeof auditActions)[number];
