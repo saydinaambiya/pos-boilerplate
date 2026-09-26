@@ -47,3 +47,33 @@ export const DEFAULT_EMPLOYEE_ROLE = {
   name: "Karyawan",
   permissions: ["page:dashboard", "page:pos", "page:online-orders", "page:products", "page:stock"],
 } as const satisfies { name: string; permissions: readonly Permission[] };
+
+/** Sections of the role permission matrix (FR-RBAC-01); each permission appears once. */
+export const permissionGroups = {
+  pages: [
+    "page:dashboard",
+    "page:pos",
+    "page:online-orders",
+    "page:products",
+    "page:stock",
+    "page:employees",
+    "page:vouchers",
+    "page:kasbon",
+    "page:approvals",
+    "page:reports",
+    "page:housekeeping",
+    "page:settings",
+    "page:audit",
+  ],
+  catalog: ["product:create", "product:update", "product:view-cost", "stock:adjust"],
+  sales: ["voucher:request", "order.online:update-status", "report:view"],
+  approvals: ["approval.kasbon:decide", "approval.voucher:decide", "approval.void:decide"],
+  administration: ["employee:manage", "role:manage", "settings:manage", "audit:view"],
+} as const satisfies Record<string, readonly Permission[]>;
+
+export type PermissionGroup = keyof typeof permissionGroups;
+
+/** Message key under `Permissions` for a permission; next-intl reserves `.` for nesting. */
+export function permissionMessageKey(permission: Permission): string {
+  return permission.replace(/[.:]/g, "_");
+}

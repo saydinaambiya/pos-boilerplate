@@ -12,7 +12,16 @@ export type AuditAction =
   | "auth.login.failed"
   | "auth.login.locked"
   | "auth.logout"
-  | "auth.pin.changed";
+  | "auth.pin.changed"
+  | "role.created"
+  | "role.updated"
+  | "role.activated"
+  | "role.deactivated"
+  | "employee.created"
+  | "employee.updated"
+  | "employee.activated"
+  | "employee.deactivated"
+  | "employee.pin.reset";
 
 export interface AuditEntry {
   actorId: string | null;

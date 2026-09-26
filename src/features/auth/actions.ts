@@ -1,14 +1,13 @@
 "use server";
 
 import { getTranslations } from "next-intl/server";
-import { headers } from "next/headers";
 
 import { localeFromForm } from "@/i18n/form-locale";
 import { redirect } from "@/i18n/navigation";
 import { clearSessionCookie, setSessionCookie } from "@/lib/auth/cookie";
 import { getSession, getSessionToken } from "@/lib/auth/guard";
 import { formText } from "@/lib/http/form-data";
-import { requestContextFrom } from "@/lib/http/request-context";
+import { currentRequestContext } from "@/lib/http/request-context";
 
 import { changePinInput, loginInput } from "./schemas";
 import { changePin, login, logout } from "./service";
@@ -29,7 +28,7 @@ export async function loginAction(_previous: LoginState, formData: FormData): Pr
   const parsed = loginInput.safeParse({ username, secret: formText(formData, "secret") });
   if (!parsed.success) return { error: t("errorInvalid"), username };
 
-  const result = await login(parsed.data, requestContextFrom(await headers()));
+  const result = await login(parsed.data, await currentRequestContext());
   if (!result.ok) {
     if (result.reason === "invalid") return { error: t("errorInvalid"), username };
     const minutes = toMinutes(result.retryAfterSeconds);
@@ -47,7 +46,7 @@ export async function loginAction(_previous: LoginState, formData: FormData): Pr
 export async function logoutAction(formData: FormData): Promise<void> {
   const locale = localeFromForm(formData);
   const token = await getSessionToken();
-  if (token) await logout(token, requestContextFrom(await headers()));
+  if (token) await logout(token, await currentRequestContext());
   await clearSessionCookie();
   redirect({ href: "/login", locale });
 }
@@ -80,7 +79,7 @@ export async function changePinAction(
     };
   }
 
-  const result = await changePin(session, parsed.data, requestContextFrom(await headers()));
+  const result = await changePin(session, parsed.data, await currentRequestContext());
   if (!result.ok && result.reason === "same-pin") return { errors: { pin: t("errorPinSame") } };
   return redirect({ href: "/", locale });
 }

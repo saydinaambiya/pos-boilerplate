@@ -58,6 +58,11 @@ export async function deleteSession(token: string): Promise<{ userId: string } |
   return deleted;
 }
 
+/** Ends all sessions of a user, e.g. on deactivation or PIN reset. */
+export async function deleteUserSessions(executor: Executor, userId: string): Promise<void> {
+  await executor.delete(sessions).where(eq(sessions.userId, userId));
+}
+
 /** Ends every other session of a user, e.g. after a credential change. */
 export async function deleteOtherSessions(
   executor: Executor,
