@@ -17,6 +17,7 @@ import { users } from "./access";
 import { productVariants } from "./catalog";
 import { id, timestamps, timestamptz } from "./columns";
 import { bankAccounts } from "./settings";
+import { vouchers } from "./vouchers";
 
 const money = () => bigint({ mode: "number" });
 
@@ -79,7 +80,7 @@ export const sales = pgTable(
     status: saleStatus().notNull(),
     subtotal: money().notNull(),
     itemDiscountTotal: money().notNull(),
-    voucherId: uuid(),
+    voucherId: uuid().references(() => vouchers.id, { onDelete: "restrict" }),
     voucherDiscount: money().notNull().default(0),
     serviceRateBps: integer().notNull(),
     serviceAmount: money().notNull(),
@@ -98,6 +99,7 @@ export const sales = pgTable(
     index("sales_shift_id_idx").on(table.shiftId),
     index("sales_created_at_idx").on(table.createdAt),
     index("sales_status_created_at_idx").on(table.status, table.createdAt),
+    index("sales_voucher_id_idx").on(table.voucherId),
   ],
 );
 

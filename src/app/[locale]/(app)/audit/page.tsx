@@ -210,6 +210,7 @@ const ENTITIES = new Set<string>([
   "shift",
   "sale",
   "approval",
+  "voucher",
 ]);
 
 function isEntity(value: string): value is EntityKey {

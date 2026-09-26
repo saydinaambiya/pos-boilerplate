@@ -7,6 +7,8 @@ import { FormField } from "@/components/form/form-field";
 import { Card } from "@/components/ui/card";
 import { Chip } from "@/components/ui/chip";
 import { Link } from "@/i18n/navigation";
+import { voucherValueText } from "@/features/vouchers/format";
+import { voucherApprovalPayload } from "@/features/vouchers/schemas";
 import { formatCurrency } from "@/lib/format/currency";
 
 import { cancelApprovalAction, decideApprovalAction } from "../actions";
@@ -45,13 +47,30 @@ export async function ApprovalCard({
   ]);
   const chip = statusChip[approval.status];
   const voided = approval.type === "VOID" ? voidPayload.safeParse(approval.payload) : null;
+  const voucher =
+    approval.type === "VOUCHER" ? voucherApprovalPayload.safeParse(approval.payload) : null;
   const noteField = <FormField name="note" label={t("decisionNote")} maxLength={200} />;
 
   return (
     <Card className="flex flex-col gap-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="font-semibold text-ink">{t(`types.${approval.type}`)}</p>
+          <p className="font-semibold text-ink">
+            {voucher?.success
+              ? t(`voucherKinds.${voucher.data.kind}`)
+              : t(`types.${approval.type}`)}
+          </p>
+          {voucher?.success ? (
+            <p className="text-sm [overflow-wrap:anywhere] text-ink">
+              {voucher.data.kind === "reactivate"
+                ? voucher.data.code
+                : t("voucherSummary", {
+                    code: voucher.data.code,
+                    name: voucher.data.name,
+                    value: voucherValueText(voucher.data.type, voucher.data.value, locale),
+                  })}
+            </p>
+          ) : null}
           {voided?.success ? (
             <p className="text-sm [overflow-wrap:anywhere] text-ink">
               {t("voidSummary", {
@@ -88,6 +107,14 @@ export async function ApprovalCard({
       ) : null}
 
       <div className="flex flex-wrap gap-2">
+        {approval.type === "VOUCHER" ? (
+          <Link
+            href={`/vouchers/${approval.targetId}`}
+            className="inline-flex min-h-11 items-center text-sm font-medium underline-offset-4 hover:underline"
+          >
+            {t("openVoucher")}
+          </Link>
+        ) : null}
         {approval.type === "VOID" ? (
           <Link
             href={`/pos/sales/${approval.targetId}`}

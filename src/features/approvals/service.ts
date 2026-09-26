@@ -14,7 +14,7 @@ import {
   type ApprovalType,
   decidePermission,
 } from "./engine";
-import { approvalAppliers } from "./registry";
+import { approvalHandlers } from "./registry";
 
 export type DecisionResult =
   | { ok: true }
@@ -136,12 +136,12 @@ export async function decideApproval(
         .returning({ id: approvals.id });
       if (!updated) return { ok: false, reason: "stale" } as const;
 
-      if (input.decision === "approve") {
-        const apply = approvalAppliers[current.type];
-        if (!apply) throw new Error(`No applier registered for ${current.type}`);
-        const record: ApprovalRecord = { ...current };
-        await apply(tx, record, { id: session.user.id }, context);
-      }
+      const handler = approvalHandlers[current.type];
+      if (!handler) throw new Error(`No handler registered for ${current.type}`);
+      const record: ApprovalRecord = { ...current };
+      if (input.decision === "approve")
+        await handler.apply(tx, record, { id: session.user.id }, context);
+      else await handler.settle?.(tx, record, "REJECTED");
       await recordAudit(
         tx,
         {
@@ -180,8 +180,9 @@ export async function cancelApproval(
           eq(approvals.version, version),
         ),
       )
-      .returning({ id: approvals.id, type: approvals.type });
+      .returning();
     if (!updated) return { ok: false, reason: "stale" } as const;
+    await approvalHandlers[updated.type]?.settle?.(tx, updated, "CANCELLED");
     await recordAudit(
       tx,
       {

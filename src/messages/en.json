@@ -302,7 +302,8 @@
       "product-variant": "Product variant",
       "shift": "Shift",
       "sale": "Sale",
-      "approval": "Approval"
+      "approval": "Approval",
+      "voucher": "Voucher"
     },
     "actions": {
       "auth_login_succeeded": "Signed in",
@@ -350,7 +351,10 @@
       "approval_auto-approved": "Auto-approved (owner)",
       "approval_approved": "Approval granted",
       "approval_rejected": "Approval rejected",
-      "approval_cancelled": "Request cancelled"
+      "approval_cancelled": "Request cancelled",
+      "voucher_revision-approved": "Voucher terms approved",
+      "voucher_activated": "Voucher activated",
+      "voucher_deactivated": "Voucher deactivated"
     }
   },
   "Settings": {
@@ -776,9 +780,21 @@
       "discountForbidden": "You are not allowed to give discounts.",
       "paymentMismatch": "The payments do not match the total.",
       "invalidPayment": "The transfer account is not valid.",
-      "network": "Could not connect. Check the connection and try again."
+      "network": "Could not connect. Check the connection and try again.",
+      "voucherInvalid": "Voucher not found or not active.",
+      "voucherExpired": "The voucher has expired.",
+      "voucherNotStarted": "The voucher is not valid yet.",
+      "voucherQuota": "The voucher has been fully used.",
+      "voucherMinPurchase": "The subtotal is below the voucher's minimum purchase."
     },
-    "printReceipt": "Print receipt"
+    "printReceipt": "Print receipt",
+    "voucher": "Voucher",
+    "voucherCode": "Voucher code",
+    "applyVoucher": "Apply",
+    "removeVoucher": "Remove voucher",
+    "voucherApplied": "Voucher {code}",
+    "voucherMinPurchase": "Spend at least {amount} to use this voucher.",
+    "checkingVoucher": "Checking…"
   },
   "Receipt": {
     "title": "Receipt {invoiceNo}",
@@ -916,6 +932,93 @@
       "forbidden": "You may not decide this kind of request.",
       "targetChanged": "The requested data changed and can no longer be applied.",
       "notFound": "Request not found."
-    }
+    },
+    "voucherKinds": {
+      "create": "New voucher",
+      "revise": "Voucher revision",
+      "reactivate": "Voucher reactivation"
+    },
+    "voucherSummary": "{code} · {name} · {value}",
+    "openVoucher": "View voucher"
+  },
+  "Vouchers": {
+    "title": "Vouchers",
+    "subtitle": "New vouchers and changes apply once approved.",
+    "add": "Add voucher",
+    "newTitle": "New voucher",
+    "back": "Back to list",
+    "code": "Code",
+    "codeHint": "3–20 characters: letters, digits or dash. Upper-cased automatically.",
+    "name": "Name",
+    "type": "Type",
+    "typePercent": "Percent",
+    "typeFixed": "Fixed amount",
+    "value": "Value",
+    "valueHint": "Percent: 1–100. Fixed: rupiah.",
+    "minPurchase": "Minimum purchase",
+    "maxDiscount": "Maximum discount",
+    "maxDiscountHint": "Percent vouchers only.",
+    "optionalHint": "Optional.",
+    "startDate": "Valid from",
+    "endDate": "Valid until",
+    "periodHint": "Optional; store-time-zone dates, both inclusive.",
+    "quota": "Usage quota",
+    "quotaHint": "Optional; leave empty for unlimited.",
+    "usage": "Used",
+    "usageOf": "{used} / {quota}",
+    "unlimited": "{used} / unlimited",
+    "period": "Period",
+    "always": "No time limit",
+    "periodRange": "{start} – {end}",
+    "from": "From {start}",
+    "until": "Until {end}",
+    "status": "Status",
+    "statuses": {
+      "PENDING_APPROVAL": "Pending approval",
+      "ACTIVE": "Active",
+      "INACTIVE": "Inactive",
+      "REJECTED": "Rejected",
+      "EXPIRED": "Expired",
+      "SCHEDULED": "Scheduled"
+    },
+    "revisionStatuses": {
+      "PENDING_APPROVAL": "Pending",
+      "APPROVED": "Approved",
+      "REJECTED": "Rejected",
+      "CANCELLED": "Cancelled"
+    },
+    "pendingRevision": "Revision pending approval",
+    "listCaption": "Voucher list",
+    "edit": "Open voucher {code}",
+    "emptyTitle": "No vouchers yet",
+    "emptyDescription": "Discount vouchers can be applied by cashiers on the POS screen.",
+    "create": "Submit voucher",
+    "revise": "Submit revision",
+    "reviseTitle": "Change terms",
+    "reviseHint": "The current terms keep applying until the revision is approved.",
+    "submittedPending": "Submitted and waiting for approval.",
+    "submittedApproved": "The change applies immediately.",
+    "deactivate": "Deactivate",
+    "deactivateTitle": "Deactivate voucher {code}?",
+    "deactivateDescription": "The voucher stops working at once. Reactivating needs approval.",
+    "reactivate": "Request reactivation",
+    "reactivateTitle": "Reactivate voucher {code}?",
+    "reactivateDescription": "The voucher becomes active again once the request is approved.",
+    "activeTerms": "Current terms",
+    "noActiveTerms": "No approved terms yet.",
+    "history": "Revision history",
+    "historyCaption": "Voucher revision history",
+    "submittedAt": "Submitted",
+    "usageHistory": "Usage history",
+    "usageCaption": "Sales that used this voucher",
+    "noUsage": "The voucher has not been used yet.",
+    "invoice": "Invoice",
+    "date": "Date",
+    "discount": "Discount",
+    "saleStatus": "Sale status",
+    "errorCodeTaken": "This voucher code is already taken.",
+    "errorNotEditable": "The voucher cannot be changed in this state.",
+    "errorAlreadyPending": "A request for this voucher is still pending.",
+    "errorNotFound": "Voucher not found."
   }
 }

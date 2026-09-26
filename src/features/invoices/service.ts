@@ -55,6 +55,7 @@ async function buildDocument(sale: SaleDetail, locale: Locale): Promise<InvoiceD
     subtotal: sale.subtotal,
     itemDiscountTotal: sale.itemDiscountTotal,
     voucherDiscount: sale.voucherDiscount,
+    voucherCode: sale.voucherCode,
     service:
       sale.serviceAmount > 0 ? { rateBps: sale.serviceRateBps, amount: sale.serviceAmount } : null,
     ppn: ppnCharged

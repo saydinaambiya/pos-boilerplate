@@ -6,11 +6,12 @@ import { db } from "@/db/client";
 import { uniqueViolationConstraint } from "@/db/errors";
 import { colorOf } from "@/features/catalog/schemas";
 import { recordStockMovement } from "@/features/stock/service";
+import { consumeVoucher, resolveVoucher } from "@/features/vouchers/service";
 import { recordAudit } from "@/lib/audit/audit";
 import { assertPermission } from "@/lib/auth/authorize";
 import type { Session } from "@/lib/auth/session";
 import type { RequestContext } from "@/lib/http/request-context";
-import { calculateSale, type CartLine } from "@/lib/money/calculate";
+import { calculateSale, type CartLine, type VoucherRule } from "@/lib/money/calculate";
 import { readSetting } from "@/lib/settings/store";
 
 import { paymentProviders, type PreparedPayment } from "./payment-providers";
@@ -46,7 +47,12 @@ export type CheckoutFailure =
         | "discount-forbidden"
         | "invalid-payment"
         | "payment-mismatch"
-        | "idempotency-conflict";
+        | "idempotency-conflict"
+        | "voucher-invalid"
+        | "voucher-expired"
+        | "voucher-not-started"
+        | "voucher-quota"
+        | "voucher-min-purchase";
     }
   | { ok: false; reason: "insufficient-stock"; variantId: string; available: number };
 
@@ -60,7 +66,11 @@ class CheckoutAbort extends Error {
 }
 
 function requestHash(input: CheckoutInput): string {
-  const request = { lines: input.lines, payments: input.payments };
+  const request = {
+    lines: input.lines,
+    payments: input.payments,
+    voucherCode: input.voucherCode ?? null,
+  };
   return createHash("sha256").update(JSON.stringify(request)).digest("hex");
 }
 
@@ -123,7 +133,18 @@ export async function checkout(
         qty: line.qty,
         discount: line.discount ?? null,
       }));
-      const totals = calculateSale(cart, tax);
+      let voucher: { voucherId: string; rule: VoucherRule } | null = null;
+      if (input.voucherCode) {
+        const checked = await resolveVoucher(tx, input.voucherCode, now);
+        if (!checked.ok)
+          throw new CheckoutAbort({ ok: false, reason: `voucher-${checked.reason}` });
+        const { minPurchase } = checked.rule;
+        if (minPurchase != null && calculateSale(cart, tax).subtotal < minPurchase) {
+          throw new CheckoutAbort({ ok: false, reason: "voucher-min-purchase" });
+        }
+        voucher = checked;
+      }
+      const totals = calculateSale(cart, tax, voucher?.rule);
 
       const prepared: PreparedPayment[] = [];
       for (const payment of input.payments) {
@@ -145,6 +166,7 @@ export async function checkout(
         status: "COMPLETED",
         subtotal: totals.subtotal,
         itemDiscountTotal: totals.itemDiscountTotal,
+        voucherId: voucher?.voucherId ?? null,
         voucherDiscount: totals.voucherDiscount,
         serviceRateBps: tax.serviceEnabled ? tax.serviceRateBps : 0,
         serviceAmount: totals.serviceAmount,
@@ -181,6 +203,7 @@ export async function checkout(
         }),
       );
       await insertPayments(tx, saleId, prepared);
+      if (voucher) await consumeVoucher(tx, voucher.voucherId);
 
       const quantities = new Map<string, number>();
       for (const line of input.lines) {

@@ -30,6 +30,7 @@ interface PaymentDialogProps {
   locale: Locale;
   grandTotal: number;
   lines: () => CheckoutLinePayload[];
+  voucherCode: string | null;
   bankAccounts: readonly { id: string; label: string }[];
   onSuccess: (result: {
     saleId: string;
@@ -102,6 +103,7 @@ export function PaymentDialog(props: PaymentDialogProps) {
           idempotencyKey: idempotencyKey.current ?? crypto.randomUUID(),
           lines: props.lines(),
           payments,
+          ...(props.voucherCode ? { voucherCode: props.voucherCode } : {}),
         });
         if (!result.ok) {
           setError(result.message);

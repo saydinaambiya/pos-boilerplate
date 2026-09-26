@@ -14,6 +14,7 @@ import {
   sales,
   shifts,
   users,
+  vouchers,
 } from "@/db/schema";
 
 import type { PreparedPayment } from "./payment-providers";
@@ -128,6 +129,7 @@ export async function findSaleDetail(saleId: string) {
       subtotal: sales.subtotal,
       itemDiscountTotal: sales.itemDiscountTotal,
       voucherDiscount: sales.voucherDiscount,
+      voucherCode: vouchers.code,
       serviceRateBps: sales.serviceRateBps,
       serviceAmount: sales.serviceAmount,
       ppnRateBps: sales.ppnRateBps,
@@ -138,6 +140,7 @@ export async function findSaleDetail(saleId: string) {
     })
     .from(sales)
     .innerJoin(users, eq(users.id, sales.cashierId))
+    .leftJoin(vouchers, eq(vouchers.id, sales.voucherId))
     .where(eq(sales.id, saleId))
     .limit(1);
   if (!sale) return undefined;
@@ -176,7 +179,12 @@ export async function findSaleDetail(saleId: string) {
 /** Locks a sale row for a status change such as a void (FR-POS-09). */
 export async function lockSale(executor: Executor, saleId: string) {
   const [row] = await executor
-    .select({ id: sales.id, status: sales.status, invoiceNo: sales.invoiceNo })
+    .select({
+      id: sales.id,
+      status: sales.status,
+      invoiceNo: sales.invoiceNo,
+      voucherId: sales.voucherId,
+    })
     .from(sales)
     .where(eq(sales.id, saleId))
     .for("update");

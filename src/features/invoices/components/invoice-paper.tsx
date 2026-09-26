@@ -76,7 +76,10 @@ function Thermal({ document: doc, labels, tendered }: Omit<InvoicePaperProps, "s
         <Row label={labels.itemDiscounts} value={`−${money(doc.itemDiscountTotal)}`} />
       ) : null}
       {doc.voucherDiscount > 0 ? (
-        <Row label={labels.voucher} value={`−${money(doc.voucherDiscount)}`} />
+        <Row
+          label={doc.voucherCode ? `${labels.voucher} ${doc.voucherCode}` : labels.voucher}
+          value={`−${money(doc.voucherDiscount)}`}
+        />
       ) : null}
       {doc.service ? <Row label={labels.service} value={money(doc.service.amount)} /> : null}
       {doc.ppn ? (
@@ -158,7 +161,10 @@ function A4({ document: doc, labels, tendered }: Omit<InvoicePaperProps, "size">
       <div className="mt-4 ml-auto flex w-80 max-w-full flex-col gap-0.5">
         <Row label={labels.subtotal} value={money(doc.subtotal)} />
         {doc.voucherDiscount > 0 ? (
-          <Row label={labels.voucher} value={`−${money(doc.voucherDiscount)}`} />
+          <Row
+            label={doc.voucherCode ? `${labels.voucher} ${doc.voucherCode}` : labels.voucher}
+            value={`−${money(doc.voucherDiscount)}`}
+          />
         ) : null}
         {doc.service ? <Row label={labels.service} value={money(doc.service.amount)} /> : null}
         {doc.ppn ? (

@@ -19,10 +19,10 @@ import type { Locale } from "@/config/locales";
 import type { PosProduct, PosVariant } from "@/features/catalog/pos-types";
 import { Link } from "@/i18n/navigation";
 import { formatCurrency } from "@/lib/format/currency";
-import { calculateSale, type TaxRules } from "@/lib/money/calculate";
+import { calculateSale, type TaxRules, type VoucherRule } from "@/lib/money/calculate";
 import { cn } from "@/lib/utils/cn";
 
-import { searchPosCatalogAction } from "../actions";
+import { checkVoucherAction, searchPosCatalogAction } from "../actions";
 import { CartPanel } from "./cart-panel";
 import { PaymentDialog } from "./payment-dialog";
 import { useCart } from "./use-cart";
@@ -86,6 +86,9 @@ export function PosTerminal(props: PosTerminalProps) {
   const [paying, setPaying] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
   const [completed, setCompleted] = useState<Completed | null>(null);
+  const [voucher, setVoucher] = useState<{ code: string; name: string; rule: VoucherRule } | null>(
+    null,
+  );
 
   const variantIndex = useMemo(() => {
     const index = new Map<string, { product: PosProduct; variant: PosVariant }>();
@@ -112,8 +115,9 @@ export function PosTerminal(props: PosTerminalProps) {
           discount: item.discount,
         })),
         tax,
+        voucher?.rule,
       ),
-    [items, tax],
+    [items, tax, voucher],
   );
   const itemCount = items.reduce((sum, item) => sum + item.qty, 0);
 
@@ -222,6 +226,16 @@ export function PosTerminal(props: PosTerminalProps) {
         setConfirmClear(true);
       }}
       onPay={openPayment}
+      voucher={voucher}
+      onApplyVoucher={async (code) => {
+        const result = await checkVoucherAction(locale, code);
+        if (!result.ok) return result.message;
+        setVoucher({ code: result.code, name: result.name, rule: result.rule });
+        return null;
+      }}
+      onRemoveVoucher={() => {
+        setVoucher(null);
+      }}
     />
   );
 
@@ -358,8 +372,10 @@ export function PosTerminal(props: PosTerminalProps) {
           }))
         }
         bankAccounts={props.bankAccounts}
+        voucherCode={voucher?.code ?? null}
         onSuccess={(result) => {
           cart.clear();
+          setVoucher(null);
           setPaying(false);
           setCompleted(result);
         }}
@@ -377,6 +393,7 @@ export function PosTerminal(props: PosTerminalProps) {
               variant="danger"
               onClick={() => {
                 cart.clear();
+                setVoucher(null);
                 setConfirmClear(false);
               }}
             >

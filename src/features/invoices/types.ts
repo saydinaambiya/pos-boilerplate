@@ -32,6 +32,7 @@ export interface InvoiceDocument {
   subtotal: number;
   itemDiscountTotal: number;
   voucherDiscount: number;
+  voucherCode: string | null;
   service: { rateBps: number; amount: number } | null;
   ppn: { rateBps: number; amount: number; included: boolean } | null;
   grandTotal: number;

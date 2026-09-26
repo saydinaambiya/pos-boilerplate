@@ -7,8 +7,10 @@ import { revalidatePath } from "next/cache";
 import type { PosProduct } from "@/features/catalog/pos-types";
 import { searchPosCatalog } from "@/features/catalog/pos-catalog";
 import { routing } from "@/i18n/routing";
+import { previewVoucher } from "@/features/vouchers/service";
 import { requirePermission } from "@/lib/auth/guard";
 import { currentRequestContext } from "@/lib/http/request-context";
+import type { VoucherRule } from "@/lib/money/calculate";
 
 import { checkoutInput } from "./schemas";
 import { checkout } from "./service";
@@ -54,6 +56,16 @@ export async function checkoutAction(
         return { ok: false, message: t("errors.paymentMismatch") };
       case "invalid-payment":
         return { ok: false, message: t("errors.invalidPayment") };
+      case "voucher-invalid":
+        return { ok: false, message: t("errors.voucherInvalid") };
+      case "voucher-expired":
+        return { ok: false, message: t("errors.voucherExpired") };
+      case "voucher-not-started":
+        return { ok: false, message: t("errors.voucherNotStarted") };
+      case "voucher-quota":
+        return { ok: false, message: t("errors.voucherQuota") };
+      case "voucher-min-purchase":
+        return { ok: false, message: t("errors.voucherMinPurchase") };
       case "idempotency-conflict":
       case "invalid-items":
         return { ok: false, message: t("errors.invalid") };
@@ -75,4 +87,26 @@ export async function searchPosCatalogAction(
 ): Promise<PosProduct[]> {
   const session = await requirePermission("page:pos", localeOf(localeValue));
   return searchPosCatalog(session, typeof term === "string" ? term : "");
+}
+
+export type VoucherPreview =
+  { ok: true; code: string; name: string; rule: VoucherRule } | { ok: false; message: string };
+
+/** Checks a voucher code for the terminal preview; checkout validates again (FR-POS-03). */
+export async function checkVoucherAction(
+  localeValue: unknown,
+  code: unknown,
+): Promise<VoucherPreview> {
+  const locale = localeOf(localeValue);
+  const session = await requirePermission("page:pos", locale);
+  const t = await getTranslations({ locale, namespace: "Pos" });
+  const result = await previewVoucher(session, typeof code === "string" ? code : "");
+  if (result.ok) return { ok: true, code: result.code, name: result.name, rule: result.rule };
+  const messages = {
+    invalid: t("errors.voucherInvalid"),
+    expired: t("errors.voucherExpired"),
+    "not-started": t("errors.voucherNotStarted"),
+    quota: t("errors.voucherQuota"),
+  } as const;
+  return { ok: false, message: messages[result.reason] };
 }

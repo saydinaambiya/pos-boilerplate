@@ -10,6 +10,7 @@ import {
   submitApproval,
 } from "@/features/approvals/engine";
 import { recordStockMovement } from "@/features/stock/service";
+import { releaseVoucher } from "@/features/vouchers/service";
 import { recordAudit } from "@/lib/audit/audit";
 import { assertPermission } from "@/lib/auth/authorize";
 import type { Session } from "@/lib/auth/session";
@@ -36,6 +37,7 @@ export const applyVoid: ApplyApproval = async (tx, approval, actor, context) => 
   const sale = await lockSale(tx, approval.targetId);
   if (sale?.status !== "COMPLETED") throw new ApprovalConflict("not-voidable");
   await setSaleStatus(tx, sale.id, "VOIDED");
+  if (sale.voucherId) await releaseVoucher(tx, sale.voucherId);
   for (const line of await soldTrackedQuantities(tx, sale.id)) {
     const returned = await recordStockMovement(
       tx,

@@ -40,6 +40,18 @@ export type ApplyApproval = (
   context: RequestContext,
 ) => Promise<void>;
 
+/** Lets a domain react when a request is rejected or withdrawn, e.g. to close a draft. */
+export type SettleApproval = (
+  executor: Executor,
+  approval: ApprovalRecord,
+  outcome: "REJECTED" | "CANCELLED",
+) => Promise<void>;
+
+export interface ApprovalHandler {
+  apply: ApplyApproval;
+  settle?: SettleApproval;
+}
+
 export class ApprovalConflict extends Error {
   constructor(readonly reason: string) {
     super(reason);

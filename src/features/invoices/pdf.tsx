@@ -97,7 +97,12 @@ function InvoicePdf({
       {thermal && doc.itemDiscountTotal > 0
         ? line(labels.itemDiscounts, minus(doc.itemDiscountTotal))
         : null}
-      {doc.voucherDiscount > 0 ? line(labels.voucher, minus(doc.voucherDiscount)) : null}
+      {doc.voucherDiscount > 0
+        ? line(
+            doc.voucherCode ? `${labels.voucher} ${doc.voucherCode}` : labels.voucher,
+            minus(doc.voucherDiscount),
+          )
+        : null}
       {doc.service ? line(labels.service, money(doc.service.amount)) : null}
       {doc.ppn
         ? line(doc.ppn.included ? labels.ppnIncluded : labels.ppn, money(doc.ppn.amount))

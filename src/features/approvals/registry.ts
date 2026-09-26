@@ -1,14 +1,17 @@
 import "server-only";
 
 import { applyVoid } from "@/features/checkout/void-service";
+import { applyVoucherApproval, settleVoucherApproval } from "@/features/vouchers/service";
 
-import type { ApplyApproval, ApprovalType } from "./engine";
+import type { ApprovalHandler, ApprovalType } from "./engine";
 
 /**
- * How an approved request takes effect, per type. Domains export their
- * apply functions; only this registry knows all of them, so the engine
- * itself never depends on a domain module.
+ * How requests take effect per type. Domains export their handlers; only
+ * this registry knows all of them, so the engine itself never depends on a
+ * domain module (ADR-0011).
  */
-export const approvalAppliers: Partial<Record<ApprovalType, ApplyApproval>> = {
-  VOID: applyVoid,
+export const approvalHandlers: Record<ApprovalType, ApprovalHandler | undefined> = {
+  VOID: { apply: applyVoid },
+  VOUCHER: { apply: applyVoucherApproval, settle: settleVoucherApproval },
+  KASBON_PAYMENT: undefined,
 };

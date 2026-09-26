@@ -302,7 +302,8 @@
       "product-variant": "Varian produk",
       "shift": "Shift",
       "sale": "Penjualan",
-      "approval": "Persetujuan"
+      "approval": "Persetujuan",
+      "voucher": "Voucher"
     },
     "actions": {
       "auth_login_succeeded": "Login berhasil",
@@ -350,7 +351,10 @@
       "approval_auto-approved": "Disetujui otomatis (Owner)",
       "approval_approved": "Persetujuan disetujui",
       "approval_rejected": "Persetujuan ditolak",
-      "approval_cancelled": "Pengajuan dibatalkan"
+      "approval_cancelled": "Pengajuan dibatalkan",
+      "voucher_revision-approved": "Ketentuan voucher disetujui",
+      "voucher_activated": "Voucher diaktifkan",
+      "voucher_deactivated": "Voucher dinonaktifkan"
     }
   },
   "Settings": {
@@ -776,9 +780,21 @@
       "discountForbidden": "Anda tidak memiliki izin memberi diskon.",
       "paymentMismatch": "Jumlah pembayaran tidak sama dengan total.",
       "invalidPayment": "Rekening transfer tidak valid.",
-      "network": "Gagal terhubung. Periksa koneksi lalu coba lagi."
+      "network": "Gagal terhubung. Periksa koneksi lalu coba lagi.",
+      "voucherInvalid": "Voucher tidak ditemukan atau tidak aktif.",
+      "voucherExpired": "Voucher sudah kedaluwarsa.",
+      "voucherNotStarted": "Voucher belum berlaku.",
+      "voucherQuota": "Kuota voucher sudah habis.",
+      "voucherMinPurchase": "Total belanja belum mencapai minimum voucher."
     },
-    "printReceipt": "Cetak struk"
+    "printReceipt": "Cetak struk",
+    "voucher": "Voucher",
+    "voucherCode": "Kode voucher",
+    "applyVoucher": "Pakai",
+    "removeVoucher": "Hapus voucher",
+    "voucherApplied": "Voucher {code}",
+    "voucherMinPurchase": "Minimal belanja {amount} untuk voucher ini.",
+    "checkingVoucher": "Memeriksa…"
   },
   "Receipt": {
     "title": "Struk {invoiceNo}",
@@ -916,6 +932,93 @@
       "forbidden": "Anda tidak berhak memutus jenis pengajuan ini.",
       "targetChanged": "Data yang diajukan sudah berubah sehingga tidak dapat diterapkan.",
       "notFound": "Pengajuan tidak ditemukan."
-    }
+    },
+    "voucherKinds": {
+      "create": "Voucher baru",
+      "revise": "Revisi voucher",
+      "reactivate": "Aktivasi ulang voucher"
+    },
+    "voucherSummary": "{code} · {name} · {value}",
+    "openVoucher": "Lihat voucher"
+  },
+  "Vouchers": {
+    "title": "Voucher",
+    "subtitle": "Voucher baru dan perubahannya berlaku setelah disetujui.",
+    "add": "Tambah voucher",
+    "newTitle": "Voucher baru",
+    "back": "Kembali ke daftar",
+    "code": "Kode",
+    "codeHint": "3–20 karakter: huruf, angka, atau strip. Otomatis huruf besar.",
+    "name": "Nama",
+    "type": "Tipe",
+    "typePercent": "Persen",
+    "typeFixed": "Nominal",
+    "value": "Nilai",
+    "valueHint": "Persen: 1–100. Nominal: rupiah.",
+    "minPurchase": "Minimum belanja",
+    "maxDiscount": "Maksimum potongan",
+    "maxDiscountHint": "Hanya untuk tipe persen.",
+    "optionalHint": "Opsional.",
+    "startDate": "Mulai berlaku",
+    "endDate": "Berlaku sampai",
+    "periodHint": "Opsional; tanggal zona waktu toko, keduanya termasuk.",
+    "quota": "Kuota pemakaian",
+    "quotaHint": "Opsional; kosongkan untuk tanpa batas.",
+    "usage": "Terpakai",
+    "usageOf": "{used} / {quota}",
+    "unlimited": "{used} / tanpa batas",
+    "period": "Periode",
+    "always": "Tanpa batas waktu",
+    "periodRange": "{start} – {end}",
+    "from": "Mulai {start}",
+    "until": "Sampai {end}",
+    "status": "Status",
+    "statuses": {
+      "PENDING_APPROVAL": "Menunggu persetujuan",
+      "ACTIVE": "Aktif",
+      "INACTIVE": "Nonaktif",
+      "REJECTED": "Ditolak",
+      "EXPIRED": "Kedaluwarsa",
+      "SCHEDULED": "Terjadwal"
+    },
+    "revisionStatuses": {
+      "PENDING_APPROVAL": "Menunggu",
+      "APPROVED": "Disetujui",
+      "REJECTED": "Ditolak",
+      "CANCELLED": "Dibatalkan"
+    },
+    "pendingRevision": "Revisi menunggu persetujuan",
+    "listCaption": "Daftar voucher",
+    "edit": "Buka voucher {code}",
+    "emptyTitle": "Belum ada voucher",
+    "emptyDescription": "Voucher potongan harga dapat dipakai kasir di layar POS.",
+    "create": "Ajukan voucher",
+    "revise": "Ajukan revisi",
+    "reviseTitle": "Ubah ketentuan",
+    "reviseHint": "Ketentuan lama tetap berlaku sampai revisi disetujui.",
+    "submittedPending": "Pengajuan dikirim dan menunggu persetujuan.",
+    "submittedApproved": "Perubahan langsung berlaku.",
+    "deactivate": "Nonaktifkan",
+    "deactivateTitle": "Nonaktifkan voucher {code}?",
+    "deactivateDescription": "Voucher langsung tidak bisa dipakai. Mengaktifkan kembali perlu persetujuan.",
+    "reactivate": "Ajukan aktivasi ulang",
+    "reactivateTitle": "Aktifkan kembali voucher {code}?",
+    "reactivateDescription": "Voucher aktif kembali setelah pengajuan disetujui.",
+    "activeTerms": "Ketentuan berlaku",
+    "noActiveTerms": "Belum ada ketentuan yang disetujui.",
+    "history": "Riwayat revisi",
+    "historyCaption": "Riwayat revisi voucher",
+    "submittedAt": "Diajukan",
+    "usageHistory": "Riwayat pemakaian",
+    "usageCaption": "Transaksi yang memakai voucher ini",
+    "noUsage": "Voucher belum pernah dipakai.",
+    "invoice": "Invoice",
+    "date": "Tanggal",
+    "discount": "Potongan",
+    "saleStatus": "Status transaksi",
+    "errorCodeTaken": "Kode voucher sudah dipakai.",
+    "errorNotEditable": "Voucher dalam status ini tidak dapat diubah.",
+    "errorAlreadyPending": "Masih ada pengajuan yang menunggu untuk voucher ini.",
+    "errorNotFound": "Voucher tidak ditemukan."
   }
 }

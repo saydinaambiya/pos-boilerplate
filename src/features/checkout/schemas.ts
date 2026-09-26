@@ -44,6 +44,8 @@ export const checkoutInput = z
           .strict(),
       )
       .max(4),
+    /** One voucher per sale, validated again on the server (FR-POS-03). */
+    voucherCode: z.string().trim().max(20).optional(),
   })
   .strict();
 

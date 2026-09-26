@@ -46,6 +46,9 @@ export const auditActions = [
   "approval.approved",
   "approval.rejected",
   "approval.cancelled",
+  "voucher.revision-approved",
+  "voucher.activated",
+  "voucher.deactivated",
 ] as const;
 
 export type AuditAction = (typeof auditActions)[number];
