@@ -3,6 +3,7 @@ import "server-only";
 import { and, asc, count, eq, exists, like, or, type SQL, sql } from "drizzle-orm";
 
 import { db, type Executor } from "@/db/client";
+import { containsPattern } from "@/db/like";
 import { categories, products, productVariants } from "@/db/schema";
 
 import type { CategoryInput, ProductFilters } from "./schemas";
@@ -51,11 +52,6 @@ export async function countProductsInCategory(categoryId: string): Promise<numbe
     .from(products)
     .where(eq(products.categoryId, categoryId));
   return row?.total ?? 0;
-}
-
-/** `LIKE` pattern matching `term` anywhere, with wildcards in the term escaped. */
-function containsPattern(term: string): string {
-  return `%${term.toLowerCase().replace(/[\\%_]/g, (char) => `\\${char}`)}%`;
 }
 
 const productColumns = {

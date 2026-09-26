@@ -47,9 +47,14 @@ export default async function EditProductPage({ params }: PageProps<"/[locale]/p
       <div className="flex flex-col gap-6">
         <Card className="max-w-2xl">
           {product.trackStock ? (
-            <CardDescription className="mb-4">
-              {t("stockNote", { stock: product.stockQty })}
-            </CardDescription>
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <CardDescription>{t("stockNote", { stock: product.stockQty })}</CardDescription>
+              {session.permissions.has("page:stock") ? (
+                <Button asChild variant="secondary" size="sm">
+                  <Link href={`/stock/${product.variantId}`}>{t("manageStock")}</Link>
+                </Button>
+              ) : null}
+            </div>
           ) : null}
           <ProductForm
             action={updateProductAction.bind(null, product.id)}

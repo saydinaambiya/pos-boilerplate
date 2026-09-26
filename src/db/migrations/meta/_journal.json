@@ -29,6 +29,13 @@
       "when": 1790405239928,
       "tag": "0003_catalog",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790406267796,
+      "tag": "0004_stock_movements",
+      "breakpoints": true
     }
   ]
 }
