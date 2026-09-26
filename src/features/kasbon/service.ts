@@ -1,5 +1,7 @@
 import "server-only";
 
+import { v7 as uuidv7 } from "uuid";
+
 import { db, type Executor } from "@/db/client";
 import {
   type ApplyApproval,
@@ -23,12 +25,12 @@ import {
   isActiveBankAccount,
   lockKasbon,
   lockOpenShiftForPayment,
-  lockPayment,
+  lockInstallment,
   outstandingByAge,
   pendingPaymentTotal,
   queryCustomers,
   queryKasbons,
-  setPaymentStatus,
+  setInstallmentStatus,
   updateKasbonAmounts,
   upsertCustomer,
 } from "./repository";
@@ -97,11 +99,13 @@ export async function storeToday(now = new Date()): Promise<string> {
 }
 
 /**
- * Records an installment or payoff; it only reduces the balance once
- * approved (FR-KSB-03, BR-12), immediately for the Owner (BR-13). The
- * amount may not exceed the balance minus other pending payments, checked
- * under a row lock so concurrent requests cannot overshoot (FR-KSB-05).
- * Cash goes into the recorder's drawer, so it needs their open shift.
+ * Records an installment or payoff paid in cash, by transfer, or both; it
+ * only reduces the balance once approved (FR-KSB-03, BR-12), immediately for
+ * the Owner (BR-13). The parts share an installment id and one approval.
+ * The total may not exceed the balance minus other pending payments,
+ * checked under a row lock so concurrent requests cannot overshoot
+ * (FR-KSB-05). Cash goes into the recorder's drawer, so it needs their open
+ * shift.
  */
 export async function recordKasbonPayment(
   session: Session,
@@ -110,6 +114,8 @@ export async function recordKasbonPayment(
   context: RequestContext,
 ): Promise<KasbonPaymentResult> {
   assertPermission(session, "kasbon:pay");
+  const transfer = input.transfer;
+  const total = input.cash + (transfer?.amount ?? 0);
   try {
     return await db.transaction(async (tx) => {
       const kasbon = await lockKasbon(tx, kasbonId);
@@ -117,23 +123,35 @@ export async function recordKasbonPayment(
       if (kasbon.status === "SETTLED") return { ok: false, reason: "settled" } as const;
 
       const available = kasbon.balance - (await pendingPaymentTotal(tx, kasbon.id));
-      if (input.amount > available) {
+      if (total > available) {
         return { ok: false, reason: "exceeds-balance", available: Math.max(available, 0) } as const;
       }
       const shift = await lockOpenShiftForPayment(tx, session.user.id);
-      if (input.method === "CASH" && !shift) return { ok: false, reason: "no-open-shift" } as const;
-      if (input.method === "TRANSFER" && !(await isActiveBankAccount(tx, input.bankAccountId))) {
+      if (input.cash > 0 && !shift) return { ok: false, reason: "no-open-shift" } as const;
+      if (transfer && !(await isActiveBankAccount(tx, transfer.bankAccountId))) {
         return { ok: false, reason: "invalid-bank-account" } as const;
       }
 
-      const paymentId = await insertKasbonPayment(tx, {
-        kasbonId: kasbon.id,
-        shiftId: shift?.id ?? null,
-        method: input.method,
-        amount: input.amount,
-        bankAccountId: input.method === "TRANSFER" ? input.bankAccountId : null,
-        reference: input.method === "TRANSFER" && input.reference !== "" ? input.reference : null,
-      });
+      const installmentId = uuidv7();
+      const base = { kasbonId: kasbon.id, installmentId, shiftId: shift?.id ?? null };
+      if (input.cash > 0) {
+        await insertKasbonPayment(tx, {
+          ...base,
+          method: "CASH",
+          amount: input.cash,
+          bankAccountId: null,
+          reference: null,
+        });
+      }
+      if (transfer) {
+        await insertKasbonPayment(tx, {
+          ...base,
+          method: "TRANSFER",
+          amount: transfer.amount,
+          bankAccountId: transfer.bankAccountId,
+          reference: transfer.reference === "" ? null : transfer.reference,
+        });
+      }
       const labels = await findKasbonLabels(tx, kasbon.id);
       await recordAudit(
         tx,
@@ -142,7 +160,7 @@ export async function recordKasbonPayment(
           action: "kasbon.payment-recorded",
           entity: "kasbon",
           entityId: kasbon.id,
-          diff: { paymentId, method: input.method, amount: input.amount },
+          diff: { installmentId, cash: input.cash, transfer: transfer?.amount ?? 0 },
         },
         context,
       );
@@ -151,12 +169,13 @@ export async function recordKasbonPayment(
         session,
         {
           type: "KASBON_PAYMENT",
-          targetType: "payment",
-          targetId: paymentId,
+          targetType: "kasbon-installment",
+          targetId: installmentId,
           payload: {
             kasbonId: kasbon.id,
-            amount: input.amount,
-            method: input.method,
+            amount: total,
+            cashAmount: input.cash,
+            transferAmount: transfer?.amount ?? 0,
             customerName: labels?.customerName ?? "",
             invoiceNo: labels?.invoiceNo ?? "",
             balance: kasbon.balance,
@@ -174,23 +193,29 @@ export async function recordKasbonPayment(
 }
 
 /**
- * Applies an approved payment: the balance drops and reaching zero settles
- * the credit (FR-KSB-04). Raises `ApprovalConflict` when the payment is no
- * longer pending or would overshoot the balance.
+ * Applies an approved installment: all its parts settle, the balance drops
+ * and reaching zero settles the credit (FR-KSB-04). Raises
+ * `ApprovalConflict` when a part is no longer pending or the total would
+ * overshoot the balance.
  */
 export const applyKasbonPayment: ApplyApproval = async (tx, approval, actor, context) => {
   const payload = kasbonPaymentPayload.parse(approval.payload);
   const kasbon = await lockKasbon(tx, payload.kasbonId);
-  const payment = await lockPayment(tx, approval.targetId);
-  if (!kasbon || payment?.kasbonId !== kasbon.id || payment.status !== "PENDING") {
+  const parts = await lockInstallment(tx, approval.targetId);
+  if (
+    !kasbon ||
+    parts.length === 0 ||
+    parts.some((part) => part.kasbonId !== kasbon.id || part.status !== "PENDING")
+  ) {
     throw new ApprovalConflict("not-pending");
   }
-  if (payment.amount > kasbon.balance) throw new ApprovalConflict("exceeds-balance");
+  const amount = parts.reduce((sum, part) => sum + part.amount, 0);
+  if (amount > kasbon.balance) throw new ApprovalConflict("exceeds-balance");
 
-  const paidTotal = kasbon.paidTotal + payment.amount;
+  const paidTotal = kasbon.paidTotal + amount;
   const balance = kasbon.total - paidTotal;
   const status = balance === 0 ? "SETTLED" : "PARTIALLY_PAID";
-  await setPaymentStatus(tx, payment.id, "SETTLED");
+  await setInstallmentStatus(tx, approval.targetId, "SETTLED");
   await updateKasbonAmounts(tx, kasbon.id, { paidTotal, balance, status });
   await recordAudit(
     tx,
@@ -199,16 +224,16 @@ export const applyKasbonPayment: ApplyApproval = async (tx, approval, actor, con
       action: "kasbon.payment-approved",
       entity: "kasbon",
       entityId: kasbon.id,
-      diff: { paymentId: payment.id, amount: payment.amount, balance, status },
+      diff: { installmentId: approval.targetId, amount, balance, status },
     },
     context,
   );
 };
 
-/** A rejected or withdrawn payment never counts; cash taken is handed back (FR-KSB-04). */
+/** A rejected or withdrawn installment never counts; cash taken is handed back (FR-KSB-04). */
 export const settleKasbonPayment: SettleApproval = async (tx, approval) => {
-  const payment = await lockPayment(tx, approval.targetId);
-  if (payment?.status === "PENDING") await setPaymentStatus(tx, payment.id, "FAILED");
+  await lockInstallment(tx, approval.targetId);
+  await setInstallmentStatus(tx, approval.targetId, "FAILED");
 };
 
 /** Customers for re-selection at checkout (FR-KSB-01). */
@@ -264,6 +289,53 @@ export async function getKasbonSummary(session: Session, now = new Date()) {
   return { ...aging, total: aging.current + aging.days31to60 + aging.over60 };
 }
 
+type HistoryRow = NonNullable<Awaited<ReturnType<typeof findKasbonDetail>>>["payments"][number];
+
+/** Cash and transfer parts of the same installment shown as one entry, newest first. */
+function groupInstallments(rows: HistoryRow[]) {
+  const groups = new Map<
+    string,
+    Pick<
+      HistoryRow,
+      | "createdAt"
+      | "requestedBy"
+      | "requesterName"
+      | "approvalId"
+      | "approvalStatus"
+      | "approvalVersion"
+      | "approvalNote"
+    > & {
+      id: string;
+      total: number;
+      parts: Pick<HistoryRow, "method" | "amount" | "bankName" | "reference">[];
+    }
+  >();
+  for (const row of rows) {
+    const key = row.installmentId ?? row.id;
+    const group = groups.get(key) ?? {
+      id: key,
+      createdAt: row.createdAt,
+      requestedBy: row.requestedBy,
+      requesterName: row.requesterName,
+      approvalId: row.approvalId,
+      approvalStatus: row.approvalStatus,
+      approvalVersion: row.approvalVersion,
+      approvalNote: row.approvalNote,
+      total: 0,
+      parts: [],
+    };
+    group.total += row.amount;
+    group.parts.push({
+      method: row.method,
+      amount: row.amount,
+      bankName: row.bankName,
+      reference: row.reference,
+    });
+    groups.set(key, group);
+  }
+  return [...groups.values()];
+}
+
 /** One store credit with payments and what can still be requested (FR-KSB-02..05). */
 export async function getKasbon(session: Session, kasbonId: string, now = new Date()) {
   assertPermission(session, "page:kasbon");
@@ -278,6 +350,7 @@ export async function getKasbon(session: Session, kasbonId: string, now = new Da
     aging: agingBucket(ageDays),
     due: dueState(kasbon.dueDate, today, kasbon.status === "SETTLED"),
     available: Math.max(kasbon.balance - kasbon.pendingTotal, 0),
+    installments: groupInstallments(kasbon.payments),
   };
 }
 

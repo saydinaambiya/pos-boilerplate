@@ -4,6 +4,7 @@ import type { ComponentProps } from "react";
 
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { MoneyInput } from "@/components/ui/money-input";
 import { PasswordInput, type RevealLabels } from "@/components/ui/password-input";
 import { Select } from "@/components/ui/select";
 
@@ -18,22 +19,34 @@ function useFieldState(name: string, defaultValue: string | undefined) {
   };
 }
 
-type FormFieldProps = Omit<ComponentProps<"input">, "name" | "id" | "defaultValue"> & {
+type FormFieldProps = Omit<ComponentProps<"input">, "name" | "id" | "defaultValue" | "value"> & {
   name: string;
   label: string;
   hint?: string | undefined;
   defaultValue?: string | undefined;
   /** Renders a password/PIN input with a show/hide toggle. */
   reveal?: RevealLabels | undefined;
+  /** Renders a rupiah input grouped by thousands while typing. */
+  money?: boolean | undefined;
 };
 
 /** Text input wired to the enclosing `ActionForm`'s errors and echoed values. */
-export function FormField({ name, label, hint, defaultValue, reveal, ...input }: FormFieldProps) {
+export function FormField({
+  name,
+  label,
+  hint,
+  defaultValue,
+  reveal,
+  money,
+  ...input
+}: FormFieldProps) {
   const { error, value } = useFieldState(name, defaultValue);
   return (
     <Field label={label} hint={hint} error={error}>
       {(control) =>
-        reveal ? (
+        money ? (
+          <MoneyInput {...input} {...control} key={value ?? ""} name={name} defaultValue={value} />
+        ) : reveal ? (
           <PasswordInput {...input} {...control} labels={reveal} name={name} defaultValue={value} />
         ) : (
           <Input {...input} {...control} name={name} defaultValue={value} />

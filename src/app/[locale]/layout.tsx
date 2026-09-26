@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { NextIntlClientProvider, hasLocale } from "next-intl";
-import { getTranslations } from "next-intl/server";
+import { getMessages, getTranslations } from "next-intl/server";
 import { Outfit } from "next/font/google";
 import { notFound } from "next/navigation";
 
@@ -43,7 +43,7 @@ export default async function LocaleLayout({ children, params }: LayoutProps<"/[
   const { locale } = await params;
   if (!hasLocale(routing.locales, locale)) notFound();
 
-  const [theme, nonce] = await Promise.all([getTheme(), getNonce()]);
+  const [theme, nonce, messages] = await Promise.all([getTheme(), getNonce(), getMessages()]);
 
   return (
     <html lang={locale} data-theme={theme} className={outfit.variable}>
@@ -51,9 +51,11 @@ export default async function LocaleLayout({ children, params }: LayoutProps<"/[
         <link rel="stylesheet" href={paletteStylesheetHref} />
       </head>
       <body>
-        {/* Client components receive translated props, so no catalog is shipped to the browser. */}
+        {/* Client components receive translated props; only the tiny feedback catalog is shipped. */}
         <StyleNonce nonce={nonce} />
-        <NextIntlClientProvider messages={null}>{children}</NextIntlClientProvider>
+        <NextIntlClientProvider messages={{ Feedback: messages.Feedback }}>
+          {children}
+        </NextIntlClientProvider>
       </body>
     </html>
   );

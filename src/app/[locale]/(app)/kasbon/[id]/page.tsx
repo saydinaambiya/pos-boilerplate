@@ -1,15 +1,13 @@
 import type { Metadata } from "next";
-import { getFormatter, getLocale, getTranslations } from "next-intl/server";
+import { NextIntlClientProvider } from "next-intl";
+import { getFormatter, getLocale, getMessages, getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { z } from "zod";
 
-import { ActionForm } from "@/components/form/action-form";
 import { ConfirmAction } from "@/components/form/confirm-action";
-import { FormField, FormSelect } from "@/components/form/form-field";
-import { SubmitButton } from "@/components/form/submit-button";
 import { Button } from "@/components/ui/button";
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Chip } from "@/components/ui/chip";
 import { PageHeader } from "@/components/ui/page-header";
 import {
@@ -22,8 +20,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cancelApprovalAction } from "@/features/approvals/actions";
-import { recordKasbonPaymentAction } from "@/features/kasbon/actions";
 import { DueMarker, KasbonStatusChip } from "@/features/kasbon/components/kasbon-chips";
+import { KasbonPaymentForm } from "@/features/kasbon/components/kasbon-payment-form";
 import { getKasbon } from "@/features/kasbon/service";
 import { getKasbonBankAccounts } from "@/features/settings/service";
 import { Link } from "@/i18n/navigation";
@@ -52,15 +50,17 @@ export default async function KasbonDetailPage({ params }: PageProps<"/[locale]/
   const session = await requirePermission("page:kasbon");
   if (!z.uuid().safeParse(id).success) notFound();
   const canPay = session.permissions.has("kasbon:pay");
-  const [t, tApprovals, tCommon, format, locale, kasbon, bankAccounts] = await Promise.all([
-    getTranslations("Kasbon"),
-    getTranslations("Approvals"),
-    getTranslations("Common"),
-    getFormatter(),
-    getLocale(),
-    getKasbon(session, id),
-    canPay ? getKasbonBankAccounts(session) : [],
-  ]);
+  const [t, tApprovals, tCommon, format, locale, kasbon, bankAccounts, messages] =
+    await Promise.all([
+      getTranslations("Kasbon"),
+      getTranslations("Approvals"),
+      getTranslations("Common"),
+      getFormatter(),
+      getLocale(),
+      getKasbon(session, id),
+      canPay ? getKasbonBankAccounts(session) : [],
+      getMessages(),
+    ]);
   if (!kasbon) notFound();
 
   const money = (amount: number) => formatCurrency(amount, locale);
@@ -127,7 +127,7 @@ export default async function KasbonDetailPage({ params }: PageProps<"/[locale]/
             <CardHeader>
               <CardTitle>{t("payments")}</CardTitle>
             </CardHeader>
-            {kasbon.payments.length === 0 ? (
+            {kasbon.installments.length === 0 ? (
               <p className="text-sm text-ink-muted">{t("noPayments")}</p>
             ) : (
               <Table>
@@ -144,52 +144,61 @@ export default async function KasbonDetailPage({ params }: PageProps<"/[locale]/
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {kasbon.payments.map((payment) => {
-                    const status = payment.approvalStatus ?? "PENDING";
+                  {kasbon.installments.map((installment) => {
+                    const status = installment.approvalStatus ?? "PENDING";
                     return (
-                      <TableRow key={payment.id}>
+                      <TableRow key={installment.id}>
                         <TableCell className="text-sm">
-                          {format.dateTime(payment.createdAt, {
+                          {format.dateTime(installment.createdAt, {
                             dateStyle: "medium",
                             timeStyle: "short",
                           })}
-                          {payment.requesterName ? (
+                          {installment.requesterName ? (
                             <span className="block text-xs text-ink-muted">
-                              {payment.requesterName}
+                              {installment.requesterName}
                             </span>
                           ) : null}
                         </TableCell>
                         <TableCell className="text-sm">
-                          {t(`methods.${payment.method === "TRANSFER" ? "TRANSFER" : "CASH"}`)}
-                          {payment.bankName ? (
-                            <span className="block text-xs text-ink-muted">
-                              {[payment.bankName, payment.reference].filter(Boolean).join(" · ")}
-                            </span>
-                          ) : null}
+                          <ul className="flex flex-col gap-0.5">
+                            {installment.parts.map((part, index) => (
+                              <li key={index}>
+                                {part.method === "TRANSFER"
+                                  ? t("transferPart", { bank: part.bankName ?? "" })
+                                  : t("cashPart")}
+                                {installment.parts.length > 1 ? ` · ${money(part.amount)}` : null}
+                                {part.reference ? (
+                                  <span className="block text-xs text-ink-muted">
+                                    {part.reference}
+                                  </span>
+                                ) : null}
+                              </li>
+                            ))}
+                          </ul>
                         </TableCell>
                         <TableCell className="text-right tabular-nums">
-                          {money(payment.amount)}
+                          {money(installment.total)}
                         </TableCell>
                         <TableCell>
                           <Chip tone={paymentTones[status]}>
                             {tApprovals(`statuses.${status}`)}
                           </Chip>
-                          {payment.approvalNote ? (
+                          {installment.approvalNote ? (
                             <span className="block text-xs text-ink-muted">
-                              {payment.approvalNote}
+                              {installment.approvalNote}
                             </span>
                           ) : null}
                         </TableCell>
                         <TableCell>
                           {status === "PENDING" &&
-                          payment.approvalId &&
-                          payment.approvalVersion !== null &&
-                          payment.requestedBy === session.user.id ? (
+                          installment.approvalId &&
+                          installment.approvalVersion !== null &&
+                          installment.requestedBy === session.user.id ? (
                             <ConfirmAction
                               action={cancelApprovalAction.bind(
                                 null,
-                                payment.approvalId,
-                                payment.approvalVersion,
+                                installment.approvalId,
+                                installment.approvalVersion,
                               )}
                               locale={locale}
                               variant="secondary"
@@ -216,53 +225,18 @@ export default async function KasbonDetailPage({ params }: PageProps<"/[locale]/
         {canPay && kasbon.status !== "SETTLED" ? (
           <Card className="self-start">
             <CardHeader>
-              <div>
-                <CardTitle>{t("recordPayment")}</CardTitle>
-                <CardDescription>
-                  {t("recordPaymentDescription", { amount: money(kasbon.available) })}
-                </CardDescription>
-              </div>
+              <CardTitle>{t("recordPayment")}</CardTitle>
             </CardHeader>
-            <ActionForm action={recordKasbonPaymentAction.bind(null, kasbon.id)} locale={locale}>
-              <FormSelect
-                name="method"
-                label={t("method")}
-                defaultValue="CASH"
-                options={[
-                  { value: "CASH", label: t("methods.CASH") },
-                  ...(bankAccounts.length > 0
-                    ? [{ value: "TRANSFER", label: t("methods.TRANSFER") }]
-                    : []),
-                ]}
+            <NextIntlClientProvider
+              messages={{ Kasbon: messages.Kasbon, Feedback: messages.Feedback }}
+            >
+              <KasbonPaymentForm
+                locale={locale}
+                kasbonId={kasbon.id}
+                available={kasbon.available}
+                bankAccounts={bankAccounts}
               />
-              <FormField
-                name="amount"
-                label={t("amount")}
-                hint={t("amountHint")}
-                inputMode="numeric"
-                maxLength={20}
-              />
-              {bankAccounts.length > 0 ? (
-                <>
-                  <FormSelect
-                    name="bankAccountId"
-                    label={t("bankAccount")}
-                    hint={t("transferOnly")}
-                    options={bankAccounts.map((account) => ({
-                      value: account.id,
-                      label: account.label,
-                    }))}
-                  />
-                  <FormField
-                    name="reference"
-                    label={t("reference")}
-                    hint={t("transferOnly")}
-                    maxLength={60}
-                  />
-                </>
-              ) : null}
-              <SubmitButton className="self-start">{t("submitPayment")}</SubmitButton>
-            </ActionForm>
+            </NextIntlClientProvider>
           </Card>
         ) : null}
       </div>

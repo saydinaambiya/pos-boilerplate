@@ -67,15 +67,20 @@ test.describe("store credit with approved installments (FR-PAY-05, FR-KSB)", () 
     await page.getByRole("link", { name: `Buka kas bon ${customer} (${invoiceNo})` }).click();
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(customer);
 
-    await page.getByLabel("Nominal").fill(String(credit + 1));
-    await page.getByRole("button", { name: "Catat pembayaran" }).click();
-    await expect(page.getByText("Melebihi sisa yang bisa dibayar", { exact: false })).toBeVisible();
+    const amount = page.getByLabel("Nominal", { exact: true });
+    await amount.fill(String(credit + 1));
+    await expect(amount).toHaveAttribute("aria-invalid", "true");
+    await expect(page.getByRole("button", { name: "Catat pembayaran" })).toBeDisabled();
 
-    await page.getByLabel("Nominal").fill("10.000");
+    await amount.fill("10000");
+    await expect(amount).toHaveValue("10.000");
+    await page.getByLabel("Uang diterima (opsional)").fill("20000");
+    await expect(page.getByText("Kembalian: Rp 10.000")).toBeVisible();
     await page.getByRole("button", { name: "Catat pembayaran" }).click();
-    await expect(page.getByRole("status")).toHaveText(
-      "Pembayaran dicatat dan menunggu persetujuan.",
-    );
+    const result = page.getByRole("dialog", { name: "Berhasil" });
+    await expect(result).toContainText("Pembayaran dicatat dan menunggu persetujuan.");
+    await result.getByRole("button", { name: "Oke" }).click();
+    await expect(result).toBeHidden();
     await expect(
       page.getByRole("table", { name: "Pembayaran kas bon, terbaru di atas" }),
     ).toContainText("Menunggu");

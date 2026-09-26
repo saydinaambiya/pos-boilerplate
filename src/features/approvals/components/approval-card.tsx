@@ -53,6 +53,22 @@ export async function ApprovalCard({
   const kasbon =
     approval.type === "KASBON_PAYMENT" ? kasbonPaymentPayload.safeParse(approval.payload) : null;
   const tKasbon = await getTranslations("Kasbon");
+  const kasbonMethodText = (payload: {
+    cashAmount?: number | undefined;
+    transferAmount?: number | undefined;
+    method?: "CASH" | "TRANSFER" | undefined;
+  }) => {
+    const parts = [
+      ...(payload.cashAmount
+        ? [`${tKasbon("methods.CASH")} ${formatCurrency(payload.cashAmount, locale)}`]
+        : []),
+      ...(payload.transferAmount
+        ? [`${tKasbon("methods.TRANSFER")} ${formatCurrency(payload.transferAmount, locale)}`]
+        : []),
+    ];
+    if (parts.length > 0) return parts.join(" + ");
+    return payload.method ? tKasbon(`methods.${payload.method}`) : "";
+  };
   const noteField = <FormField name="note" label={t("decisionNote")} maxLength={200} />;
 
   return (
@@ -81,7 +97,7 @@ export async function ApprovalCard({
                 customer: kasbon.data.customerName,
                 invoiceNo: kasbon.data.invoiceNo,
                 amount: formatCurrency(kasbon.data.amount, locale),
-                method: tKasbon(`methods.${kasbon.data.method}`),
+                method: kasbonMethodText(kasbon.data),
                 balance: formatCurrency(kasbon.data.balance, locale),
               })}
             </p>

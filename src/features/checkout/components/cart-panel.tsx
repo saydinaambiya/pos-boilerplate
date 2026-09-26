@@ -6,6 +6,7 @@ import { useId, useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { MoneyInput } from "@/components/ui/money-input";
 import { Select } from "@/components/ui/select";
 import type { Locale } from "@/config/locales";
 import { formatCurrency } from "@/lib/format/currency";
@@ -177,16 +178,26 @@ function DiscountEditor({
       <label className="sr-only" htmlFor={`${id}-value`}>
         {t("discountValue")}
       </label>
-      <Input
-        id={`${id}-value`}
-        value={value}
-        onChange={(event) => {
-          setValue(event.target.value);
-        }}
-        inputMode="decimal"
-        maxLength={16}
-        className="w-28"
-      />
+      {type === "amount" ? (
+        <MoneyInput
+          id={`${id}-value`}
+          value={value}
+          onValueChange={setValue}
+          maxLength={16}
+          className="w-28"
+        />
+      ) : (
+        <Input
+          id={`${id}-value`}
+          value={value}
+          onChange={(event) => {
+            setValue(event.target.value);
+          }}
+          inputMode="decimal"
+          maxLength={16}
+          className="w-28"
+        />
+      )}
       <Button
         size="sm"
         disabled={!valid}

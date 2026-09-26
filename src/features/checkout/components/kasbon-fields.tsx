@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { useEffect, useId, useState } from "react";
 
 import { Input } from "@/components/ui/input";
+import { MoneyInput } from "@/components/ui/money-input";
 import type { Locale } from "@/config/locales";
 import { formatCurrency } from "@/lib/format/currency";
 import { normalizeIndonesianPhone } from "@/lib/format/phone";
@@ -92,13 +93,12 @@ export function KasbonFields({
         <label htmlFor={`${id}-dp`} className="text-sm font-medium text-ink">
           {t("downPayment")}
         </label>
-        <Input
+        <MoneyInput
           id={`${id}-dp`}
           value={draft.downPayment}
-          onChange={(event) => {
-            set("downPayment", event.target.value);
+          onValueChange={(text) => {
+            set("downPayment", text);
           }}
-          inputMode="numeric"
           maxLength={20}
           aria-invalid={showErrors && errors.downPayment ? true : undefined}
           aria-describedby={describedBy("downPayment")}

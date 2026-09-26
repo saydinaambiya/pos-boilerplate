@@ -155,6 +155,11 @@ export const payments = pgTable(
     id: id(),
     saleId: uuid().references(() => sales.id, { onDelete: "restrict" }),
     kasbonId: uuid().references(() => kasbons.id, { onDelete: "restrict" }),
+    /**
+     * Groups the cash and transfer parts of one store credit installment,
+     * which are approved together (FR-KSB-03, ADR-0012).
+     */
+    installmentId: uuid(),
     /** Shift where a store-credit payment was taken; sale payments use the sale's shift. */
     shiftId: uuid().references(() => shifts.id, { onDelete: "restrict" }),
     method: paymentMethod().notNull(),
@@ -170,6 +175,7 @@ export const payments = pgTable(
     index("payments_sale_id_idx").on(table.saleId),
     index("payments_method_created_at_idx").on(table.method, table.createdAt),
     index("payments_kasbon_id_idx").on(table.kasbonId),
+    index("payments_installment_id_idx").on(table.installmentId),
     index("payments_shift_id_idx").on(table.shiftId),
     check("payments_amount_positive", sql`${table.amount} > 0`),
   ],

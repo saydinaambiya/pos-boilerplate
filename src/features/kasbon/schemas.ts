@@ -27,25 +27,40 @@ export type KasbonCheckoutInput = z.infer<typeof kasbonCheckoutInput>;
 
 export const kasbonPaymentMethods = ["CASH", "TRANSFER"] as const;
 
-/** An installment or payoff waiting for approval (FR-KSB-03). */
-export const kasbonPaymentInput = z.discriminatedUnion("method", [
-  z.object({ method: z.literal("CASH"), amount: z.int().min(1).max(MAX_RUPIAH) }).strict(),
-  z
-    .object({
-      method: z.literal("TRANSFER"),
-      amount: z.int().min(1).max(MAX_RUPIAH),
-      bankAccountId: z.uuid(),
-      reference: plainText(60, 0),
-    })
-    .strict(),
-]);
+/**
+ * An installment or payoff waiting for approval (FR-KSB-03): cash,
+ * transfer, or both, like a POS payment. Cash tendered is not sent, only the
+ * amount applied to the credit (BR-22).
+ */
+export const kasbonPaymentInput = z
+  .object({
+    cash: z.int().min(0).max(MAX_RUPIAH),
+    transfer: z
+      .object({
+        amount: z.int().min(1).max(MAX_RUPIAH),
+        bankAccountId: z.uuid(),
+        reference: plainText(60, 0),
+      })
+      .strict()
+      .nullable(),
+  })
+  .strict()
+  .refine((value) => value.cash + (value.transfer?.amount ?? 0) > 0, {
+    path: ["cash"],
+    error: "required",
+  });
 export type KasbonPaymentInput = z.infer<typeof kasbonPaymentInput>;
 
-/** Snapshot stored on a `KASBON_PAYMENT` approval, shown in the inbox. */
+/**
+ * Snapshot stored on a `KASBON_PAYMENT` approval, shown in the inbox.
+ * Requests made before split payments carry `method` instead of the parts.
+ */
 export const kasbonPaymentPayload = z.object({
   kasbonId: z.uuid(),
   amount: z.number(),
-  method: z.enum(kasbonPaymentMethods),
+  cashAmount: z.number().optional(),
+  transferAmount: z.number().optional(),
+  method: z.enum(kasbonPaymentMethods).optional(),
   customerName: z.string(),
   invoiceNo: z.string(),
   balance: z.number(),

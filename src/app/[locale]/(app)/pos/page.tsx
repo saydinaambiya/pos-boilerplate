@@ -89,9 +89,9 @@ export default async function PosPage() {
           <ActionForm action={openShiftAction} locale={locale}>
             <FormField
               name="openingCash"
+              money
               label={t("openingCash")}
               hint={t("moneyHint")}
-              inputMode="numeric"
               maxLength={20}
             />
             <SubmitButton className="self-start">{t("open")}</SubmitButton>
@@ -126,7 +126,7 @@ export default async function PosPage() {
           </Button>
         </span>
       </div>
-      <NextIntlClientProvider messages={{ Pos: messages.Pos }}>
+      <NextIntlClientProvider messages={{ Pos: messages.Pos, Feedback: messages.Feedback }}>
         <PosTerminal
           locale={locale}
           storageKey={`pos-cart:${session.user.id}`}

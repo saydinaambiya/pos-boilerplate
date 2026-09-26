@@ -998,7 +998,7 @@
     },
     "voucherSummary": "{code} · {name} · {value}",
     "openVoucher": "View voucher",
-    "kasbonSummary": "{customer} · {invoiceNo}: {amount} {method} (balance {balance})",
+    "kasbonSummary": "{customer} · {invoiceNo}: {amount} ({method}), balance {balance}",
     "openKasbon": "Open store credit"
   },
   "Vouchers": {
@@ -1145,14 +1145,13 @@
     "actions": "Actions",
     "methods": {
       "CASH": "Cash",
-      "TRANSFER": "Transfer"
+      "TRANSFER": "Transfer",
+      "SPLIT": "Cash + transfer"
     },
     "recordPayment": "Record payment",
     "recordPaymentDescription": "Up to {amount}. The balance drops once approved.",
-    "amountHint": "Rupiah, e.g. 50.000.",
     "bankAccount": "Destination account",
     "reference": "Reference no.",
-    "transferOnly": "Transfers only.",
     "submitPayment": "Record payment",
     "paymentPending": "Payment recorded and waiting for approval.",
     "paymentApproved": "Payment recorded and approved.",
@@ -1160,7 +1159,18 @@
     "errorNoOpenShift": "Open a shift before taking cash.",
     "errorBankAccount": "Choose an active account.",
     "errorSettled": "This store credit is already settled.",
-    "errorNotFound": "Store credit not found."
+    "errorNotFound": "Store credit not found.",
+    "payOff": "Pay off {amount}",
+    "transferAmount": "Transfer amount",
+    "cashPortion": "Paid in cash: {amount}",
+    "cashReceived": "Cash received (optional)",
+    "change": "Change: {amount}",
+    "shortfall": "Short by {amount}",
+    "saving": "Saving…",
+    "errorAmount": "Invalid payment amount.",
+    "errorNetwork": "Connection failed. Check your connection and try again.",
+    "cashPart": "Cash",
+    "transferPart": "Transfer {bank}"
   },
   "OnlineOrders": {
     "title": "Online orders",
@@ -1435,5 +1445,12 @@
       "vouchers": "Vouchers",
       "other": "Other data"
     }
+  },
+  "Feedback": {
+    "successTitle": "Success",
+    "errorTitle": "Something went wrong",
+    "ok": "OK",
+    "close": "Close",
+    "checkFields": "Please check the highlighted fields."
   }
 }

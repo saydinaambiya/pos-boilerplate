@@ -998,7 +998,7 @@
     },
     "voucherSummary": "{code} · {name} · {value}",
     "openVoucher": "Lihat voucher",
-    "kasbonSummary": "{customer} · {invoiceNo}: {amount} {method} (saldo {balance})",
+    "kasbonSummary": "{customer} · {invoiceNo}: {amount} ({method}), saldo {balance}",
     "openKasbon": "Buka kas bon"
   },
   "Vouchers": {
@@ -1145,14 +1145,13 @@
     "actions": "Aksi",
     "methods": {
       "CASH": "Tunai",
-      "TRANSFER": "Transfer"
+      "TRANSFER": "Transfer",
+      "SPLIT": "Tunai + transfer"
     },
     "recordPayment": "Catat pembayaran",
     "recordPaymentDescription": "Maksimal {amount}. Saldo berkurang setelah disetujui.",
-    "amountHint": "Rupiah, contoh 50.000.",
     "bankAccount": "Rekening tujuan",
     "reference": "No. referensi",
-    "transferOnly": "Hanya untuk transfer.",
     "submitPayment": "Catat pembayaran",
     "paymentPending": "Pembayaran dicatat dan menunggu persetujuan.",
     "paymentApproved": "Pembayaran dicatat dan langsung disetujui.",
@@ -1160,7 +1159,18 @@
     "errorNoOpenShift": "Buka shift dulu untuk menerima pembayaran tunai.",
     "errorBankAccount": "Pilih rekening yang aktif.",
     "errorSettled": "Kas bon ini sudah lunas.",
-    "errorNotFound": "Kas bon tidak ditemukan."
+    "errorNotFound": "Kas bon tidak ditemukan.",
+    "payOff": "Lunasi {amount}",
+    "transferAmount": "Nominal transfer",
+    "cashPortion": "Dibayar tunai: {amount}",
+    "cashReceived": "Uang diterima (opsional)",
+    "change": "Kembalian: {amount}",
+    "shortfall": "Kurang {amount}",
+    "saving": "Menyimpan…",
+    "errorAmount": "Nominal pembayaran tidak valid.",
+    "errorNetwork": "Gagal terhubung. Periksa koneksi lalu coba lagi.",
+    "cashPart": "Tunai",
+    "transferPart": "Transfer {bank}"
   },
   "OnlineOrders": {
     "title": "Pesanan online",
@@ -1435,5 +1445,12 @@
       "vouchers": "Voucher",
       "other": "Data lainnya"
     }
+  },
+  "Feedback": {
+    "successTitle": "Berhasil",
+    "errorTitle": "Gagal",
+    "ok": "Oke",
+    "close": "Tutup",
+    "checkFields": "Periksa kembali isian yang ditandai."
   }
 }

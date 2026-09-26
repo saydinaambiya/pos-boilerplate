@@ -25,7 +25,7 @@ interface VoucherFormProps {
 /** Voucher terms form shared by "new voucher" and "revise" (FR-VCH-01). */
 export async function VoucherForm({ action, submitLabel, withCode, defaults }: VoucherFormProps) {
   const [t, locale] = await Promise.all([getTranslations("Vouchers"), getLocale()]);
-  const money = { inputMode: "numeric", maxLength: 20 } as const;
+  const money = { money: true, maxLength: 20 } as const;
   return (
     <ActionForm action={action} locale={locale}>
       {withCode ? (

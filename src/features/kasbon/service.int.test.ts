@@ -105,7 +105,7 @@ async function pendingFor(paymentKasbonId: string) {
   return db
     .select({ id: approvals.id, version: approvals.version, targetId: approvals.targetId })
     .from(approvals)
-    .innerJoin(payments, eq(payments.id, approvals.targetId))
+    .innerJoin(payments, eq(payments.installmentId, approvals.targetId))
     .where(and(eq(payments.kasbonId, paymentKasbonId), eq(approvals.status, "PENDING")));
 }
 
@@ -198,7 +198,7 @@ describe("store credit payments (FR-KSB-03..05, BR-12, BR-13)", () => {
       await recordKasbonPayment(
         session,
         kasbon.id,
-        { method: "CASH", amount: 40_000 },
+        { cash: 40_000, transfer: null },
         testContext(),
       ),
     ).toEqual({ ok: true, status: "PENDING" });
@@ -225,7 +225,7 @@ describe("store credit payments (FR-KSB-03..05, BR-12, BR-13)", () => {
       await recordKasbonPayment(
         ownerSession,
         kasbon.id,
-        { method: "CASH", amount: 60_000 },
+        { cash: 60_000, transfer: null },
         testContext(),
       ),
     ).toEqual({ ok: true, status: "APPROVED" });
@@ -234,7 +234,7 @@ describe("store credit payments (FR-KSB-03..05, BR-12, BR-13)", () => {
       await recordKasbonPayment(
         ownerSession,
         kasbon.id,
-        { method: "CASH", amount: 1 },
+        { cash: 1, transfer: null },
         testContext(),
       ),
     ).toEqual({ ok: false, reason: "settled" });
@@ -246,24 +246,19 @@ describe("store credit payments (FR-KSB-03..05, BR-12, BR-13)", () => {
     const session = await cashier();
     await openShift(session, { openingCash: 0 }, testContext());
 
-    await recordKasbonPayment(
-      session,
-      kasbon.id,
-      { method: "CASH", amount: 70_000 },
-      testContext(),
-    );
+    await recordKasbonPayment(session, kasbon.id, { cash: 70_000, transfer: null }, testContext());
     expect(
       await recordKasbonPayment(
         session,
         kasbon.id,
-        { method: "CASH", amount: 40_000 },
+        { cash: 40_000, transfer: null },
         testContext(),
       ),
     ).toEqual({ ok: false, reason: "exceeds-balance", available: 30_000 });
 
     const results = await Promise.all(
       [1, 2, 3].map(() =>
-        recordKasbonPayment(session, kasbon.id, { method: "CASH", amount: 20_000 }, testContext()),
+        recordKasbonPayment(session, kasbon.id, { cash: 20_000, transfer: null }, testContext()),
       ),
     );
     expect(results.filter((result) => result.ok)).toHaveLength(1);
@@ -275,12 +270,7 @@ describe("store credit payments (FR-KSB-03..05, BR-12, BR-13)", () => {
     await grant("kasbon:pay");
     const session = await cashier();
     await openShift(session, { openingCash: 0 }, testContext());
-    await recordKasbonPayment(
-      session,
-      kasbon.id,
-      { method: "CASH", amount: 100_000 },
-      testContext(),
-    );
+    await recordKasbonPayment(session, kasbon.id, { cash: 100_000, transfer: null }, testContext());
     const [first] = await pendingFor(kasbon.id);
     await decideApproval(
       await owner(),
@@ -291,16 +281,11 @@ describe("store credit payments (FR-KSB-03..05, BR-12, BR-13)", () => {
     const [rejected] = await db
       .select()
       .from(payments)
-      .where(eq(payments.id, first?.targetId ?? ""));
+      .where(eq(payments.installmentId, first?.targetId ?? ""));
     expect(rejected?.status).toBe("FAILED");
     expect((await getOpenShift(session))?.expectedCash).toBe(0);
 
-    await recordKasbonPayment(
-      session,
-      kasbon.id,
-      { method: "CASH", amount: 100_000 },
-      testContext(),
-    );
+    await recordKasbonPayment(session, kasbon.id, { cash: 100_000, transfer: null }, testContext());
     const [second] = await pendingFor(kasbon.id);
     await cancelApproval(session, second?.id ?? "", second?.version ?? 0, testContext());
     expect(await pendingFor(kasbon.id)).toHaveLength(0);
@@ -315,7 +300,7 @@ describe("store credit payments (FR-KSB-03..05, BR-12, BR-13)", () => {
       await recordKasbonPayment(
         session,
         kasbon.id,
-        { method: "CASH", amount: 10_000 },
+        { cash: 10_000, transfer: null },
         testContext(),
       ),
     ).toEqual({ ok: false, reason: "no-open-shift" });
@@ -324,10 +309,8 @@ describe("store credit payments (FR-KSB-03..05, BR-12, BR-13)", () => {
         session,
         kasbon.id,
         {
-          method: "TRANSFER",
-          amount: 10_000,
-          bankAccountId: crypto.randomUUID(),
-          reference: "",
+          cash: 0,
+          transfer: { amount: 10_000, bankAccountId: crypto.randomUUID(), reference: "" },
         },
         testContext(),
       ),
@@ -343,10 +326,66 @@ describe("store credit payments (FR-KSB-03..05, BR-12, BR-13)", () => {
       await recordKasbonPayment(
         session,
         kasbon.id,
-        { method: "TRANSFER", amount: 10_000, bankAccountId: bank.id, reference: "TRX-1" },
+        { cash: 0, transfer: { amount: 10_000, bankAccountId: bank.id, reference: "TRX-1" } },
         testContext(),
       ),
     ).toEqual({ ok: true, status: "PENDING" });
+  });
+});
+
+describe("split installments (FR-KSB-03, BR-12)", () => {
+  it("files cash and transfer parts as one approval and settles them together", async () => {
+    const ownerSession = await owner();
+    await openShift(ownerSession, { openingCash: 0 }, testContext());
+    const sale = await sellOnCredit(ownerSession, await sellable(), 0);
+    if (!sale.ok) throw new Error(sale.reason);
+    const kasbon = await kasbonOf(sale.saleId);
+    const bank = await createBankAccount(
+      ownerSession,
+      { bankName: "BCA", accountNo: "123456", accountName: "Toko" },
+      testContext(),
+    );
+    if (!bank.ok) throw new Error(bank.reason);
+    await grant("kasbon:pay");
+    const session = await cashier();
+    await openShift(session, { openingCash: 0 }, testContext());
+
+    expect(
+      await recordKasbonPayment(
+        session,
+        kasbon.id,
+        { cash: 30_000, transfer: { amount: 80_000, bankAccountId: bank.id, reference: "" } },
+        testContext(),
+      ),
+    ).toEqual({ ok: false, reason: "exceeds-balance", available: 100_000 });
+    expect(
+      await recordKasbonPayment(
+        session,
+        kasbon.id,
+        { cash: 30_000, transfer: { amount: 50_000, bankAccountId: bank.id, reference: "TRX" } },
+        testContext(),
+      ),
+    ).toEqual({ ok: true, status: "PENDING" });
+
+    const pending = await pendingFor(kasbon.id);
+    expect(pending).toHaveLength(2);
+    expect(new Set(pending.map((row) => row.id)).size).toBe(1);
+    expect((await getOpenShift(session))?.expectedCash).toBe(30_000);
+
+    await decideApproval(
+      ownerSession,
+      pending[0]?.id ?? "",
+      { decision: "approve", note: "", version: pending[0]?.version ?? 0 },
+      testContext(),
+    );
+    expect(await kasbonOf(kasbon.saleId)).toMatchObject({ paidTotal: 80_000, balance: 20_000 });
+    const detail = await getKasbon(ownerSession, kasbon.id, NOW);
+    expect(detail?.installments).toHaveLength(1);
+    expect(detail?.installments[0]).toMatchObject({ total: 80_000, approvalStatus: "APPROVED" });
+    expect(detail?.installments[0]?.parts.map((part) => part.method).sort()).toEqual([
+      "CASH",
+      "TRANSFER",
+    ]);
   });
 });
 
@@ -403,12 +442,7 @@ describe("store credit list and aging (FR-KSB-06, FR-DSH-01)", () => {
     const sale = await sellOnCredit(session, await sellable(), 25_000);
     if (!sale.ok) throw new Error(sale.reason);
     const kasbon = await kasbonOf(sale.saleId);
-    await recordKasbonPayment(
-      session,
-      kasbon.id,
-      { method: "CASH", amount: 15_000 },
-      testContext(),
-    );
+    await recordKasbonPayment(session, kasbon.id, { cash: 15_000, transfer: null }, testContext());
     const shift = await getOpenShift(session);
     expect(shift?.totals.kasbonIssued).toBe(75_000);
     expect(shift?.totals.kasbonCollected.CASH).toBe(15_000);

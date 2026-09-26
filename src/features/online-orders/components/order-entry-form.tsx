@@ -6,6 +6,7 @@ import { useEffect, useId, useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { MoneyInput } from "@/components/ui/money-input";
 import { Select } from "@/components/ui/select";
 import { toneClasses } from "@/components/ui/tone";
 import type { Locale } from "@/config/locales";
@@ -319,13 +320,11 @@ export function OrderEntryForm({ locale, marketplaces }: OrderEntryFormProps) {
           <label htmlFor={`${id}-shipping`} className="text-sm font-medium text-ink">
             {t("shippingFee")}
           </label>
-          <Input
+          <MoneyInput
             id={`${id}-shipping`}
             value={shippingText}
-            onChange={(event) => {
-              setShippingText(event.target.value);
-            }}
-            inputMode="numeric"
+            onValueChange={setShippingText}
+
             maxLength={20}
             aria-invalid={error?.field === "shippingFee" ? true : undefined}
             aria-describedby={describedBy("shippingFee")}

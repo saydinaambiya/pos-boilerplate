@@ -50,9 +50,9 @@ export default async function CloseShiftPage() {
           <ActionForm action={closeShiftAction} locale={locale}>
             <FormField
               name="countedCash"
+              money
               label={t("countedCash")}
               hint={t("moneyHint")}
-              inputMode="numeric"
               maxLength={20}
             />
             <FormField name="note" label={t("note")} hint={t("noteHint")} maxLength={200} />
