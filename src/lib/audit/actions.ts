@@ -52,6 +52,8 @@ export const auditActions = [
   "kasbon.opened",
   "kasbon.payment-recorded",
   "kasbon.payment-approved",
+  "online-order.created",
+  "online-order.status-changed",
 ] as const;
 
 export type AuditAction = (typeof auditActions)[number];

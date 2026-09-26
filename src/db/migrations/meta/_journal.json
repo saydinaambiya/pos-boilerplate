@@ -71,6 +71,13 @@
       "when": 1790420194602,
       "tag": "0009_kasbon",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790421881504,
+      "tag": "0010_online_orders",
+      "breakpoints": true
     }
   ]
 }
