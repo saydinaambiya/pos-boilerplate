@@ -18,7 +18,8 @@
     "housekeeping": "Housekeeping",
     "settings": "Settings",
     "showcase": "UI Components",
-    "audit": "Audit Log"
+    "audit": "Audit Log",
+    "badge": "{count} pending"
   },
   "Preferences": {
     "theme": "Theme",
@@ -40,7 +41,10 @@
     "lowStockTitle": "Low stock",
     "lowStockEmpty": "All stock is above its minimum.",
     "lowStockAll": "View all",
-    "lowStockCaption": "Variants at or below minimum stock"
+    "lowStockCaption": "Variants at or below minimum stock",
+    "pendingApprovalsTitle": "Pending approvals",
+    "pendingApprovalsDescription": "{count} requests are waiting for your decision.",
+    "pendingApprovalsAction": "Open approvals"
   },
   "Placeholder": {
     "title": "Coming soon",
@@ -167,7 +171,8 @@
       "settings_manage": "Manage settings",
       "audit_view": "View audit log",
       "category_manage": "Manage categories",
-      "pos_item-discount": "Manual item discounts at the cashier"
+      "pos_item-discount": "Manual item discounts at the cashier",
+      "sale_void": "Request sale voids"
     }
   },
   "Employees": {
@@ -296,7 +301,8 @@
       "product": "Product",
       "product-variant": "Product variant",
       "shift": "Shift",
-      "sale": "Sale"
+      "sale": "Sale",
+      "approval": "Approval"
     },
     "actions": {
       "auth_login_succeeded": "Signed in",
@@ -338,7 +344,13 @@
       "variant_reordered": "Variant order changed",
       "shift_opened": "Shift opened",
       "shift_closed": "Shift closed",
-      "sale_completed": "Sale completed"
+      "sale_completed": "Sale completed",
+      "sale_voided": "Sale voided",
+      "approval_requested": "Approval requested",
+      "approval_auto-approved": "Auto-approved (owner)",
+      "approval_approved": "Approval granted",
+      "approval_rejected": "Approval rejected",
+      "approval_cancelled": "Request cancelled"
     }
   },
   "Settings": {
@@ -802,7 +814,17 @@
       "KASBON": "Store credit"
     },
     "pageTitle": "Receipt",
-    "print": "Print / PDF"
+    "print": "Print / PDF",
+    "void": "Void sale",
+    "voidTitle": "Request a void of {invoiceNo}?",
+    "voidDescription": "The sale is cancelled and stock returned once an approver agrees.",
+    "voidReason": "Void reason",
+    "voidSubmit": "Request void",
+    "voidPending": "Void waiting for approval.",
+    "voidedNotice": "This sale has been voided.",
+    "errorAlreadyPending": "A void request for this sale already exists.",
+    "errorNotVoidable": "This sale cannot be voided.",
+    "errorNotFound": "Sale not found."
   },
   "Invoice": {
     "invoice": "Invoice",
@@ -851,5 +873,49 @@
     "linkFailed": "Could not create the link.",
     "shareFailed": "Sharing is not available; the PDF was downloaded instead.",
     "back": "Back"
+  },
+  "Approvals": {
+    "title": "Approvals",
+    "subtitle": "Decide void, voucher and store-credit requests.",
+    "inbox": "Waiting for your decision",
+    "mine": "My requests",
+    "emptyInbox": "No requests are waiting for your decision.",
+    "emptyMine": "You have not made any requests.",
+    "types": {
+      "VOID": "Sale void",
+      "VOUCHER": "Voucher",
+      "KASBON_PAYMENT": "Store-credit payment"
+    },
+    "statuses": {
+      "PENDING": "Pending",
+      "APPROVED": "Approved",
+      "REJECTED": "Rejected",
+      "CANCELLED": "Cancelled"
+    },
+    "requestedBy": "Requested by {name} · {time}",
+    "decidedBy": "Decided by {name}",
+    "reason": "Reason: {reason}",
+    "note": "Note: {note}",
+    "voidSummary": "{invoiceNo} · {amount} · cashier {cashier}",
+    "openTarget": "View sale",
+    "approve": "Approve",
+    "reject": "Reject",
+    "approveTitle": "Approve this request?",
+    "approveDescription": "The change is applied immediately and recorded in the audit log.",
+    "rejectTitle": "Reject this request?",
+    "rejectDescription": "The request is marked rejected; nothing changes.",
+    "decisionNote": "Note (optional)",
+    "cancelRequest": "Cancel request",
+    "cancelTitle": "Cancel this request?",
+    "cancelDescription": "The request leaves the approval queue.",
+    "keep": "Back",
+    "pendingCount": "{count} pending",
+    "errors": {
+      "stale": "This request was already decided or changed. Reload the page.",
+      "selfDecision": "You cannot decide your own request.",
+      "forbidden": "You may not decide this kind of request.",
+      "targetChanged": "The requested data changed and can no longer be applied.",
+      "notFound": "Request not found."
+    }
   }
 }

@@ -172,3 +172,36 @@ export async function findSaleDetail(saleId: string) {
   ]);
   return { ...sale, items, payments: paid };
 }
+
+/** Locks a sale row for a status change such as a void (FR-POS-09). */
+export async function lockSale(executor: Executor, saleId: string) {
+  const [row] = await executor
+    .select({ id: sales.id, status: sales.status, invoiceNo: sales.invoiceNo })
+    .from(sales)
+    .where(eq(sales.id, saleId))
+    .for("update");
+  return row;
+}
+
+export async function setSaleStatus(
+  executor: Executor,
+  saleId: string,
+  status: (typeof sales.$inferSelect)["status"],
+): Promise<void> {
+  await executor.update(sales).set({ status }).where(eq(sales.id, saleId));
+}
+
+/** Sold quantities per stock-tracked variant, to put back on void. */
+export async function soldTrackedQuantities(executor: Executor, saleId: string) {
+  return executor
+    .select({
+      variantId: saleItems.variantId,
+      qty: sql<number>`sum(${saleItems.qty})`.mapWith(Number),
+    })
+    .from(saleItems)
+    .innerJoin(productVariants, eq(productVariants.id, saleItems.variantId))
+    .innerJoin(products, eq(products.id, productVariants.productId))
+    .where(and(eq(saleItems.saleId, saleId), eq(products.trackStock, true)))
+    .groupBy(saleItems.variantId)
+    .orderBy(saleItems.variantId);
+}

@@ -15,7 +15,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ConfirmAction } from "@/components/form/confirm-action";
+import { FormField } from "@/components/form/form-field";
 import { getSale } from "@/features/checkout/service";
+import { requestVoidAction } from "@/features/checkout/void-actions";
+import { getPendingVoid } from "@/features/checkout/void-service";
 import { Link } from "@/i18n/navigation";
 import { requirePermission } from "@/lib/auth/guard";
 import { formatCurrency } from "@/lib/format/currency";
@@ -32,13 +36,17 @@ export default async function SalePage({ params }: PageProps<"/[locale]/pos/sale
   const { id } = await params;
   const session = await requirePermission("page:pos");
   if (!z.uuid().safeParse(id).success) notFound();
-  const [t, format, locale, sale] = await Promise.all([
+  const [t, tCommon, format, locale, sale, pendingVoid] = await Promise.all([
     getTranslations("Receipt"),
+    getTranslations("Common"),
     getFormatter(),
     getLocale(),
     getSale(session, id),
+    getPendingVoid(id),
   ]);
   if (!sale) notFound();
+  const canRequestVoid =
+    sale.status === "COMPLETED" && !pendingVoid && session.permissions.has("sale:void");
 
   const money = (amount: number) => formatCurrency(amount, locale);
   const rate = (bps: number) => `${basisPointsToPercent(bps)}%`;
@@ -128,6 +136,34 @@ export default async function SalePage({ params }: PageProps<"/[locale]/pos/sale
           </dl>
         </div>
       </Card>
+      {sale.status === "VOIDED" || pendingVoid || canRequestVoid ? (
+        <Card className="mt-6 max-w-3xl">
+          {sale.status === "VOIDED" ? (
+            <p role="status" className="font-medium text-danger-ink">
+              {t("voidedNotice")}
+            </p>
+          ) : pendingVoid ? (
+            <p role="status" className="font-medium text-ink">
+              {t("voidPending")}
+            </p>
+          ) : (
+            <ConfirmAction
+              action={requestVoidAction.bind(null, sale.id)}
+              locale={locale}
+              labels={{
+                trigger: t("void"),
+                title: t("voidTitle", { invoiceNo: sale.invoiceNo }),
+                description: t("voidDescription"),
+                confirm: t("voidSubmit"),
+                cancel: tCommon("cancel"),
+                close: tCommon("close"),
+              }}
+            >
+              <FormField name="reason" label={t("voidReason")} maxLength={200} />
+            </ConfirmAction>
+          )}
+        </Card>
+      ) : null}
     </>
   );
 }

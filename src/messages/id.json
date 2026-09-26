@@ -18,7 +18,8 @@
     "housekeeping": "Housekeeping",
     "settings": "Pengaturan",
     "showcase": "Komponen UI",
-    "audit": "Audit Log"
+    "audit": "Audit Log",
+    "badge": "{count} menunggu"
   },
   "Preferences": {
     "theme": "Tema",
@@ -40,7 +41,10 @@
     "lowStockTitle": "Stok menipis",
     "lowStockEmpty": "Semua stok di atas batas minimum.",
     "lowStockAll": "Lihat semua",
-    "lowStockCaption": "Varian dengan stok pada atau di bawah minimum"
+    "lowStockCaption": "Varian dengan stok pada atau di bawah minimum",
+    "pendingApprovalsTitle": "Menunggu persetujuan",
+    "pendingApprovalsDescription": "{count} pengajuan menunggu keputusan Anda.",
+    "pendingApprovalsAction": "Buka persetujuan"
   },
   "Placeholder": {
     "title": "Segera hadir",
@@ -167,7 +171,8 @@
       "settings_manage": "Kelola pengaturan",
       "audit_view": "Lihat audit log",
       "category_manage": "Kelola kategori",
-      "pos_item-discount": "Diskon manual per item di kasir"
+      "pos_item-discount": "Diskon manual per item di kasir",
+      "sale_void": "Ajukan void transaksi"
     }
   },
   "Employees": {
@@ -296,7 +301,8 @@
       "product": "Produk",
       "product-variant": "Varian produk",
       "shift": "Shift",
-      "sale": "Penjualan"
+      "sale": "Penjualan",
+      "approval": "Persetujuan"
     },
     "actions": {
       "auth_login_succeeded": "Login berhasil",
@@ -338,7 +344,13 @@
       "variant_reordered": "Urutan varian diubah",
       "shift_opened": "Shift dibuka",
       "shift_closed": "Shift ditutup",
-      "sale_completed": "Transaksi selesai"
+      "sale_completed": "Transaksi selesai",
+      "sale_voided": "Transaksi dibatalkan (void)",
+      "approval_requested": "Persetujuan diajukan",
+      "approval_auto-approved": "Disetujui otomatis (Owner)",
+      "approval_approved": "Persetujuan disetujui",
+      "approval_rejected": "Persetujuan ditolak",
+      "approval_cancelled": "Pengajuan dibatalkan"
     }
   },
   "Settings": {
@@ -802,7 +814,17 @@
       "KASBON": "Kas bon"
     },
     "pageTitle": "Struk",
-    "print": "Cetak / PDF"
+    "print": "Cetak / PDF",
+    "void": "Void transaksi",
+    "voidTitle": "Ajukan void {invoiceNo}?",
+    "voidDescription": "Transaksi dibatalkan dan stok dikembalikan setelah disetujui approver.",
+    "voidReason": "Alasan void",
+    "voidSubmit": "Ajukan void",
+    "voidPending": "Void menunggu persetujuan.",
+    "voidedNotice": "Transaksi ini sudah dibatalkan (void).",
+    "errorAlreadyPending": "Sudah ada pengajuan void untuk transaksi ini.",
+    "errorNotVoidable": "Transaksi ini tidak dapat di-void.",
+    "errorNotFound": "Transaksi tidak ditemukan."
   },
   "Invoice": {
     "invoice": "Invoice",
@@ -851,5 +873,49 @@
     "linkFailed": "Tautan gagal dibuat.",
     "shareFailed": "Berbagi tidak tersedia; PDF diunduh sebagai gantinya.",
     "back": "Kembali"
+  },
+  "Approvals": {
+    "title": "Persetujuan",
+    "subtitle": "Putuskan pengajuan void, voucher, dan kas bon.",
+    "inbox": "Menunggu keputusan Anda",
+    "mine": "Pengajuan saya",
+    "emptyInbox": "Tidak ada pengajuan yang menunggu keputusan Anda.",
+    "emptyMine": "Anda belum membuat pengajuan.",
+    "types": {
+      "VOID": "Void transaksi",
+      "VOUCHER": "Voucher",
+      "KASBON_PAYMENT": "Pembayaran kas bon"
+    },
+    "statuses": {
+      "PENDING": "Menunggu",
+      "APPROVED": "Disetujui",
+      "REJECTED": "Ditolak",
+      "CANCELLED": "Dibatalkan"
+    },
+    "requestedBy": "Diajukan oleh {name} · {time}",
+    "decidedBy": "Diputuskan oleh {name}",
+    "reason": "Alasan: {reason}",
+    "note": "Catatan: {note}",
+    "voidSummary": "{invoiceNo} · {amount} · kasir {cashier}",
+    "openTarget": "Lihat transaksi",
+    "approve": "Setujui",
+    "reject": "Tolak",
+    "approveTitle": "Setujui pengajuan ini?",
+    "approveDescription": "Perubahan langsung diterapkan dan tercatat di audit log.",
+    "rejectTitle": "Tolak pengajuan ini?",
+    "rejectDescription": "Pengajuan ditandai ditolak; tidak ada data yang berubah.",
+    "decisionNote": "Catatan (opsional)",
+    "cancelRequest": "Batalkan pengajuan",
+    "cancelTitle": "Batalkan pengajuan ini?",
+    "cancelDescription": "Pengajuan dikeluarkan dari antrean persetujuan.",
+    "keep": "Kembali",
+    "pendingCount": "{count} menunggu",
+    "errors": {
+      "stale": "Pengajuan ini sudah diputuskan atau berubah. Muat ulang halaman.",
+      "selfDecision": "Anda tidak dapat memutus pengajuan sendiri.",
+      "forbidden": "Anda tidak berhak memutus jenis pengajuan ini.",
+      "targetChanged": "Data yang diajukan sudah berubah sehingga tidak dapat diterapkan.",
+      "notFound": "Pengajuan tidak ditemukan."
+    }
   }
 }

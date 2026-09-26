@@ -1,4 +1,4 @@
-import { ChartColumn, PackageCheck, TriangleAlert } from "lucide-react";
+import { BadgeCheck, ChartColumn, PackageCheck, TriangleAlert } from "lucide-react";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { toneClasses } from "@/components/ui/tone";
 import { StockCell } from "@/features/catalog/components/stock-cell";
+import { countPendingForViewer } from "@/features/approvals/service";
 import { getLowStock } from "@/features/stock/service";
 import { Link } from "@/i18n/navigation";
 import { requirePermission } from "@/lib/auth/guard";
@@ -26,7 +27,10 @@ export default async function DashboardPage() {
     requirePermission("page:dashboard"),
     readSetting("store.profile"),
   ]);
-  const lowStock = session.permissions.has("page:stock") ? await getLowStock(session, 5) : null;
+  const [lowStock, pendingApprovals] = await Promise.all([
+    session.permissions.has("page:stock") ? getLowStock(session, 5) : null,
+    countPendingForViewer(session),
+  ]);
   const profileIncomplete =
     session.permissions.has("settings:manage") && (profile.address === "" || profile.phone === "");
 
@@ -50,6 +54,23 @@ export default async function DashboardPage() {
           </div>
           <Button asChild variant="secondary">
             <Link href="/settings">{t("profileIncompleteAction")}</Link>
+          </Button>
+        </Card>
+      ) : null}
+      {pendingApprovals > 0 ? (
+        <Card
+          role="status"
+          className={cn("mb-6 flex flex-col gap-3 sm:flex-row sm:items-center", toneClasses.info)}
+        >
+          <BadgeCheck className="size-6 shrink-0" aria-hidden="true" />
+          <div className="flex flex-1 flex-col gap-1">
+            <CardTitle className="text-base text-inherit">{t("pendingApprovalsTitle")}</CardTitle>
+            <CardDescription className="text-inherit">
+              {t("pendingApprovalsDescription", { count: pendingApprovals })}
+            </CardDescription>
+          </div>
+          <Button asChild variant="secondary">
+            <Link href="/approvals">{t("pendingApprovalsAction")}</Link>
           </Button>
         </Card>
       ) : null}
