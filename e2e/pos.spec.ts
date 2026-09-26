@@ -108,6 +108,7 @@ test.describe("POS terminal and checkout (FR-POS, FR-PAY)", () => {
 
     const success = page.getByRole("dialog", { name: "Transaksi berhasil" });
     await expect(success).toContainText(/Nomor invoice INV-\d{8}-\d{4}/);
+    const invoiceNo = (/INV-\d{8}-\d{4}/.exec(await success.innerText()) ?? [""])[0];
     await expect(success).toContainText(`Kembalian: ${rupiah(100_000 - total)}`);
     await success.getByRole("link", { name: "Cetak struk" }).click();
     await expect(page).toHaveURL(/\/id\/print\/invoices\/[0-9a-f-]+\?print=1&tendered=100000$/);
@@ -123,6 +124,16 @@ test.describe("POS terminal and checkout (FR-POS, FR-PAY)", () => {
     await expect(page.getByRole("complementary", { name: "Keranjang" })).toContainText(
       "Keranjang kosong",
     );
+
+    await page.getByRole("link", { name: "Riwayat transaksi" }).click();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Riwayat transaksi");
+    await page.getByRole("searchbox", { name: "No. invoice" }).fill(invoiceNo.slice(-9));
+    await page.getByRole("button", { name: "Terapkan" }).click();
+    const history = page.getByRole("table", { name: "Riwayat transaksi, terbaru di atas" });
+    await expect(history.getByRole("row")).toHaveCount(2);
+    await expect(history).toContainText("Tunai");
+    await history.getByRole("link", { name: `Buka transaksi ${invoiceNo}` }).click();
+    await expect(page).toHaveURL(new RegExp(`/id/pos/sales/${saleId}$`));
     await page.context().close();
   });
 

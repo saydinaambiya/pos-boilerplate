@@ -68,6 +68,9 @@ export default async function SalePage({ params }: PageProps<"/[locale]/pos/sale
         description={`${format.dateTime(sale.createdAt, { dateStyle: "medium", timeStyle: "short" })} · ${sale.cashierName} · ${t(`statuses.${sale.status}`)}`}
         actions={
           <>
+            <Button asChild variant="ghost">
+              <Link href="/pos/sales">{t("history")}</Link>
+            </Button>
             <Button asChild variant="secondary">
               <Link href={`/print/invoices/${sale.id}`}>{t("print")}</Link>
             </Button>

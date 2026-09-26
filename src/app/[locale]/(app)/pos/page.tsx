@@ -48,9 +48,14 @@ export default async function PosPage() {
         <PageHeader
           title={tNav("pos")}
           actions={
-            <Button asChild variant="ghost">
-              <Link href="/pos/shifts">{t("history")}</Link>
-            </Button>
+            <>
+              <Button asChild variant="ghost">
+                <Link href="/pos/sales">{tPos("salesHistory")}</Link>
+              </Button>
+              <Button asChild variant="ghost">
+                <Link href="/pos/shifts">{t("history")}</Link>
+              </Button>
+            </>
           }
         />
         {others.length > 0 ? (
@@ -118,6 +123,9 @@ export default async function PosPage() {
           {tPos("shiftSince", { time: format.dateTime(shift.openedAt, { timeStyle: "short" }) })}
         </span>
         <span className="flex gap-2">
+          <Button asChild variant="ghost" size="sm">
+            <Link href="/pos/sales">{tPos("salesHistory")}</Link>
+          </Button>
           <Button asChild variant="ghost" size="sm">
             <Link href="/pos/shifts">{tPos("shiftHistory")}</Link>
           </Button>
