@@ -81,6 +81,10 @@ export const productVariants = pgTable(
   },
   (table) => [
     uniqueIndex("product_variants_sku_key").on(sql`lower(${table.sku})`),
+    uniqueIndex("product_variants_color_name_key").on(
+      table.productId,
+      sql`lower(${table.attributes} -> 'color' ->> 'name')`,
+    ),
     uniqueIndex("product_variants_one_default_key")
       .on(table.productId)
       .where(sql`${table.isDefault}`),

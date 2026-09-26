@@ -22,6 +22,7 @@ import { stockFilters } from "@/features/stock/schemas";
 import { getStockLevels } from "@/features/stock/service";
 import { Link } from "@/i18n/navigation";
 import { requirePermission } from "@/lib/auth/guard";
+import { variantLabel } from "@/lib/format/variant-label";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Stock");
@@ -112,10 +113,12 @@ export default async function StockPage({ searchParams }: PageProps<"/[locale]/s
                   <TableCell className="font-medium">
                     <Link
                       href={`/stock/${level.variantId}`}
-                      aria-label={t("open", { name: level.productName })}
+                      aria-label={t("open", {
+                        name: variantLabel(level.productName, level.colorName),
+                      })}
                       className="underline-offset-4 hover:underline"
                     >
-                      {level.productName}
+                      {variantLabel(level.productName, level.colorName)}
                     </Link>
                     <span className="block text-xs font-normal text-ink-muted">{level.unit}</span>
                   </TableCell>

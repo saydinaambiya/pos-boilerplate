@@ -36,6 +36,13 @@
       "when": 1790406267796,
       "tag": "0004_stock_movements",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790406805343,
+      "tag": "0005_variant_color_unique",
+      "breakpoints": true
     }
   ]
 }

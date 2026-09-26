@@ -14,7 +14,7 @@ import { currentRequestContext } from "@/lib/http/request-context";
 import { fieldErrors, type FormState, submittedValues } from "@/lib/validation/form-state";
 import { parseRupiah } from "@/lib/validation/money";
 
-import { categoryInput, productInput } from "./schemas";
+import { categoryInput, productDetailsInput, productInput } from "./schemas";
 import {
   type CatalogResult,
   changeProductStatus,
@@ -130,18 +130,23 @@ const PRODUCT_FIELDS = [
   "minStock",
 ] as const;
 
-function parseProduct(formData: FormData, session: Session) {
+function productDetails(formData: FormData, session: Session) {
   const canSeeCost = session.permissions.has("product:view-cost");
-  return productInput.safeParse({
+  return {
     name: formText(formData, "name"),
     categoryId: formText(formData, "categoryId"),
     price: money(formText(formData, "price")),
     ...(canSeeCost ? { cost: money(formText(formData, "cost") || "0") } : {}),
     unit: formText(formData, "unit"),
     trackStock: formData.get("trackStock") === "on",
+  };
+}
+
+function defaultVariantFields(formData: FormData) {
+  return {
     sku: formText(formData, "sku"),
     minStock: integer(formText(formData, "minStock") || "0"),
-  });
+  };
 }
 
 async function saveProduct(id: string | null, formData: FormData): Promise<FormState> {
@@ -154,17 +159,27 @@ async function saveProduct(id: string | null, formData: FormData): Promise<FormS
   if (id !== null && !recordId.safeParse(id).success) {
     return failure({ ok: false, reason: "not-found" }, locale);
   }
-  const parsed = parseProduct(formData, session);
-  if (!parsed.success) {
-    const [, tv] = await translations(locale);
-    return { status: "error", errors: fieldErrors(parsed.error, tv), values };
-  }
-
+  const details = productDetails(formData, session);
   const context = await currentRequestContext();
-  const result =
-    id === null
-      ? await createProduct(session, parsed.data, context)
-      : await updateProduct(session, id, parsed.data, context);
+  let result: CatalogResult;
+  if (id === null || formData.has("sku")) {
+    const parsed = productInput.safeParse({ ...details, ...defaultVariantFields(formData) });
+    if (!parsed.success) {
+      const [, tv] = await translations(locale);
+      return { status: "error", errors: fieldErrors(parsed.error, tv), values };
+    }
+    result =
+      id === null
+        ? await createProduct(session, parsed.data, context)
+        : await updateProduct(session, id, parsed.data, context);
+  } else {
+    const parsed = productDetailsInput.safeParse(details);
+    if (!parsed.success) {
+      const [, tv] = await translations(locale);
+      return { status: "error", errors: fieldErrors(parsed.error, tv), values };
+    }
+    result = await updateProduct(session, id, parsed.data, context);
+  }
   if (!result.ok) return { ...(await failure(result, locale)), values };
   if (id === null) return redirect({ href: "/products", locale });
   revalidatePath("/", "layout");

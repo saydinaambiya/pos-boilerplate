@@ -21,7 +21,7 @@ import {
   updateCategoryRow,
   updateProductWithDefaultVariant,
 } from "./repository";
-import type { CategoryInput, ProductFilters, ProductInput } from "./schemas";
+import type { CategoryInput, ProductDetailsInput, ProductFilters, ProductInput } from "./schemas";
 
 export const PRODUCT_PAGE_SIZE = 50;
 
@@ -186,13 +186,14 @@ export async function createProduct(
 }
 
 /**
- * Updates a product and its default variant. Without `product:view-cost`
- * the stored cost is kept, since the editor never saw it (FR-PRD-02).
+ * Updates a product and, while it has no colour variants, its default
+ * variant's SKU and minimum stock. Without `product:view-cost` the stored
+ * cost is kept, since the editor never saw it (FR-PRD-02).
  */
 export async function updateProduct(
   session: Session,
   id: string,
-  input: ProductInput,
+  input: ProductDetailsInput & { sku?: string; minStock?: number },
   context: RequestContext,
 ): Promise<CatalogResult> {
   assertPermission(session, "product:update");
@@ -202,12 +203,13 @@ export async function updateProduct(
     return { ok: false, reason: "invalid-category" };
   }
   const canSeeCost = session.permissions.has("product:view-cost");
-  const { sku, minStock, cost, ...product } = input;
+  const { sku = current.sku, minStock = current.minStock, cost, ...product } = input;
   const values = { ...product, cost: canSeeCost ? (cost ?? current.cost) : current.cost };
+  const defaultVariant = current.hasVariants ? null : { sku, minStock };
 
   try {
     await db.transaction(async (tx) => {
-      await updateProductWithDefaultVariant(tx, id, values, { sku, minStock });
+      await updateProductWithDefaultVariant(tx, id, values, defaultVariant);
       await recordAudit(
         tx,
         {
@@ -215,7 +217,7 @@ export async function updateProduct(
           action: "product.updated",
           entity: "product",
           entityId: id,
-          diff: changedFields(current, { ...values, sku, minStock }),
+          diff: changedFields(current, { ...values, ...defaultVariant }),
         },
         context,
       );

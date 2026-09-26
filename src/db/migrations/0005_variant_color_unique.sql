@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "product_variants_color_name_key" ON "product_variants" USING btree ("product_id",lower("attributes" -> 'color' ->> 'name'));

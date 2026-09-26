@@ -9,6 +9,7 @@ import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/ca
 import { PageHeader } from "@/components/ui/page-header";
 import { setProductStatusAction, updateProductAction } from "@/features/catalog/actions";
 import { ProductForm } from "@/features/catalog/components/product-form";
+import { VariantsSection } from "@/features/catalog/components/variants-section";
 import { getCategories, getProduct } from "@/features/catalog/service";
 import { Link } from "@/i18n/navigation";
 import { requirePermission } from "@/lib/auth/guard";
@@ -49,7 +50,7 @@ export default async function EditProductPage({ params }: PageProps<"/[locale]/p
           {product.trackStock ? (
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <CardDescription>{t("stockNote", { stock: product.stockQty })}</CardDescription>
-              {session.permissions.has("page:stock") ? (
+              {session.permissions.has("page:stock") && !product.hasVariants ? (
                 <Button asChild variant="secondary" size="sm">
                   <Link href={`/stock/${product.variantId}`}>{t("manageStock")}</Link>
                 </Button>
@@ -64,6 +65,7 @@ export default async function EditProductPage({ params }: PageProps<"/[locale]/p
             product={product}
           />
         </Card>
+        <VariantsSection session={session} product={product} />
         <Card className="max-w-2xl">
           <CardHeader className="flex-col gap-1">
             <CardTitle>{t("statusSection")}</CardTitle>

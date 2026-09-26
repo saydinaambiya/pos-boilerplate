@@ -34,6 +34,7 @@ import { movementFilters } from "@/features/stock/schemas";
 import { getMovements, getVariantStock } from "@/features/stock/service";
 import { Link } from "@/i18n/navigation";
 import { requirePermission } from "@/lib/auth/guard";
+import { variantLabel } from "@/lib/format/variant-label";
 import { cn } from "@/lib/utils/cn";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -79,7 +80,7 @@ export default async function VariantStockPage({
   return (
     <>
       <PageHeader
-        title={variant.productName}
+        title={variantLabel(variant.productName, variant.colorName)}
         description={`${variant.sku} · ${variant.categoryName}`}
         actions={
           <Button asChild variant="secondary">

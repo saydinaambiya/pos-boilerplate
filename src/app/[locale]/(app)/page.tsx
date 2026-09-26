@@ -11,6 +11,7 @@ import { StockCell } from "@/features/catalog/components/stock-cell";
 import { getLowStock } from "@/features/stock/service";
 import { Link } from "@/i18n/navigation";
 import { requirePermission } from "@/lib/auth/guard";
+import { variantLabel } from "@/lib/format/variant-label";
 import { readSetting } from "@/lib/settings/store";
 import { cn } from "@/lib/utils/cn";
 
@@ -73,7 +74,7 @@ export default async function DashboardPage() {
                     href={`/stock/${item.variantId}`}
                     className="min-w-0 truncate text-sm font-medium text-ink underline-offset-4 hover:underline"
                   >
-                    {item.productName}
+                    {variantLabel(item.productName, item.colorName)}
                   </Link>
                   <StockCell trackStock stockQty={item.stockQty} minStock={item.minStock} />
                 </li>

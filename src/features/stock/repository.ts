@@ -72,6 +72,7 @@ const levelColumns = {
   categoryName: categories.name,
   unit: products.unit,
   sku: productVariants.sku,
+  colorName: sql<string | null>`${productVariants.attributes} -> 'color' ->> 'name'`,
   stockQty: productVariants.stockQty,
   minStock: productVariants.minStock,
   trackStock: products.trackStock,
@@ -91,6 +92,7 @@ export async function queryStockLevels(filters: StockFilters, pageSize: number) 
     const match = or(
       like(sql`lower(${products.name})`, pattern),
       like(sql`lower(${productVariants.sku})`, pattern),
+      like(sql`lower(${productVariants.attributes} -> 'color' ->> 'name')`, pattern),
     );
     if (match) conditions.push(match);
   }

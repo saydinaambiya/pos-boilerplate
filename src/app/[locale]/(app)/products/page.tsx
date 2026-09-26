@@ -44,8 +44,9 @@ export default async function ProductsPage({ searchParams }: PageProps<"/[locale
     page: first(raw.page) ?? "1",
   });
 
-  const [t, locale, categories, page] = await Promise.all([
+  const [t, tVariants, locale, categories, page] = await Promise.all([
     getTranslations("Catalog"),
+    getTranslations("Variants"),
     getLocale(),
     getCategories(session),
     listProducts(session, filters),
@@ -192,7 +193,11 @@ export default async function ProductsPage({ searchParams }: PageProps<"/[locale
                     <span className="block text-xs font-normal text-ink-muted">{product.unit}</span>
                   </TableCell>
                   <TableCell>{product.categoryName}</TableCell>
-                  <TableCell className="text-ink-muted">{product.sku}</TableCell>
+                  <TableCell className="text-ink-muted">
+                    {product.hasVariants
+                      ? tVariants("variantCount", { count: product.variantCount })
+                      : product.sku}
+                  </TableCell>
                   <TableCell className="text-right tabular-nums">
                     {formatCurrency(product.price, locale)}
                   </TableCell>
@@ -211,6 +216,7 @@ export default async function ProductsPage({ searchParams }: PageProps<"/[locale
                       trackStock={product.trackStock}
                       stockQty={product.stockQty}
                       minStock={product.minStock}
+                      low={product.lowStockVariants > 0}
                     />
                   </TableCell>
                   <TableCell>

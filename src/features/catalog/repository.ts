@@ -54,6 +54,22 @@ export async function countProductsInCategory(categoryId: string): Promise<numbe
   return row?.total ?? 0;
 }
 
+/** Stock totals over a product's active variants (one row per product). */
+const variantTotals = db
+  .select({
+    productId: productVariants.productId,
+    totalStock: sql<number>`sum(${productVariants.stockQty})`.as("total_stock"),
+    lowCount:
+      sql<number>`count(*) filter (where ${productVariants.stockQty} <= ${productVariants.minStock})`.as(
+        "low_count",
+      ),
+    variantCount: count().as("variant_count"),
+  })
+  .from(productVariants)
+  .where(eq(productVariants.isActive, true))
+  .groupBy(productVariants.productId)
+  .as("variant_totals");
+
 const productColumns = {
   id: products.id,
   name: products.name,
@@ -63,36 +79,17 @@ const productColumns = {
   cost: products.cost,
   unit: products.unit,
   trackStock: products.trackStock,
+  hasVariants: products.hasVariants,
   isActive: products.isActive,
   variantId: productVariants.id,
   sku: productVariants.sku,
-  stockQty: productVariants.stockQty,
   minStock: productVariants.minStock,
+  stockQty: sql<number>`coalesce(${variantTotals.totalStock}, 0)`.mapWith(Number),
+  lowStockVariants: sql<number>`coalesce(${variantTotals.lowCount}, 0)`.mapWith(Number),
+  variantCount: sql<number>`coalesce(${variantTotals.variantCount}, 0)`.mapWith(Number),
 };
 
-/**
- * One page of products with their default variant. Name and SKU search use
- * the trigram indexes on `lower(...)` (FR-PRD-04, FR-VAR-07).
- */
-export async function queryProducts(filters: ProductFilters, pageSize: number) {
-  const conditions: SQL[] = [];
-  if (filters.status !== "all") conditions.push(eq(products.isActive, filters.status === "active"));
-  if (filters.category) conditions.push(eq(products.categoryId, filters.category));
-  if (filters.q) {
-    const pattern = containsPattern(filters.q);
-    const skuMatch = db
-      .select({ one: sql`1` })
-      .from(productVariants)
-      .where(
-        and(
-          eq(productVariants.productId, products.id),
-          like(sql`lower(${productVariants.sku})`, pattern),
-        ),
-      );
-    const nameOrSku = or(like(sql`lower(${products.name})`, pattern), exists(skuMatch));
-    if (nameOrSku) conditions.push(nameOrSku);
-  }
-
+function productQuery() {
   return db
     .select(productColumns)
     .from(products)
@@ -101,6 +98,37 @@ export async function queryProducts(filters: ProductFilters, pageSize: number) {
       productVariants,
       and(eq(productVariants.productId, products.id), eq(productVariants.isDefault, true)),
     )
+    .leftJoin(variantTotals, eq(variantTotals.productId, products.id));
+}
+
+/**
+ * One page of products with their default variant and stock totals across
+ * active variants. Search matches product name, SKU and colour name via the
+ * trigram indexes on `lower(...)` (FR-PRD-04, FR-VAR-07).
+ */
+export async function queryProducts(filters: ProductFilters, pageSize: number) {
+  const conditions: SQL[] = [];
+  if (filters.status !== "all") conditions.push(eq(products.isActive, filters.status === "active"));
+  if (filters.category) conditions.push(eq(products.categoryId, filters.category));
+  if (filters.q) {
+    const pattern = containsPattern(filters.q);
+    const variantMatch = db
+      .select({ one: sql`1` })
+      .from(productVariants)
+      .where(
+        and(
+          eq(productVariants.productId, products.id),
+          or(
+            like(sql`lower(${productVariants.sku})`, pattern),
+            like(sql`lower(${productVariants.attributes} -> 'color' ->> 'name')`, pattern),
+          ),
+        ),
+      );
+    const match = or(like(sql`lower(${products.name})`, pattern), exists(variantMatch));
+    if (match) conditions.push(match);
+  }
+
+  return productQuery()
     .where(and(...conditions))
     .orderBy(asc(products.name), asc(products.id))
     .limit(pageSize + 1)
@@ -108,16 +136,7 @@ export async function queryProducts(filters: ProductFilters, pageSize: number) {
 }
 
 export async function findProduct(id: string) {
-  const [row] = await db
-    .select(productColumns)
-    .from(products)
-    .innerJoin(categories, eq(categories.id, products.categoryId))
-    .innerJoin(
-      productVariants,
-      and(eq(productVariants.productId, products.id), eq(productVariants.isDefault, true)),
-    )
-    .where(eq(products.id, id))
-    .limit(1);
+  const [row] = await productQuery().where(eq(products.id, id)).limit(1);
   return row;
 }
 
@@ -141,13 +160,15 @@ export async function insertProductWithDefaultVariant(
   return row.id;
 }
 
+/** Updates a product; the default variant too unless colour variants own those fields. */
 export async function updateProductWithDefaultVariant(
   executor: Executor,
   id: string,
   product: ProductRowValues,
-  variant: { sku: string; minStock: number },
+  variant: { sku: string; minStock: number } | null,
 ): Promise<void> {
   await executor.update(products).set(product).where(eq(products.id, id));
+  if (!variant) return;
   await executor
     .update(productVariants)
     .set(variant)
@@ -156,4 +177,80 @@ export async function updateProductWithDefaultVariant(
 
 export async function setProductActive(executor: Executor, id: string, isActive: boolean) {
   await executor.update(products).set({ isActive }).where(eq(products.id, id));
+}
+
+const variantColumns = {
+  id: productVariants.id,
+  productId: productVariants.productId,
+  sku: productVariants.sku,
+  attributes: productVariants.attributes,
+  priceOverride: productVariants.priceOverride,
+  costOverride: productVariants.costOverride,
+  stockQty: productVariants.stockQty,
+  minStock: productVariants.minStock,
+  sortOrder: productVariants.sortOrder,
+  isDefault: productVariants.isDefault,
+  isActive: productVariants.isActive,
+};
+
+/** Colour variants of a product in display order; the retired hidden default is excluded. */
+export async function listColorVariants(executor: Executor, productId: string) {
+  return executor
+    .select(variantColumns)
+    .from(productVariants)
+    .where(
+      and(eq(productVariants.productId, productId), sql`${productVariants.attributes} ? 'color'`),
+    )
+    .orderBy(asc(productVariants.sortOrder), asc(productVariants.id));
+}
+
+export async function findVariant(variantId: string) {
+  const [row] = await db
+    .select({
+      ...variantColumns,
+      productName: products.name,
+      productPrice: products.price,
+      productCost: products.cost,
+      productActive: products.isActive,
+      hasVariants: products.hasVariants,
+      trackStock: products.trackStock,
+    })
+    .from(productVariants)
+    .innerJoin(products, eq(products.id, productVariants.productId))
+    .where(eq(productVariants.id, variantId))
+    .limit(1);
+  return row;
+}
+
+export async function findDefaultVariant(executor: Executor, productId: string) {
+  const [row] = await executor
+    .select(variantColumns)
+    .from(productVariants)
+    .where(and(eq(productVariants.productId, productId), eq(productVariants.isDefault, true)))
+    .limit(1);
+  return row;
+}
+
+export async function insertVariant(
+  executor: Executor,
+  values: typeof productVariants.$inferInsert,
+): Promise<string> {
+  const [row] = await executor
+    .insert(productVariants)
+    .values(values)
+    .returning({ id: productVariants.id });
+  if (!row) throw new Error("Variant insert returned no row");
+  return row.id;
+}
+
+export async function updateVariantRow(
+  executor: Executor,
+  id: string,
+  values: Partial<typeof productVariants.$inferInsert>,
+): Promise<void> {
+  await executor.update(productVariants).set(values).where(eq(productVariants.id, id));
+}
+
+export async function markProductHasVariants(executor: Executor, productId: string): Promise<void> {
+  await executor.update(products).set({ hasVariants: true }).where(eq(products.id, productId));
 }

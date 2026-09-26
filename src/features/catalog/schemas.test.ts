@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { changedFields } from "@/lib/audit/diff";
 import { parseRupiah } from "@/lib/validation/money";
 
-import { productFilters, productInput } from "./schemas";
+import { colorOf, hexColor, productFilters, productInput } from "./schemas";
 
 describe("parseRupiah (PRD §5)", () => {
   it("accepts grouping in either locale and an Rp prefix", () => {
@@ -61,5 +61,23 @@ describe("changedFields (FR-AUD-01)", () => {
     expect(changedFields({ price: 1000, name: "A" }, { price: 1200, name: "A" })).toEqual({
       price: { from: 1000, to: 1200 },
     });
+  });
+});
+
+describe("colour variants (FR-VAR-03)", () => {
+  it("accepts only strict six-digit hex swatches", () => {
+    expect(hexColor.safeParse("#1E88e5").success).toBe(true);
+    for (const value of ["#FFF", "1E88E5", "#1E88E5;", "red", "url(#x)", "#1E88E5 "]) {
+      expect(hexColor.safeParse(value).success, value).toBe(false);
+    }
+  });
+
+  it("reads colours from attributes and ignores the hidden default", () => {
+    expect(colorOf({ color: { name: "Merah", hex: "#E53935" } })).toEqual({
+      name: "Merah",
+      hex: "#E53935",
+    });
+    expect(colorOf({})).toBeNull();
+    expect(colorOf({ color: { name: "X", hex: "javascript:1" } })).toBeNull();
   });
 });

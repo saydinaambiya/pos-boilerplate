@@ -18,6 +18,7 @@ interface ProductFormProps {
     cost: number | null;
     unit: string;
     trackStock: boolean;
+    hasVariants: boolean;
     sku: string;
     minStock: number;
   };
@@ -77,26 +78,28 @@ export async function ProductForm({
           />
         ) : null}
       </div>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <FormField
-          name="sku"
-          label={t("sku")}
-          hint={t("skuHint")}
-          defaultValue={product?.sku}
-          maxLength={40}
-          autoCapitalize="characters"
-          autoComplete="off"
-          spellCheck={false}
-        />
-        <FormField
-          name="minStock"
-          label={t("minStock")}
-          hint={t("minStockHint")}
-          defaultValue={String(product?.minStock ?? 0)}
-          inputMode="numeric"
-          maxLength={7}
-        />
-      </div>
+      {product?.hasVariants ? null : (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <FormField
+            name="sku"
+            label={t("sku")}
+            hint={t("skuHint")}
+            defaultValue={product?.sku}
+            maxLength={40}
+            autoCapitalize="characters"
+            autoComplete="off"
+            spellCheck={false}
+          />
+          <FormField
+            name="minStock"
+            label={t("minStock")}
+            hint={t("minStockHint")}
+            defaultValue={String(product?.minStock ?? 0)}
+            inputMode="numeric"
+            maxLength={7}
+          />
+        </div>
+      )}
       <FormCheckbox
         name="trackStock"
         label={t("trackStock")}
