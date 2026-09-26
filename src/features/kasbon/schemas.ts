@@ -60,4 +60,6 @@ export const kasbonListQuery = z.object({
   filter: z.enum(kasbonFilters).catch("open"),
   q: z.string().trim().max(60).catch(""),
   page: z.coerce.number().int().min(1).max(1000).catch(1),
+  /** Include settled credit marked archived by housekeeping (FR-HK-04). */
+  archived: z.literal("1").optional().catch(undefined),
 });

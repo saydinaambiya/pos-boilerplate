@@ -2,6 +2,8 @@ import { BadgeCheck, ChartColumn, NotebookPen, PackageCheck, TriangleAlert } fro
 import type { Metadata } from "next";
 import { getLocale, getTranslations } from "next-intl/server";
 
+import { onlineOrderStatuses } from "@/db/schema/online-orders";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -9,7 +11,13 @@ import { PageHeader } from "@/components/ui/page-header";
 import { toneClasses } from "@/components/ui/tone";
 import { StockCell } from "@/features/catalog/components/stock-cell";
 import { countPendingForViewer } from "@/features/approvals/service";
+import { CapacityWidget } from "@/features/capacity/components/capacity-widget";
+import { getCapacity } from "@/features/capacity/service";
 import { getKasbonSummary } from "@/features/kasbon/service";
+import { statusChips } from "@/features/online-orders/components/order-status-chip";
+import { getOnlineOrderCounts } from "@/features/online-orders/service";
+import { finalStatuses } from "@/features/online-orders/transitions";
+import { getTodaySales } from "@/features/reports/service";
 import { getLowStock } from "@/features/stock/service";
 import { Link } from "@/i18n/navigation";
 import { requirePermission } from "@/lib/auth/guard";
@@ -24,23 +32,86 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function DashboardPage() {
-  const [t, locale, session, profile] = await Promise.all([
+  const [t, tOrders, locale, session, profile] = await Promise.all([
     getTranslations("Dashboard"),
+    getTranslations("OnlineOrders"),
     getLocale(),
     requirePermission("page:dashboard"),
     readSetting("store.profile"),
   ]);
-  const [lowStock, pendingApprovals, kasbon] = await Promise.all([
+  const [lowStock, pendingApprovals, kasbon, today, orders, capacity] = await Promise.all([
     session.permissions.has("page:stock") ? getLowStock(session, 5) : null,
     countPendingForViewer(session),
     getKasbonSummary(session),
+    getTodaySales(session),
+    getOnlineOrderCounts(session),
+    session.permissions.has("page:housekeeping") ? getCapacity(session) : null,
   ]);
+  const money = (amount: number) => formatCurrency(amount, locale);
   const profileIncomplete =
     session.permissions.has("settings:manage") && (profile.address === "" || profile.phone === "");
 
   return (
     <>
-      <PageHeader title={t("title")} description={t("subtitle")} />
+      <PageHeader
+        title={t("title")}
+        description={t("subtitle")}
+        actions={
+          today && session.permissions.has("page:reports") ? (
+            <Button asChild variant="secondary">
+              <Link href="/reports">{t("viewReports")}</Link>
+            </Button>
+          ) : undefined
+        }
+      />
+      {today ? (
+        <section aria-label={t("todayCaption")} className="mb-6">
+          <dl className="grid gap-3 sm:grid-cols-3">
+            {[
+              { label: t("todaySales"), value: money(today.grandTotal) },
+              { label: t("todayTransactions"), value: String(today.count) },
+              { label: t("todayAverage"), value: money(today.average) },
+            ].map((stat) => (
+              <div
+                key={stat.label}
+                className="flex flex-col gap-1 rounded-card bg-surface p-5 shadow-card"
+              >
+                <dt className="text-sm text-ink-muted">{stat.label}</dt>
+                <dd className="text-2xl font-semibold text-ink tabular-nums">{stat.value}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      ) : null}
+      {orders ? (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>{t("onlineTitle")}</CardTitle>
+            <Button asChild variant="ghost" size="sm">
+              <Link href="/online-orders">{t("onlineAll")}</Link>
+            </Button>
+          </CardHeader>
+          <ul aria-label={t("onlineTitle")} className="flex flex-wrap gap-2">
+            {onlineOrderStatuses
+              .filter((status) => !finalStatuses.includes(status))
+              .map((status) => {
+                const Icon = statusChips[status].icon;
+                return (
+                  <li key={status}>
+                    <Link
+                      href={{ pathname: "/online-orders", query: { status } }}
+                      className="inline-flex min-h-11 items-center gap-2 rounded-full border border-border px-4 text-sm font-medium text-ink"
+                    >
+                      <Icon className="size-4" aria-hidden="true" />
+                      {tOrders(`statuses.${status}`)}
+                      <span className="tabular-nums">{orders[status]}</span>
+                    </Link>
+                  </li>
+                );
+              })}
+          </ul>
+        </Card>
+      ) : null}
       {profileIncomplete ? (
         <Card
           role="status"
@@ -102,6 +173,7 @@ export default async function DashboardPage() {
           </Button>
         </Card>
       ) : null}
+      {capacity ? <CapacityWidget capacity={capacity} /> : null}
       {lowStock ? (
         <Card className="mb-6">
           <CardHeader>

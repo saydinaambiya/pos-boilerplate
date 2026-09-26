@@ -222,7 +222,7 @@ export async function searchCustomers(session: Session, term: string) {
 /** Store credit list with aging and due markers (FR-KSB-06). */
 export async function listKasbons(
   session: Session,
-  options: { filter: KasbonFilter; search: string; page: number },
+  options: { filter: KasbonFilter; search: string; page: number; includeArchived?: boolean },
   now = new Date(),
 ) {
   assertPermission(session, "page:kasbon");
@@ -230,7 +230,12 @@ export async function listKasbons(
   const today = storeDate(now, timeZone);
   const [rows, aging] = await Promise.all([
     queryKasbons(
-      { filter: options.filter, search: options.search.trim(), today },
+      {
+        filter: options.filter,
+        search: options.search.trim(),
+        today,
+        includeArchived: options.includeArchived ?? false,
+      },
       options.page,
       KASBON_PAGE_SIZE,
     ),

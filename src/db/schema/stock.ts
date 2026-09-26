@@ -2,7 +2,7 @@ import { index, integer, pgEnum, pgTable, text, uuid } from "drizzle-orm/pg-core
 
 import { users } from "./access";
 import { productVariants } from "./catalog";
-import { id, timestamps } from "./columns";
+import { id, timestamps, timestamptz } from "./columns";
 
 /** Every way stock can change (PRD FR-STK-01). */
 export const stockMovementTypes = [
@@ -36,6 +36,8 @@ export const stockMovements = pgTable(
     referenceId: text(),
     reason: text(),
     actorId: uuid().references(() => users.id, { onDelete: "restrict" }),
+    archivedAt: timestamptz(),
+    archiveBatchId: uuid(),
     ...timestamps,
   },
   (table) => [

@@ -74,6 +74,7 @@ owner in Settings, not in code.
 | `DATABASE_URL`                      | Yes        | Postgres URL; Neon **pooled** endpoint in staging/production                 |
 | `ENABLE_DIAGNOSTICS`                | No         | `true` exposes `/api/v1/diagnostics` and `/ui`; staging only                 |
 | `INVOICE_LINK_SECRET`               | Yes        | Signs public invoice download links (≥ 32 chars); rotating revokes all links |
+| `DB_STORAGE_LIMIT_MB`               | No         | Database storage quota in MB (default 500) for the capacity warnings         |
 | `UPSTASH_REDIS_REST_URL` / `_TOKEN` | Production | Per-IP login limit; in-memory fallback locally                               |
 | `SEED_OWNER_*`                      | Seed only  | Username, name and password for `pnpm db:seed`                               |
 

@@ -66,3 +66,11 @@ export async function getPosCategories(session: Session) {
     .filter((category) => category.productCount > 0)
     .map(({ id, name }) => ({ id, name }));
 }
+
+/** Product search for entering marketplace orders (FR-ONL-01); needs no POS access. */
+export async function searchOrderCatalog(session: Session, term: string) {
+  assertPermission(session, "page:online-orders");
+  const search = term.trim().slice(0, 60);
+  if (search === "") return [];
+  return groupProducts(await queryPosCatalog({ limit: SEARCH_ROWS, search }));
+}

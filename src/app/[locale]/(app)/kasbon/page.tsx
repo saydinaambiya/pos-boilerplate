@@ -18,6 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ShowArchivedField } from "@/features/housekeeping/components/show-archived-field";
 import { agingBuckets } from "@/features/kasbon/aging";
 import { DueMarker, KasbonStatusChip } from "@/features/kasbon/components/kasbon-chips";
 import { kasbonFilters, kasbonListQuery } from "@/features/kasbon/schemas";
@@ -41,17 +42,24 @@ export default async function KasbonPage({ searchParams }: PageProps<"/[locale]/
     filter: first(raw.filter),
     q: first(raw.q),
     page: first(raw.page),
+    archived: first(raw.archived),
   });
   const [t, locale, result] = await Promise.all([
     getTranslations("Kasbon"),
     getLocale(),
-    listKasbons(session, { filter: query.filter, search: query.q, page: query.page }),
+    listKasbons(session, {
+      filter: query.filter,
+      search: query.q,
+      page: query.page,
+      includeArchived: query.archived === "1",
+    }),
   ]);
   const money = (amount: number) => formatCurrency(amount, locale);
-  const filtered = query.q !== "" || query.filter !== "open";
+  const filtered = query.q !== "" || query.filter !== "open" || query.archived === "1";
   const pageQuery = (page: number) => ({
     ...(query.q ? { q: query.q } : {}),
     ...(query.filter === "open" ? {} : { filter: query.filter }),
+    ...(query.archived ? { archived: "1" } : {}),
     ...(page > 1 ? { page: String(page) } : {}),
   });
 
@@ -88,7 +96,11 @@ export default async function KasbonPage({ searchParams }: PageProps<"/[locale]/
       </section>
 
       <Card className="mb-6">
-        <form method="get" role="search" className="grid gap-4 sm:grid-cols-3 sm:items-end">
+        <form
+          method="get"
+          role="search"
+          className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:items-end"
+        >
           <Field label={t("search")}>
             {(control) => (
               <Input
@@ -112,6 +124,7 @@ export default async function KasbonPage({ searchParams }: PageProps<"/[locale]/
               </Select>
             )}
           </Field>
+          <ShowArchivedField checked={query.archived === "1"} />
           <div className="flex gap-2">
             <Button type="submit">{t("apply")}</Button>
             {filtered ? (

@@ -192,6 +192,7 @@ export async function getMovements(session: Session, variantId: string, filters:
     ...(from ? { from } : {}),
     ...(until ? { until } : {}),
     ...(filters.cursor ? { before: filters.cursor } : {}),
+    includeArchived: filters.archived === "1",
     limit: MOVEMENT_PAGE_SIZE + 1,
   });
   const movements = rows.slice(0, MOVEMENT_PAGE_SIZE);

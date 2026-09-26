@@ -121,6 +121,8 @@ export const saleItems = pgTable(
     nameSnapshot: text().notNull(),
     variantSnapshot: text(),
     unitPrice: money().notNull(),
+    /** Cost at sale time, for gross profit (FR-RPT-02); visible only with `report:view-profit`. */
+    unitCost: money().notNull().default(0),
     qty: integer().notNull(),
     discountType: discountType(),
     discountValue: bigint({ mode: "number" }),

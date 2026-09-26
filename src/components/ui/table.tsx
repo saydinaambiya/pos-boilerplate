@@ -2,10 +2,17 @@ import type { ComponentProps } from "react";
 
 import { cn } from "@/lib/utils/cn";
 
-/** Horizontally scrollable on small screens so wide tables never overflow the page. */
+/**
+ * Horizontally scrollable on small screens so wide tables never overflow the
+ * page. The scroll container takes keyboard focus so it can be scrolled
+ * without a pointer (WCAG 2.1.1, axe `scrollable-region-focusable`).
+ */
 export function Table({ className, ...props }: ComponentProps<"table">) {
   return (
-    <div className="w-full overflow-x-auto">
+    <div
+      tabIndex={0}
+      className="w-full overflow-x-auto rounded-control focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+    >
       <table className={cn("w-full border-collapse text-left text-sm", className)} {...props} />
     </div>
   );

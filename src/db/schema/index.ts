@@ -7,3 +7,5 @@ export * from "./sales";
 export * from "./approvals";
 export * from "./vouchers";
 export * from "./kasbon";
+export * from "./online-orders";
+export * from "./housekeeping";

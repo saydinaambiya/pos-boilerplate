@@ -23,6 +23,11 @@ const envSchema = z
      * every link already shared (FR-PDF-06).
      */
     INVOICE_LINK_SECRET: z.string().min(32),
+    /**
+     * Storage quota of the database plan in MB; free-tier limits change, so
+     * it is configured, not hard-coded (FR-CAP-01).
+     */
+    DB_STORAGE_LIMIT_MB: z.coerce.number().int().min(1).default(500),
     /** Upstash Redis REST credentials for the per-IP login limit (FR-AUTH-04). */
     UPSTASH_REDIS_REST_URL: z.url().optional(),
     UPSTASH_REDIS_REST_TOKEN: z.string().min(1).optional(),

@@ -103,6 +103,10 @@ test.describe("accessibility (FR-UX-06, WCAG 2.2 AA)", () => {
       "/id/vouchers",
       "/id/vouchers/new",
       "/id/kasbon",
+      "/id/online-orders",
+      "/id/online-orders/new",
+      "/id/reports",
+      "/id/housekeeping",
     ]) {
       test(`${path} in ${theme} theme has no violations`, async ({ page, context, baseURL }) => {
         if (path.endsWith("/login")) await context.clearCookies();
