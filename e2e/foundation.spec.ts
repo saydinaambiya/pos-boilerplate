@@ -86,7 +86,16 @@ test.describe("responsive layout (FR-UX-01)", () => {
 
 test.describe("accessibility (FR-UX-06, WCAG 2.2 AA)", () => {
   for (const theme of ["light", "dark"] as const) {
-    for (const path of ["/id", "/id/ui", "/id/login", "/id/employees", "/id/employees/roles/new"]) {
+    for (const path of [
+      "/id",
+      "/id/ui",
+      "/id/login",
+      "/id/employees",
+      "/id/employees/roles/new",
+      "/id/settings",
+      "/id/settings/tax",
+      "/id/audit",
+    ]) {
       test(`${path} in ${theme} theme has no violations`, async ({ page, context, baseURL }) => {
         if (path.endsWith("/login")) await context.clearCookies();
         await context.addCookies([{ name: "theme", value: theme, url: baseURL ?? "" }]);

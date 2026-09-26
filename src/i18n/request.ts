@@ -3,7 +3,7 @@ import { getRequestConfig } from "next-intl/server";
 import { locale as rootLocale } from "next/root-params";
 
 import type { Locale } from "@/config/locales";
-import { operationalDefaults } from "@/config/operational-defaults";
+import { readSetting } from "@/lib/settings/store";
 
 import { routing } from "./routing";
 
@@ -18,7 +18,7 @@ export default getRequestConfig(async ({ locale: explicit }) => {
 
   return {
     locale,
-    timeZone: operationalDefaults.timeZone,
+    timeZone: (await readSetting("operations")).timeZone,
     messages: (await catalogs[locale]()).default,
   };
 });

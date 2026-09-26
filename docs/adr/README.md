@@ -12,3 +12,4 @@ Records are immutable once accepted; a new record supersedes an old one.
 | [0004](./0004-tag-based-release.md)           | Tag-based release and deployment           | Accepted |
 | [0005](./0005-database-access.md)             | Database access, migrations and tests      | Accepted |
 | [0006](./0006-authentication-and-sessions.md) | Authentication, sessions and authorization | Accepted |
+| [0007](./0007-settings-storage.md)            | Owner settings storage and caching         | Accepted |

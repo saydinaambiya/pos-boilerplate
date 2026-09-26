@@ -65,3 +65,40 @@ export function FormSelect({
     </Field>
   );
 }
+
+type FormCheckboxProps = Omit<
+  ComponentProps<"input">,
+  "name" | "id" | "type" | "defaultChecked"
+> & {
+  name: string;
+  label: string;
+  hint?: string;
+  defaultChecked?: boolean;
+};
+
+/** Checkbox that keeps its submitted state after a failed save; posts `on` when checked. */
+export function FormCheckbox({ name, label, hint, defaultChecked, ...input }: FormCheckboxProps) {
+  const state = useActionFormState();
+  const checked = state.values === undefined ? defaultChecked : state.values[name] === "on";
+  const hintId = `${name}-hint`;
+  return (
+    <label className="flex min-h-11 cursor-pointer items-start gap-3 py-2 text-sm text-ink">
+      <input
+        {...input}
+        type="checkbox"
+        name={name}
+        defaultChecked={checked}
+        aria-describedby={hint ? hintId : undefined}
+        className="mt-0.5 size-5 shrink-0 accent-primary"
+      />
+      <span className="flex flex-col gap-0.5">
+        <span className="font-medium">{label}</span>
+        {hint ? (
+          <span id={hintId} className="text-xs text-ink-muted">
+            {hint}
+          </span>
+        ) : null}
+      </span>
+    </label>
+  );
+}

@@ -14,21 +14,31 @@ export interface FormState {
 
 export type FormAction = (previous: FormState, formData: FormData) => Promise<FormState>;
 
-export type ValidationMessage = "required" | "tooLong" | "invalid";
+export type ValidationMessage =
+  "required" | "tooShort" | "tooLong" | "tooSmall" | "tooBig" | "invalid";
+
+type Translate = (message: ValidationMessage, values?: { min?: number; max?: number }) => string;
+
+function messageFor(issue: z.core.$ZodIssue, translate: Translate): string {
+  if (issue.code === "too_small") {
+    const min = Number(issue.minimum);
+    if (issue.origin !== "string") return translate("tooSmall", { min });
+    return min <= 1 ? translate("required") : translate("tooShort", { min });
+  }
+  if (issue.code === "too_big") {
+    const max = Number(issue.maximum);
+    return translate(issue.origin === "string" ? "tooLong" : "tooBig", { max });
+  }
+  if (issue.code === "custom" && issue.message === "required") return translate("required");
+  return translate("invalid");
+}
 
 /** Maps Zod issues to one translated message per top-level field. */
-export function fieldErrors(
-  error: z.ZodError,
-  translate: (message: ValidationMessage, values?: { max: number }) => string,
-): Record<string, string> {
+export function fieldErrors(error: z.ZodError, translate: Translate): Record<string, string> {
   const errors: Record<string, string> = {};
   for (const issue of error.issues) {
     const field = String(issue.path[0] ?? "form");
-    if (field in errors) continue;
-    if (issue.code === "too_small") errors[field] = translate("required");
-    else if (issue.code === "too_big")
-      errors[field] = translate("tooLong", { max: Number(issue.maximum) });
-    else errors[field] = translate("invalid");
+    errors[field] ??= messageFor(issue, translate);
   }
   return errors;
 }

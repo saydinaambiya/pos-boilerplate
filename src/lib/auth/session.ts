@@ -6,6 +6,7 @@ import { isPermission, type Permission, permissions } from "@/config/permissions
 import { db, type Executor } from "@/db/client";
 import { rolePermissions, roles, sessions, users } from "@/db/schema";
 import type { RequestContext } from "@/lib/http/request-context";
+import { readSetting } from "@/lib/settings/store";
 
 import { authPolicy } from "./policy";
 import { createSessionToken, hashSessionToken } from "./session-token";
@@ -27,8 +28,13 @@ export interface Session {
 
 const MINUTE_MS = 60_000;
 
-function idleExpiry(now: Date): Date {
-  return new Date(now.getTime() + authPolicy.sessionIdleMinutes * MINUTE_MS);
+/** Idle timeout comes from operational settings (FR-AUTH-05, FR-SET-07). */
+async function idleMinutes(): Promise<number> {
+  return (await readSetting("operations")).sessionIdleMinutes;
+}
+
+function idleExpiry(now: Date, minutes: number): Date {
+  return new Date(now.getTime() + minutes * MINUTE_MS);
 }
 
 /** Persists a new session and returns the raw token for the cookie (ADR-0006). */
@@ -39,7 +45,7 @@ export async function createSession(
   now = new Date(),
 ): Promise<{ token: string; expiresAt: Date }> {
   const token = createSessionToken();
-  const expiresAt = idleExpiry(now);
+  const expiresAt = idleExpiry(now, await idleMinutes());
   await executor.insert(sessions).values({
     userId,
     tokenHash: hashSessionToken(token),
@@ -118,9 +124,11 @@ export async function validateSessionToken(
   }
 
   let expiresAt = row.expiresAt;
-  const refreshAfter = idleExpiry(now).getTime() - authPolicy.sessionRefreshMinutes * MINUTE_MS;
+  const idle = await idleMinutes();
+  const refreshAfter =
+    idleExpiry(now, idle).getTime() - authPolicy.sessionRefreshMinutes * MINUTE_MS;
   if (expiresAt.getTime() < refreshAfter) {
-    expiresAt = idleExpiry(now);
+    expiresAt = idleExpiry(now, idle);
     await db.update(sessions).set({ expiresAt }).where(eq(sessions.id, row.sessionId));
   }
 

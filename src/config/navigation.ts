@@ -7,6 +7,7 @@ import {
   NotebookPen,
   Package,
   Palette,
+  ScrollText,
   Settings,
   ShoppingCart,
   TicketPercent,
@@ -61,6 +62,7 @@ export const navigation: readonly NavigationItem[] = [
   { href: "/approvals", label: "approvals", icon: BadgeCheck, permission: "page:approvals" },
   { href: "/reports", label: "reports", icon: ChartColumn, permission: "page:reports" },
   { href: "/housekeeping", label: "housekeeping", icon: Archive, permission: "page:housekeeping" },
+  { href: "/audit", label: "audit", icon: ScrollText, permission: "page:audit" },
   { href: "/settings", label: "settings", icon: Settings, permission: "page:settings" },
   { href: "/ui", label: "showcase", icon: Palette, diagnostics: true },
 ];

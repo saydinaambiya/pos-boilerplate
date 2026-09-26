@@ -5,6 +5,7 @@ import { DEFAULT_EMPLOYEE_ROLE, permissions } from "@/config/permissions";
 import { db } from "@/db/client";
 import { auditLogs, rolePermissions, roles, sessions, users } from "@/db/schema";
 import { authPolicy } from "@/lib/auth/policy";
+import { settingDefinitions } from "@/lib/settings/schemas";
 import { hashSessionToken } from "@/lib/auth/session-token";
 import { validateSessionToken } from "@/lib/auth/session";
 import type { RequestContext } from "@/lib/http/request-context";
@@ -151,7 +152,7 @@ describe("sessions and permissions (FR-AUTH-05, FR-RBAC-03)", () => {
   it("expires idle sessions and slides the expiry on activity", async () => {
     const start = new Date();
     const { token, expiresAt } = await loginOk("kasir", "123456");
-    const idleMs = authPolicy.sessionIdleMinutes * 60_000;
+    const idleMs = settingDefinitions.operations.defaults.sessionIdleMinutes * 60_000;
 
     const active = new Date(start.getTime() + idleMs / 2);
     const refreshed = await validateSessionToken(token, active);

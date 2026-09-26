@@ -17,18 +17,26 @@ describe("plainText (NFR-SEC-04)", () => {
 });
 
 describe("fieldErrors (FR-UX-05)", () => {
-  const schema = z.object({ name: plainText(3), roleId: z.uuid(), note: plainText(10) });
-  const translate = (message: string, values?: { max: number }) =>
-    values ? `${message}:${values.max}` : message;
+  const schema = z.object({
+    name: plainText(3),
+    roleId: z.uuid(),
+    note: plainText(10),
+    months: z.int().min(3).max(60),
+  });
+  const translate = (message: string, values?: { min?: number; max?: number }) =>
+    values ? `${message}:${String(values.min ?? values.max)}` : message;
 
   it("reports one translated message per field", () => {
-    const result = schema.safeParse({ name: "abcd", roleId: "x", note: "" });
+    const result = schema.safeParse({ name: "abcd", roleId: "x", note: "", months: 2 });
     expect(result.success).toBe(false);
     expect(fieldErrors(result.error ?? new z.ZodError([]), translate)).toEqual({
       name: "tooLong:3",
       roleId: "invalid",
       note: "required",
+      months: "tooSmall:3",
     });
+    const big = schema.safeParse({ name: "a", roleId: "x", note: "n", months: 61 });
+    expect(fieldErrors(big.error ?? new z.ZodError([]), translate).months).toBe("tooBig:60");
   });
 });
 

@@ -4,24 +4,8 @@ import type { Executor } from "@/db/client";
 import { auditLogs } from "@/db/schema";
 import type { RequestContext } from "@/lib/http/request-context";
 
+import type { AuditAction } from "./actions";
 import { maskSensitive } from "./mask";
-
-/** Audit actions; extend as modules land (PRD FR-AUD-02). */
-export type AuditAction =
-  | "auth.login.succeeded"
-  | "auth.login.failed"
-  | "auth.login.locked"
-  | "auth.logout"
-  | "auth.pin.changed"
-  | "role.created"
-  | "role.updated"
-  | "role.activated"
-  | "role.deactivated"
-  | "employee.created"
-  | "employee.updated"
-  | "employee.activated"
-  | "employee.deactivated"
-  | "employee.pin.reset";
 
 export interface AuditEntry {
   actorId: string | null;
