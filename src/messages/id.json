@@ -1452,5 +1452,9 @@
     "ok": "Oke",
     "close": "Tutup",
     "checkFields": "Periksa kembali isian yang ditandai."
+  },
+  "Picker": {
+    "chooseDate": "Pilih tanggal",
+    "clear": "Hapus tanggal"
   }
 }

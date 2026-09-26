@@ -126,7 +126,9 @@ export default async function PosPage() {
           </Button>
         </span>
       </div>
-      <NextIntlClientProvider messages={{ Pos: messages.Pos, Feedback: messages.Feedback }}>
+      <NextIntlClientProvider
+        messages={{ Pos: messages.Pos, Feedback: messages.Feedback, Picker: messages.Picker }}
+      >
         <PosTerminal
           locale={locale}
           storageKey={`pos-cart:${session.user.id}`}

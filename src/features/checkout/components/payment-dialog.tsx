@@ -261,16 +261,12 @@ export function PaymentDialog(props: PaymentDialogProps) {
                   <Select
                     id={`${id}-bank`}
                     value={bankAccountId}
-                    onChange={(event) => {
-                      setBankAccountId(event.target.value);
-                    }}
-                  >
-                    {bankAccounts.map((account) => (
-                      <option key={account.id} value={account.id}>
-                        {account.label}
-                      </option>
-                    ))}
-                  </Select>
+                    onValueChange={setBankAccountId}
+                    options={bankAccounts.map((account) => ({
+                      value: account.id,
+                      label: account.label,
+                    }))}
+                  />
                 </div>
               )}
               <div className="flex flex-col gap-1.5">

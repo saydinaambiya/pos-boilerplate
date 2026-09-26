@@ -1,7 +1,7 @@
 import { getLocale, getTranslations } from "next-intl/server";
 
 import { ActionForm } from "@/components/form/action-form";
-import { FormField, FormSelect } from "@/components/form/form-field";
+import { FormDateField, FormField, FormSelect } from "@/components/form/form-field";
 import { SubmitButton } from "@/components/form/submit-button";
 import type { FormAction } from "@/lib/validation/form-state";
 
@@ -75,17 +75,17 @@ export async function VoucherForm({ action, submitLabel, withCode, defaults }: V
         />
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
-        <FormField
+        <FormDateField
           name="startDate"
           label={t("startDate")}
           hint={t("periodHint")}
-          type="date"
+          clearable
           defaultValue={defaults?.startDate}
         />
-        <FormField
+        <FormDateField
           name="endDate"
           label={t("endDate")}
-          type="date"
+          clearable
           defaultValue={defaults?.endDate}
         />
       </div>

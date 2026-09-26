@@ -1,5 +1,5 @@
 import { expect, test } from "./fixtures";
-import { expectResult } from "./helpers";
+import { choose, expectResult } from "./helpers";
 
 /** Unique names per run: the E2E database is not truncated between runs. */
 const run = Date.now().toString(36);
@@ -18,7 +18,7 @@ test.describe("stock ledger (FR-STK)", () => {
 
     await page.goto("/id/products/new");
     await page.getByLabel("Nama produk").fill(product);
-    await page.getByLabel("Kategori").selectOption({ label: `Sembako ${run}` });
+    await choose(page, "Kategori", `Sembako ${run}`);
     await page.getByLabel("Harga jual").fill("15000");
     await page.getByLabel("SKU").fill(sku);
     await page.getByLabel("Stok minimum").fill("5");
@@ -67,7 +67,7 @@ test.describe("stock ledger (FR-STK)", () => {
     await expect(history.getByRole("row").nth(1)).toContainText("Write-off");
     await expect(history.getByRole("row").nth(3)).toContainText("Faktur 77");
 
-    await page.getByLabel("Tipe").selectOption({ label: "Penyesuaian" });
+    await choose(page, "Tipe", "Penyesuaian");
     await page.getByRole("button", { name: "Terapkan" }).click();
     await expect(history.getByRole("row")).toHaveCount(2);
     await expect(history).toContainText("Opname mingguan");

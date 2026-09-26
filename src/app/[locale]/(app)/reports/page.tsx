@@ -4,8 +4,8 @@ import type { ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Field } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
 import {
   Table,
@@ -149,15 +149,11 @@ export default async function ReportsPage({ searchParams }: PageProps<"/[locale]
 
       <Card className="mb-6 flex flex-col gap-4">
         <form method="get" className="flex flex-wrap items-end gap-3">
-          <Field label={t("from")}>
-            {(control) => (
-              <Input {...control} type="date" name="from" defaultValue={from} max={today} />
-            )}
+          <Field label={t("from")} className="min-w-48">
+            {(control) => <DatePicker {...control} name="from" defaultValue={from} max={today} />}
           </Field>
-          <Field label={t("to")}>
-            {(control) => (
-              <Input {...control} type="date" name="to" defaultValue={to} max={today} />
-            )}
+          <Field label={t("to")} className="min-w-48">
+            {(control) => <DatePicker {...control} name="to" defaultValue={to} max={today} />}
           </Field>
           <Button type="submit">{t("apply")}</Button>
         </form>

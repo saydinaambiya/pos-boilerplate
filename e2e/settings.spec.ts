@@ -1,5 +1,5 @@
 import { expect, test } from "./fixtures";
-import { expectResult } from "./helpers";
+import { choose, expectResult } from "./helpers";
 
 /** The E2E database persists between runs, so created names carry a run suffix. */
 const run = Date.now().toString(36);
@@ -75,7 +75,7 @@ test.describe("settings (FR-SET) and audit log (FR-AUD-03)", () => {
 
   test("shows the changes in the audit log", async ({ page }) => {
     await page.goto("/id/audit");
-    await page.getByLabel("Aksi").selectOption({ label: "Pengaturan diubah" });
+    await choose(page, "Aksi", "Pengaturan diubah");
     await page.getByRole("button", { name: "Terapkan" }).click();
     await expect(page).toHaveURL(/action=settings\.updated/);
 

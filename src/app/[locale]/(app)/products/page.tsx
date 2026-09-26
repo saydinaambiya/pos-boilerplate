@@ -100,23 +100,29 @@ export default async function ProductsPage({ searchParams }: PageProps<"/[locale
           </Field>
           <Field label={t("category")}>
             {(control) => (
-              <Select {...control} name="category" defaultValue={filters.category ?? ""}>
-                <option value="">{t("allCategories")}</option>
-                {categories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
-              </Select>
+              <Select
+                {...control}
+                name="category"
+                defaultValue={filters.category ?? ""}
+                options={[
+                  { value: "", label: t("allCategories") },
+                  ...categories.map((category) => ({ value: category.id, label: category.name })),
+                ]}
+              />
             )}
           </Field>
           <Field label={t("status")}>
             {(control) => (
-              <Select {...control} name="status" defaultValue={filters.status}>
-                <option value="active">{t("statusActive")}</option>
-                <option value="inactive">{t("statusInactive")}</option>
-                <option value="all">{t("statusAll")}</option>
-              </Select>
+              <Select
+                {...control}
+                name="status"
+                defaultValue={filters.status}
+                options={[
+                  { value: "active", label: t("statusActive") },
+                  { value: "inactive", label: t("statusInactive") },
+                  { value: "all", label: t("statusAll") },
+                ]}
+              />
             )}
           </Field>
           <div className="flex gap-2">

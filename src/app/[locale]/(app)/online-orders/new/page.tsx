@@ -45,7 +45,11 @@ export default async function NewOnlineOrderPage() {
           />
         ) : (
           <NextIntlClientProvider
-            messages={{ OnlineOrders: messages.OnlineOrders, Feedback: messages.Feedback }}
+            messages={{
+              OnlineOrders: messages.OnlineOrders,
+              Feedback: messages.Feedback,
+              Picker: messages.Picker,
+            }}
           >
             <OrderEntryForm locale={locale} marketplaces={marketplaces} />
           </NextIntlClientProvider>

@@ -1,5 +1,5 @@
 import { expect, test } from "./fixtures";
-import { cashierAtPos, createStockedProduct, grantEmployeePermission } from "./helpers";
+import { cashierAtPos, choose, createStockedProduct, grantEmployeePermission } from "./helpers";
 
 /** Unique names per run: the E2E database is not truncated between runs. */
 const run = Date.now().toString(36).toUpperCase();
@@ -30,7 +30,7 @@ test.describe("online orders from entry to return (FR-ONL)", () => {
   test("a cashier enters an order and stock drops", async ({ browser }) => {
     const page = await cashierAtPos(browser);
     await page.goto("/id/online-orders/new");
-    await page.getByLabel("Marketplace").selectOption({ label: market });
+    await choose(page, "Marketplace", market);
     await page.getByRole("button", { name: "Simpan pesanan" }).click();
     await expect(page.getByText("Kode order wajib diisi.")).toBeVisible();
 
@@ -68,9 +68,7 @@ test.describe("online orders from entry to return (FR-ONL)", () => {
 
     await page.getByRole("button", { name: "Terima retur" }).click();
     const dialog = page.getByRole("dialog", { name: "Ubah status ke Retur diterima?" });
-    await dialog
-      .getByLabel(`Kondisi ${product} (2 pcs)`)
-      .selectOption({ label: "Rusak — write-off" });
+    await choose(dialog, `Kondisi ${product} (2 pcs)`, "Rusak — write-off");
     await dialog.getByRole("button", { name: "Terima retur" }).click();
     await expect(page.getByRole("table", { name: "Item pesanan" })).toContainText(
       "Rusak — write-off",

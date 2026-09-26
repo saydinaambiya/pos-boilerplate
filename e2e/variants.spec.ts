@@ -1,7 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 
 import { expect, test } from "./fixtures";
-import { expectResult } from "./helpers";
+import { choose, expectResult } from "./helpers";
 
 /** Unique names per run: the E2E database is not truncated between runs. */
 const run = Date.now().toString(36);
@@ -20,7 +20,7 @@ test.describe("colour variants (FR-VAR)", () => {
 
     await page.goto("/id/products/new");
     await page.getByLabel("Nama produk").fill(product);
-    await page.getByLabel("Kategori").selectOption({ label: `Pakaian ${run}` });
+    await choose(page, "Kategori", `Pakaian ${run}`);
     await page.getByLabel("Harga jual").fill("50000");
     await page.getByLabel("SKU").fill(sku);
     await page.getByRole("button", { name: "Simpan produk" }).click();

@@ -5,8 +5,8 @@ import { getFormatter, getTranslations } from "next-intl/server";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Field } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
 import { Select } from "@/components/ui/select";
 import {
@@ -62,36 +62,41 @@ export default async function AuditPage({ searchParams }: PageProps<"/[locale]/a
         <form method="get" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5 lg:items-end">
           <Field label={t("actor")}>
             {(control) => (
-              <Select {...control} name="actor" defaultValue={filters.actor ?? ""}>
-                <option value="">{t("allActors")}</option>
-                {actors.map((actor) => (
-                  <option key={actor.id} value={actor.id}>
-                    {`${actor.name} (${actor.username})`}
-                  </option>
-                ))}
-              </Select>
+              <Select
+                {...control}
+                name="actor"
+                defaultValue={filters.actor ?? ""}
+                options={[
+                  { value: "", label: t("allActors") },
+                  ...actors.map((actor) => ({
+                    value: actor.id,
+                    label: `${actor.name} (${actor.username})`,
+                  })),
+                ]}
+              />
             )}
           </Field>
           <Field label={t("action")}>
             {(control) => (
-              <Select {...control} name="action" defaultValue={filters.action ?? ""}>
-                <option value="">{t("allActions")}</option>
-                {auditActions.map((action) => (
-                  <option key={action} value={action}>
-                    {actionLabel(action)}
-                  </option>
-                ))}
-              </Select>
+              <Select
+                {...control}
+                name="action"
+                defaultValue={filters.action ?? ""}
+                options={[
+                  { value: "", label: t("allActions") },
+                  ...auditActions.map((action) => ({ value: action, label: actionLabel(action) })),
+                ]}
+              />
             )}
           </Field>
           <Field label={t("from")}>
             {(control) => (
-              <Input {...control} type="date" name="from" defaultValue={filters.from ?? ""} />
+              <DatePicker {...control} name="from" defaultValue={filters.from ?? ""} clearable />
             )}
           </Field>
           <Field label={t("to")}>
             {(control) => (
-              <Input {...control} type="date" name="to" defaultValue={filters.to ?? ""} />
+              <DatePicker {...control} name="to" defaultValue={filters.to ?? ""} clearable />
             )}
           </Field>
           <div className="flex gap-2">

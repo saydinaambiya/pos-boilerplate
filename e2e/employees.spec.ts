@@ -1,7 +1,7 @@
 import type { Browser, Page } from "@playwright/test";
 
 import { expect, test } from "./fixtures";
-import { expectResult } from "./helpers";
+import { choose, expectResult } from "./helpers";
 
 /** Names are unique per run because the E2E database is not truncated between runs. */
 const run = Date.now().toString(36);
@@ -53,7 +53,7 @@ test.describe("employees & roles (FR-EMP, FR-RBAC-01)", () => {
     await page.goto("/id/employees/new");
     await page.getByLabel("Nama").fill(`Staf Gudang ${run}`);
     await page.getByLabel("Username").fill(username);
-    await page.getByLabel("Role").selectOption({ label: roleName });
+    await choose(page, "Role", roleName);
     await page.getByLabel("PIN awal").fill("135790");
     await page.getByRole("button", { name: "Buat karyawan" }).click();
     await expect(page).toHaveURL(/\/id\/employees$/);

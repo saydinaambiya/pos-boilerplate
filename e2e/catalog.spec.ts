@@ -1,6 +1,6 @@
 import { accounts } from "./accounts";
 import { expect, test } from "./fixtures";
-import { expectResult } from "./helpers";
+import { choose, expectResult } from "./helpers";
 
 /** Unique names per run: the E2E database is not truncated between runs. */
 const run = Date.now().toString(36);
@@ -22,7 +22,7 @@ test.describe("categories & products (FR-CAT-01, FR-PRD)", () => {
   test("creates a product with inline validation", async ({ page }) => {
     await page.goto("/id/products/new");
     await page.getByLabel("Nama produk").fill(`Kopi Susu ${run}`);
-    await page.getByLabel("Kategori").selectOption({ label: category });
+    await choose(page, "Kategori", category);
     await page.getByLabel("Harga jual").fill("abc");
     await page.getByLabel("Harga modal").fill("7.000");
     await page.getByLabel("SKU").fill(sku);
@@ -30,7 +30,7 @@ test.describe("categories & products (FR-CAT-01, FR-PRD)", () => {
     await expectResult(page, /./, "error");
     await expect(page.getByText("Format tidak valid.")).toBeVisible();
     await expect(page.getByLabel("Harga jual")).toBeFocused();
-    await expect(page.getByLabel("Kategori").locator("option:checked")).toHaveText(category);
+    await expect(page.getByLabel("Kategori", { exact: true })).toHaveText(category);
 
     await page.getByLabel("Harga jual").fill("18.000");
     await page.getByRole("button", { name: "Simpan produk" }).click();
@@ -47,7 +47,7 @@ test.describe("categories & products (FR-CAT-01, FR-PRD)", () => {
   test("rejects a duplicate SKU", async ({ page }) => {
     await page.goto("/id/products/new");
     await page.getByLabel("Nama produk").fill("Duplikat");
-    await page.getByLabel("Kategori").selectOption({ label: category });
+    await choose(page, "Kategori", category);
     await page.getByLabel("Harga jual").fill("1000");
     await page.getByLabel("SKU").fill(sku.toLowerCase());
     await page.getByRole("button", { name: "Simpan produk" }).click();

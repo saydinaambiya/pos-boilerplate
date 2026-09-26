@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { useEffect, useId, useState } from "react";
 
+import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { MoneyInput } from "@/components/ui/money-input";
 import type { Locale } from "@/config/locales";
@@ -201,14 +202,14 @@ export function KasbonFields({
         <label htmlFor={`${id}-due`} className="text-sm font-medium text-ink">
           {t("dueDate")}
         </label>
-        <Input
+        <DatePicker
           id={`${id}-due`}
-          type="date"
           min={today}
           value={draft.dueDate}
-          onChange={(event) => {
-            set("dueDate", event.target.value);
+          onValueChange={(value) => {
+            set("dueDate", value);
           }}
+          clearable
         />
       </div>
     </div>

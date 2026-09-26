@@ -115,13 +115,15 @@ export default async function KasbonPage({ searchParams }: PageProps<"/[locale]/
           </Field>
           <Field label={t("filter")}>
             {(control) => (
-              <Select {...control} name="filter" defaultValue={query.filter}>
-                {kasbonFilters.map((filter) => (
-                  <option key={filter} value={filter}>
-                    {t(`filters.${filter}`)}
-                  </option>
-                ))}
-              </Select>
+              <Select
+                {...control}
+                name="filter"
+                defaultValue={query.filter}
+                options={kasbonFilters.map((filter) => ({
+                  value: filter,
+                  label: t(`filters.${filter}`),
+                }))}
+              />
             )}
           </Field>
           <ShowArchivedField checked={query.archived === "1"} />

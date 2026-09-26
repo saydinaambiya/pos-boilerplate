@@ -5,7 +5,7 @@ import type { Browser, Page } from "@playwright/test";
 
 import { accounts } from "./accounts";
 import { expect, test } from "./fixtures";
-import { expectResult } from "./helpers";
+import { choose, expectResult } from "./helpers";
 
 /** Unique names per run: the E2E database is not truncated between runs. */
 const run = Date.now().toString(36);
@@ -56,7 +56,7 @@ test.describe("POS terminal and checkout (FR-POS, FR-PAY)", () => {
 
     await page.goto("/id/products/new");
     await page.getByLabel("Nama produk").fill(product);
-    await page.getByLabel("Kategori").selectOption({ label: `Minuman POS ${run}` });
+    await choose(page, "Kategori", `Minuman POS ${run}`);
     await page.getByLabel("Harga jual").fill("8000");
     await page.getByLabel("SKU").fill(sku);
     await page.getByRole("button", { name: "Simpan produk" }).click();

@@ -228,7 +228,11 @@ export default async function KasbonDetailPage({ params }: PageProps<"/[locale]/
               <CardTitle>{t("recordPayment")}</CardTitle>
             </CardHeader>
             <NextIntlClientProvider
-              messages={{ Kasbon: messages.Kasbon, Feedback: messages.Feedback }}
+              messages={{
+                Kasbon: messages.Kasbon,
+                Feedback: messages.Feedback,
+                Picker: messages.Picker,
+              }}
             >
               <KasbonPaymentForm
                 locale={locale}

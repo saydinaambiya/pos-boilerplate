@@ -1,4 +1,4 @@
-import type { Browser, Page } from "@playwright/test";
+import type { Browser, Locator, Page } from "@playwright/test";
 
 import { accounts } from "./accounts";
 import { expect } from "./fixtures";
@@ -35,7 +35,7 @@ export async function createStockedProduct(
 
   await page.goto("/id/products/new");
   await page.getByLabel("Nama produk").fill(options.name);
-  await page.getByLabel("Kategori").selectOption({ label: options.category });
+  await choose(page, "Kategori", options.category);
   await page.getByLabel("Harga jual").fill(options.price);
   await page.getByLabel("SKU").fill(options.sku);
   await page.getByRole("button", { name: "Simpan produk" }).click();
@@ -70,4 +70,11 @@ export async function expectResult(
   await expect(dialog).toContainText(text);
   await dialog.getByRole("button", { name: "Oke" }).click();
   await expect(dialog).toBeHidden();
+}
+
+/** Picks an option in a design-system dropdown (FR-UI-01) by its label. */
+export async function choose(scope: Page | Locator, label: string, option: string) {
+  const page = "page" in scope ? scope.page() : scope;
+  await scope.getByLabel(label, { exact: true }).click();
+  await page.getByRole("option", { name: option, exact: true }).click();
 }

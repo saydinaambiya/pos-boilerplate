@@ -163,16 +163,12 @@ export function OrderEntryForm({ locale, marketplaces }: OrderEntryFormProps) {
           <Select
             id={`${id}-marketplace`}
             value={marketplaceId}
-            onChange={(event) => {
-              setMarketplaceId(event.target.value);
-            }}
-          >
-            {marketplaces.map((marketplace) => (
-              <option key={marketplace.id} value={marketplace.id}>
-                {marketplace.name}
-              </option>
-            ))}
-          </Select>
+            onValueChange={setMarketplaceId}
+            options={marketplaces.map((marketplace) => ({
+              value: marketplace.id,
+              label: marketplace.name,
+            }))}
+          />
         </div>
         <div className="flex flex-col gap-1.5">
           <label htmlFor={`${id}-code`} className="text-sm font-medium text-ink">

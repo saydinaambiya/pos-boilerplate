@@ -6,7 +6,8 @@ import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { MoneyInput } from "@/components/ui/money-input";
 import { PasswordInput, type RevealLabels } from "@/components/ui/password-input";
-import { Select } from "@/components/ui/select";
+import { DatePicker } from "@/components/ui/date-picker";
+import { Select, type SelectOption } from "@/components/ui/select";
 
 import { useActionFormState } from "./action-form";
 
@@ -56,18 +57,18 @@ export function FormField({
   );
 }
 
-type FormSelectProps = Omit<ComponentProps<"select">, "name" | "id" | "defaultValue"> & {
+interface FormSelectProps {
   name: string;
   label: string;
   hint?: string | undefined;
   defaultValue?: string | undefined;
-  options: readonly { value: string; label: string }[];
-};
+  options: readonly SelectOption[];
+  placeholder?: string | undefined;
+}
 
 /**
- * Native select wired to the enclosing `ActionForm`. It is keyed by its value:
- * React ignores `defaultValue` changes on a mounted `<select>`, so without a
- * remount the form reset after a failed submit would restore the first option.
+ * Design-system dropdown wired to the enclosing `ActionForm`. It is keyed by
+ * its value so an echoed value after a failed submit is shown again.
  */
 export function FormSelect({
   name,
@@ -75,19 +76,42 @@ export function FormSelect({
   hint,
   defaultValue,
   options,
-  ...select
+  placeholder,
 }: FormSelectProps) {
   const { error, value } = useFieldState(name, defaultValue);
   return (
     <Field label={label} hint={hint} error={error}>
       {(control) => (
-        <Select {...select} {...control} key={value} name={name} defaultValue={value}>
-          {options.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </Select>
+        <Select
+          {...control}
+          key={value}
+          name={name}
+          defaultValue={value}
+          options={options}
+          placeholder={placeholder}
+        />
+      )}
+    </Field>
+  );
+}
+
+interface FormDateFieldProps {
+  name: string;
+  label: string;
+  hint?: string | undefined;
+  defaultValue?: string | undefined;
+  min?: string | undefined;
+  max?: string | undefined;
+  clearable?: boolean | undefined;
+}
+
+/** Date picker wired to the enclosing `ActionForm`; posts `YYYY-MM-DD`. */
+export function FormDateField({ name, label, hint, defaultValue, ...picker }: FormDateFieldProps) {
+  const { error, value } = useFieldState(name, defaultValue);
+  return (
+    <Field label={label} hint={hint} error={error}>
+      {(control) => (
+        <DatePicker {...picker} {...control} key={value} name={name} defaultValue={value} />
       )}
     </Field>
   );

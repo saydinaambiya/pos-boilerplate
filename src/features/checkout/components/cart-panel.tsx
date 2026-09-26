@@ -167,14 +167,15 @@ function DiscountEditor({
       <Select
         id={`${id}-type`}
         value={type}
-        onChange={(event) => {
-          setType(event.target.value === "amount" ? "amount" : "percent");
+        onValueChange={(next) => {
+          setType(next === "amount" ? "amount" : "percent");
         }}
         className="w-32"
-      >
-        <option value="percent">{t("discountPercent")}</option>
-        <option value="amount">{t("discountAmount")}</option>
-      </Select>
+        options={[
+          { value: "percent", label: t("discountPercent") },
+          { value: "amount", label: t("discountAmount") },
+        ]}
+      />
       <label className="sr-only" htmlFor={`${id}-value`}>
         {t("discountValue")}
       </label>

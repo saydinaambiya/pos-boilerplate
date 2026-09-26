@@ -10,8 +10,8 @@ import { SubmitButton } from "@/components/form/submit-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Field } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
 import { Select } from "@/components/ui/select";
 import {
@@ -169,24 +169,25 @@ export default async function VariantStockPage({
         <form method="get" className="mb-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:items-end">
           <Field label={t("type")}>
             {(control) => (
-              <Select {...control} name="type" defaultValue={filters.type ?? ""}>
-                <option value="">{t("allTypes")}</option>
-                {stockMovementTypes.map((type) => (
-                  <option key={type} value={type}>
-                    {t(`types.${type}`)}
-                  </option>
-                ))}
-              </Select>
+              <Select
+                {...control}
+                name="type"
+                defaultValue={filters.type ?? ""}
+                options={[
+                  { value: "", label: t("allTypes") },
+                  ...stockMovementTypes.map((type) => ({ value: type, label: t(`types.${type}`) })),
+                ]}
+              />
             )}
           </Field>
           <Field label={t("from")}>
             {(control) => (
-              <Input {...control} type="date" name="from" defaultValue={filters.from ?? ""} />
+              <DatePicker {...control} name="from" defaultValue={filters.from ?? ""} clearable />
             )}
           </Field>
           <Field label={t("to")}>
             {(control) => (
-              <Input {...control} type="date" name="to" defaultValue={filters.to ?? ""} />
+              <DatePicker {...control} name="to" defaultValue={filters.to ?? ""} clearable />
             )}
           </Field>
           <ShowArchivedField checked={filters.archived === "1"} />

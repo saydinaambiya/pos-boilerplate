@@ -1452,5 +1452,9 @@
     "ok": "OK",
     "close": "Close",
     "checkFields": "Please check the highlighted fields."
+  },
+  "Picker": {
+    "chooseDate": "Choose a date",
+    "clear": "Clear date"
   }
 }

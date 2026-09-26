@@ -51,9 +51,9 @@ export default async function LocaleLayout({ children, params }: LayoutProps<"/[
         <link rel="stylesheet" href={paletteStylesheetHref} />
       </head>
       <body>
-        {/* Client components receive translated props; only the tiny feedback catalog is shipped. */}
+        {/* Client components receive translated props; only the tiny feedback and picker catalogs are shipped. */}
         <StyleNonce nonce={nonce} />
-        <NextIntlClientProvider messages={{ Feedback: messages.Feedback }}>
+        <NextIntlClientProvider messages={{ Feedback: messages.Feedback, Picker: messages.Picker }}>
           {children}
         </NextIntlClientProvider>
       </body>
