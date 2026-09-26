@@ -20,6 +20,13 @@ import type { CloseShiftInput, OpenShiftInput } from "./schemas";
 
 export const SHIFT_PAGE_SIZE = 30;
 
+type ShiftTotals = Awaited<ReturnType<typeof shiftTotals>>;
+
+/** Cash that should be in the drawer: float, cash sales and cash store-credit payments (FR-SHF-03). */
+function expectedCashOf(openingCash: number, totals: ShiftTotals): number {
+  return openingCash + (totals.byMethod.CASH ?? 0) + (totals.kasbonCollected.CASH ?? 0);
+}
+
 export type ShiftResult =
   { ok: true; id: string } | { ok: false; reason: "already-open" | "no-open-shift" };
 
@@ -29,7 +36,7 @@ export async function getOpenShift(session: Session) {
   const shift = await findOpenShift(db, session.user.id);
   if (!shift) return null;
   const totals = await shiftTotals(db, shift.id);
-  return { ...shift, totals, expectedCash: shift.openingCash + (totals.byMethod.CASH ?? 0) };
+  return { ...shift, totals, expectedCash: expectedCashOf(shift.openingCash, totals) };
 }
 
 /** Opens a shift with its cash float; one open shift per cashier (FR-SHF-02). */
@@ -63,8 +70,8 @@ export async function openShift(
 }
 
 /**
- * Closes the caller's shift: expected cash = opening float + settled cash
- * payments; the variance against the counted cash is recorded (FR-SHF-03).
+ * Closes the caller's shift: expected cash = opening float + cash sales +
+ * cash store-credit payments; the variance against the counted cash is recorded (FR-SHF-03).
  * The shift row is locked so a concurrent sale cannot slip in unnoticed.
  */
 export async function closeShift(
@@ -77,7 +84,7 @@ export async function closeShift(
     const shift = await lockOpenShift(tx, session.user.id);
     if (!shift) return { ok: false, reason: "no-open-shift" } as const;
     const totals = await shiftTotals(tx, shift.id);
-    const expectedCash = shift.openingCash + (totals.byMethod.CASH ?? 0);
+    const expectedCash = expectedCashOf(shift.openingCash, totals);
     const variance = input.countedCash - expectedCash;
     await closeShiftRow(tx, shift.id, {
       expectedCash,
@@ -114,7 +121,7 @@ export async function getShiftReport(session: Session, shiftId: string) {
   return {
     ...shift,
     totals,
-    expectedCash: shift.expectedCash ?? shift.openingCash + (totals.byMethod.CASH ?? 0),
+    expectedCash: shift.expectedCash ?? expectedCashOf(shift.openingCash, totals),
   };
 }
 

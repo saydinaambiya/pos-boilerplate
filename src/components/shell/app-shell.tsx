@@ -18,6 +18,8 @@ interface AppShellProps {
   showDiagnostics: boolean;
   /** Viewer's permissions; menu entries without access are hidden (FR-RBAC-02). */
   permissions: ReadonlySet<Permission>;
+  /** Counts shown next to menu entries, keyed by href, e.g. pending approvals (FR-APR-02). */
+  badges?: Partial<Record<string, number>>;
   children: ReactNode;
 }
 
@@ -27,7 +29,12 @@ interface AppShellProps {
  * both rendered and toggled with CSS breakpoints, so no client script
  * decides the layout.
  */
-export async function AppShell({ showDiagnostics, permissions, children }: AppShellProps) {
+export async function AppShell({
+  showDiagnostics,
+  permissions,
+  badges = {},
+  children,
+}: AppShellProps) {
   const [t, tCommon] = await Promise.all([
     getTranslations("Navigation"),
     getTranslations("Common"),
@@ -37,7 +44,22 @@ export async function AppShell({ showDiagnostics, permissions, children }: AppSh
       (showDiagnostics || !item.diagnostics) &&
       (item.permission === undefined || permissions.has(item.permission)),
   );
+  const badgeCount = (item: NavigationItem) => badges[item.href] ?? 0;
   const label = (item: NavigationItem) => t(item.label);
+  /** Name including the count, for icon-only links where the badge text is not rendered. */
+  const accessibleLabel = (item: NavigationItem) => {
+    const count = badgeCount(item);
+    return count > 0 ? `${label(item)}, ${t("badge", { count })}` : label(item);
+  };
+  const badge = (item: NavigationItem) => {
+    const count = badgeCount(item);
+    return count > 0 ? (
+      <span className="ml-auto inline-flex min-w-5 items-center justify-center rounded-full bg-danger px-1.5 text-xs font-semibold text-danger-ink tabular-nums">
+        <span aria-hidden="true">{count > 99 ? "99+" : count}</span>
+        <span className="sr-only">{t("badge", { count })}</span>
+      </span>
+    ) : null;
+  };
 
   const verticalLinks = (compact: boolean) => (
     <ul className="flex flex-col gap-1">
@@ -45,7 +67,7 @@ export async function AppShell({ showDiagnostics, permissions, children }: AppSh
         <li key={item.href}>
           <NavLink
             href={item.href}
-            {...(compact ? { "aria-label": label(item) } : {})}
+            {...(compact ? { "aria-label": accessibleLabel(item) } : {})}
             className={cn(
               "group relative flex min-h-11 items-center gap-3 rounded-control px-3 text-sm font-medium text-ink-muted hover:bg-surface-muted hover:text-ink",
               compact && "justify-center px-0",
@@ -61,7 +83,10 @@ export async function AppShell({ showDiagnostics, permissions, children }: AppSh
                 {label(item)}
               </span>
             ) : (
-              <span>{label(item)}</span>
+              <>
+                <span>{label(item)}</span>
+                {badge(item)}
+              </>
             )}
           </NavLink>
         </li>
@@ -162,6 +187,7 @@ export async function AppShell({ showDiagnostics, permissions, children }: AppSh
                   >
                     <item.icon className="size-4" aria-hidden="true" />
                     <span>{label(item)}</span>
+                    {badge(item)}
                   </NavLink>
                 </li>
               ))}

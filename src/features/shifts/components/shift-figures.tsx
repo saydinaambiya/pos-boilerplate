@@ -16,6 +16,8 @@ interface ShiftFiguresProps {
     variance: number | null;
     totals: {
       byMethod: Partial<Record<(typeof paymentMethods)[number], number>>;
+      kasbonIssued: number;
+      kasbonCollected: Partial<Record<(typeof paymentMethods)[number], number>>;
       salesCount: number;
       voidCount: number;
       revenue: number;
@@ -35,7 +37,10 @@ export async function VarianceText({ variance }: { variance: number }) {
   );
 }
 
-/** Key figures of a shift and its totals per payment method (FR-SHF-03/04). */
+/**
+ * Key figures of a shift, its totals per payment method, store credit given
+ * and store credit payments taken (FR-SHF-03/04, FR-KSB-03).
+ */
 export async function ShiftFigures({ shift }: ShiftFiguresProps) {
   const [t, format, locale] = await Promise.all([
     getTranslations("Shifts"),
@@ -90,7 +95,27 @@ export async function ShiftFigures({ shift }: ShiftFiguresProps) {
             >
               <dt className="text-ink-muted">{t(`methods.${method}`)}</dt>
               <dd className="font-medium tabular-nums">
-                {money(shift.totals.byMethod[method] ?? 0)}
+                {money(
+                  method === "KASBON"
+                    ? shift.totals.kasbonIssued
+                    : (shift.totals.byMethod[method] ?? 0),
+                )}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+      <div>
+        <h3 className="mb-2 text-sm font-semibold text-ink">{t("kasbonCollected")}</h3>
+        <dl className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          {(["CASH", "TRANSFER"] as const).map((method) => (
+            <div
+              key={method}
+              className="flex justify-between gap-3 rounded-control bg-surface-muted px-3 py-2 text-sm"
+            >
+              <dt className="text-ink-muted">{t(`methods.${method}`)}</dt>
+              <dd className="font-medium tabular-nums">
+                {money(shift.totals.kasbonCollected[method] ?? 0)}
               </dd>
             </div>
           ))}

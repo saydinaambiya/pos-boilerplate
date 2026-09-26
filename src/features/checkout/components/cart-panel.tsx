@@ -2,7 +2,7 @@
 
 import { Minus, Plus, Tag, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useId, useState } from "react";
+import { useId, useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,7 @@ import { Select } from "@/components/ui/select";
 import type { Locale } from "@/config/locales";
 import { formatCurrency } from "@/lib/format/currency";
 import { parseRupiah } from "@/lib/format/rupiah-input";
-import type { ItemDiscount, SaleTotals, TaxRules } from "@/lib/money/calculate";
+import type { ItemDiscount, SaleTotals, TaxRules, VoucherRule } from "@/lib/money/calculate";
 import { basisPointsToPercent, percentToBasisPoints } from "@/lib/settings/rates";
 
 import type { CartItem } from "./use-cart";
@@ -27,6 +27,84 @@ interface CartPanelProps {
   onDiscount: (variantId: string, discount: ItemDiscount | null) => void;
   onClear: () => void;
   onPay: () => void;
+  voucher: { code: string; name: string; rule: VoucherRule } | null;
+  /** Resolves to an error message, or null when the voucher was applied. */
+  onApplyVoucher: (code: string) => Promise<string | null>;
+  onRemoveVoucher: () => void;
+}
+
+/** One voucher per sale (FR-POS-03); the server validates it again at checkout. */
+function VoucherField(
+  props: Pick<
+    CartPanelProps,
+    "voucher" | "onApplyVoucher" | "onRemoveVoucher" | "totals" | "locale"
+  >,
+) {
+  const t = useTranslations("Pos");
+  const id = useId();
+  const [code, setCode] = useState("");
+  const [message, setMessage] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+  const { voucher } = props;
+
+  if (voucher) {
+    const minPurchase = voucher.rule.minPurchase;
+    return (
+      <div className="flex flex-col gap-1 rounded-control bg-surface-muted px-3 py-2 text-sm">
+        <div className="flex items-center justify-between gap-2">
+          <span className="font-medium">{`${t("voucherApplied", { code: voucher.code })} · ${voucher.name}`}</span>
+          <Button size="sm" variant="ghost" onClick={props.onRemoveVoucher}>
+            {t("removeVoucher")}
+          </Button>
+        </div>
+        {minPurchase != null && props.totals.subtotal < minPurchase ? (
+          <p className="text-xs text-danger-ink">
+            {t("voucherMinPurchase", { amount: formatCurrency(minPurchase, props.locale) })}
+          </p>
+        ) : null}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-1">
+      <label htmlFor={id} className="text-sm font-medium text-ink">
+        {t("voucherCode")}
+      </label>
+      <div className="flex gap-2">
+        <Input
+          id={id}
+          value={code}
+          onChange={(event) => {
+            setCode(event.target.value.toUpperCase());
+            setMessage(null);
+          }}
+          maxLength={20}
+          autoCapitalize="characters"
+          spellCheck={false}
+          aria-invalid={message ? true : undefined}
+        />
+        <Button
+          variant="secondary"
+          disabled={code.trim() === "" || pending}
+          onClick={() => {
+            startTransition(async () => {
+              const error = await props.onApplyVoucher(code.trim());
+              setMessage(error);
+              if (!error) setCode("");
+            });
+          }}
+        >
+          {pending ? t("checkingVoucher") : t("applyVoucher")}
+        </Button>
+      </div>
+      {message ? (
+        <p role="alert" className="text-xs text-danger-ink">
+          {message}
+        </p>
+      ) : null}
+    </div>
+  );
 }
 
 function itemName(item: CartItem) {
@@ -235,6 +313,13 @@ export function CartPanel(props: CartPanelProps) {
           );
         })}
       </ul>
+      <VoucherField
+        voucher={props.voucher}
+        onApplyVoucher={props.onApplyVoucher}
+        onRemoveVoucher={props.onRemoveVoucher}
+        totals={totals}
+        locale={locale}
+      />
       <dl className="flex flex-col gap-1 border-t border-border pt-3 text-sm">
         <div className="flex justify-between">
           <dt className="text-ink-muted">{t("subtotal")}</dt>
@@ -244,6 +329,14 @@ export function CartPanel(props: CartPanelProps) {
           <div className="flex justify-between">
             <dt className="text-ink-muted">{t("itemDiscounts")}</dt>
             <dd className="tabular-nums">{`−${money(totals.itemDiscountTotal)}`}</dd>
+          </div>
+        ) : null}
+        {totals.voucherDiscount > 0 ? (
+          <div className="flex justify-between">
+            <dt className="text-ink-muted">
+              {t("voucherApplied", { code: props.voucher?.code ?? "" })}
+            </dt>
+            <dd className="tabular-nums">{`−${money(totals.voucherDiscount)}`}</dd>
           </div>
         ) : null}
         {totals.serviceAmount > 0 ? (

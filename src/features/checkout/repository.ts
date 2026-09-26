@@ -5,8 +5,10 @@ import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db, type Executor } from "@/db/client";
 import {
   bankAccounts,
+  customers,
   idempotencyKeys,
   invoiceCounters,
+  kasbons,
   payments,
   products,
   productVariants,
@@ -14,6 +16,7 @@ import {
   sales,
   shifts,
   users,
+  vouchers,
 } from "@/db/schema";
 
 import type { PreparedPayment } from "./payment-providers";
@@ -114,7 +117,7 @@ export async function insertIdempotencyRecord(
   await executor.insert(idempotencyKeys).values(values);
 }
 
-/** A sale with its lines, payments and cashier, for the receipt view. */
+/** A sale with its lines, payments, cashier and any store credit, for the receipt view. */
 export async function findSaleDetail(saleId: string) {
   const [sale] = await db
     .select({
@@ -128,6 +131,7 @@ export async function findSaleDetail(saleId: string) {
       subtotal: sales.subtotal,
       itemDiscountTotal: sales.itemDiscountTotal,
       voucherDiscount: sales.voucherDiscount,
+      voucherCode: vouchers.code,
       serviceRateBps: sales.serviceRateBps,
       serviceAmount: sales.serviceAmount,
       ppnRateBps: sales.ppnRateBps,
@@ -135,9 +139,16 @@ export async function findSaleDetail(saleId: string) {
       priceIncludesTax: sales.priceIncludesTax,
       grandTotal: sales.grandTotal,
       paidTotal: sales.paidTotal,
+      customerName: customers.name,
+      kasbonId: kasbons.id,
+      kasbonTotal: kasbons.total,
+      kasbonBalance: kasbons.balance,
     })
     .from(sales)
     .innerJoin(users, eq(users.id, sales.cashierId))
+    .leftJoin(vouchers, eq(vouchers.id, sales.voucherId))
+    .leftJoin(customers, eq(customers.id, sales.customerId))
+    .leftJoin(kasbons, eq(kasbons.saleId, sales.id))
     .where(eq(sales.id, saleId))
     .limit(1);
   if (!sale) return undefined;
@@ -171,4 +182,42 @@ export async function findSaleDetail(saleId: string) {
       .orderBy(asc(payments.createdAt)),
   ]);
   return { ...sale, items, payments: paid };
+}
+
+/** Locks a sale row for a status change such as a void (FR-POS-09). */
+export async function lockSale(executor: Executor, saleId: string) {
+  const [row] = await executor
+    .select({
+      id: sales.id,
+      status: sales.status,
+      invoiceNo: sales.invoiceNo,
+      voucherId: sales.voucherId,
+    })
+    .from(sales)
+    .where(eq(sales.id, saleId))
+    .for("update");
+  return row;
+}
+
+export async function setSaleStatus(
+  executor: Executor,
+  saleId: string,
+  status: (typeof sales.$inferSelect)["status"],
+): Promise<void> {
+  await executor.update(sales).set({ status }).where(eq(sales.id, saleId));
+}
+
+/** Sold quantities per stock-tracked variant, to put back on void. */
+export async function soldTrackedQuantities(executor: Executor, saleId: string) {
+  return executor
+    .select({
+      variantId: saleItems.variantId,
+      qty: sql<number>`sum(${saleItems.qty})`.mapWith(Number),
+    })
+    .from(saleItems)
+    .innerJoin(productVariants, eq(productVariants.id, saleItems.variantId))
+    .innerJoin(products, eq(products.id, productVariants.productId))
+    .where(and(eq(saleItems.saleId, saleId), eq(products.trackStock, true)))
+    .groupBy(saleItems.variantId)
+    .orderBy(saleItems.variantId);
 }

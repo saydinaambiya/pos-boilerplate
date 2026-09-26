@@ -55,20 +55,31 @@ async function buildDocument(sale: SaleDetail, locale: Locale): Promise<InvoiceD
     subtotal: sale.subtotal,
     itemDiscountTotal: sale.itemDiscountTotal,
     voucherDiscount: sale.voucherDiscount,
+    voucherCode: sale.voucherCode,
     service:
       sale.serviceAmount > 0 ? { rateBps: sale.serviceRateBps, amount: sale.serviceAmount } : null,
     ppn: ppnCharged
       ? { rateBps: sale.ppnRateBps, amount: sale.ppnAmount, included: sale.priceIncludesTax }
       : null,
     grandTotal: sale.grandTotal,
-    payments: sale.payments.map((payment) => ({
-      method: payment.method,
-      label:
-        payment.method === "TRANSFER" && payment.bankName
-          ? t("transferTo", { bank: payment.bankName })
-          : t(`methods.${payment.method}`),
-      amount: payment.amount,
-    })),
+    payments: sale.payments
+      .map((payment) => ({
+        method: payment.method,
+        label:
+          payment.method === "TRANSFER" && payment.bankName
+            ? t("transferTo", { bank: payment.bankName })
+            : t(`methods.${payment.method}`),
+        amount: payment.amount,
+      }))
+      .concat(
+        sale.kasbonTotal === null
+          ? []
+          : [{ method: "KASBON", label: t("methods.KASBON"), amount: sale.kasbonTotal }],
+      ),
+    kasbon:
+      sale.kasbonBalance === null
+        ? null
+        : { customerName: sale.customerName ?? "", balance: sale.kasbonBalance },
   };
 }
 
@@ -102,6 +113,8 @@ export function invoiceLabels(locale: Locale, document: InvoiceDocument): Invoic
     payments: t("payments"),
     cashReceived: t("cashReceived"),
     change: t("change"),
+    customer: t("customer"),
+    kasbonBalance: t("kasbonBalance"),
     npwp: t("npwp"),
     voided: t("voided"),
   };

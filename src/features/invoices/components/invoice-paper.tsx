@@ -76,7 +76,10 @@ function Thermal({ document: doc, labels, tendered }: Omit<InvoicePaperProps, "s
         <Row label={labels.itemDiscounts} value={`−${money(doc.itemDiscountTotal)}`} />
       ) : null}
       {doc.voucherDiscount > 0 ? (
-        <Row label={labels.voucher} value={`−${money(doc.voucherDiscount)}`} />
+        <Row
+          label={doc.voucherCode ? `${labels.voucher} ${doc.voucherCode}` : labels.voucher}
+          value={`−${money(doc.voucherDiscount)}`}
+        />
       ) : null}
       {doc.service ? <Row label={labels.service} value={money(doc.service.amount)} /> : null}
       {doc.ppn ? (
@@ -91,6 +94,12 @@ function Thermal({ document: doc, labels, tendered }: Omit<InvoicePaperProps, "s
       {doc.payments.map((payment, index) => (
         <Row key={index} label={payment.label} value={money(payment.amount)} />
       ))}
+      {doc.kasbon ? (
+        <>
+          <Row label={labels.kasbonBalance} value={money(doc.kasbon.balance)} strong />
+          <Row label={labels.customer} value={doc.kasbon.customerName} />
+        </>
+      ) : null}
       {tendered ? (
         <>
           <Row label={labels.cashReceived} value={money(tendered.received)} />
@@ -158,7 +167,10 @@ function A4({ document: doc, labels, tendered }: Omit<InvoicePaperProps, "size">
       <div className="mt-4 ml-auto flex w-80 max-w-full flex-col gap-0.5">
         <Row label={labels.subtotal} value={money(doc.subtotal)} />
         {doc.voucherDiscount > 0 ? (
-          <Row label={labels.voucher} value={`−${money(doc.voucherDiscount)}`} />
+          <Row
+            label={doc.voucherCode ? `${labels.voucher} ${doc.voucherCode}` : labels.voucher}
+            value={`−${money(doc.voucherDiscount)}`}
+          />
         ) : null}
         {doc.service ? <Row label={labels.service} value={money(doc.service.amount)} /> : null}
         {doc.ppn ? (
@@ -173,6 +185,12 @@ function A4({ document: doc, labels, tendered }: Omit<InvoicePaperProps, "size">
         {doc.payments.map((payment, index) => (
           <Row key={index} label={payment.label} value={money(payment.amount)} />
         ))}
+        {doc.kasbon ? (
+          <>
+            <Row label={labels.kasbonBalance} value={money(doc.kasbon.balance)} strong />
+            <Row label={labels.customer} value={doc.kasbon.customerName} />
+          </>
+        ) : null}
         {tendered ? (
           <>
             <Row label={labels.cashReceived} value={money(tendered.received)} />

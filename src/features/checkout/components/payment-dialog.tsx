@@ -15,8 +15,14 @@ import type { ItemDiscount } from "@/lib/money/calculate";
 import { cn } from "@/lib/utils/cn";
 
 import { checkoutAction } from "../actions";
+import {
+  emptyKasbonDraft,
+  KasbonFields,
+  kasbonDraftErrors,
+  type KasbonDraft,
+} from "./kasbon-fields";
 
-type Mode = "cash" | "transfer" | "split";
+type Mode = "cash" | "transfer" | "split" | "kasbon";
 
 export interface CheckoutLinePayload {
   variantId: string;
@@ -30,19 +36,25 @@ interface PaymentDialogProps {
   locale: Locale;
   grandTotal: number;
   lines: () => CheckoutLinePayload[];
+  voucherCode: string | null;
   bankAccounts: readonly { id: string; label: string }[];
+  /** The cashier may put a remainder on store credit (FR-PAY-05). */
+  canKasbon: boolean;
+  /** Store-local date, the earliest due date. */
+  today: string;
   onSuccess: (result: {
     saleId: string;
     invoiceNo: string;
     change: number | null;
     tendered: number | null;
+    kasbonTotal: number;
   }) => void;
 }
 
 const QUICK_CASH = [50_000, 100_000] as const;
 
 /**
- * Cash, transfer or split payment (FR-PAY-01..04). Cash tendered and change
+ * Cash, transfer, split or store-credit payment (FR-PAY-01..05). Cash tendered and change
  * are only shown here; the server receives the amount allocated to the bill
  * (BR-22). The idempotency key is minted when the dialog opens and reused on
  * retry, so a double submit or a lost response never creates two sales
@@ -57,6 +69,8 @@ export function PaymentDialog(props: PaymentDialogProps) {
   const [transferText, setTransferText] = useState("");
   const [bankAccountId, setBankAccountId] = useState(bankAccounts[0]?.id ?? "");
   const [reference, setReference] = useState("");
+  const [kasbon, setKasbon] = useState<KasbonDraft>(emptyKasbonDraft);
+  const [showKasbonErrors, setShowKasbonErrors] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const idempotencyKey = useRef<string | null>(null);
@@ -76,32 +90,54 @@ export function PaymentDialog(props: PaymentDialogProps) {
   const received = parseRupiah(cashText);
   const change = cashDue > 0 && received !== null ? received - cashDue : null;
   const needsBank = transfer > 0;
+  const downPayment = kasbon.downPayment.trim() === "" ? 0 : parseRupiah(kasbon.downPayment);
+  const kasbonErrors = kasbonDraftErrors(kasbon, downPayment, grandTotal);
   const valid =
-    (!needsBank || bankAccountId !== "") &&
-    (cashDue === 0 || (received !== null && received >= cashDue));
+    mode === "kasbon"
+      ? true
+      : (!needsBank || bankAccountId !== "") &&
+        (cashDue === 0 || (received !== null && received >= cashDue));
 
   const submit = () => {
     if (!valid || pending) return;
+    if (mode === "kasbon" && Object.values(kasbonErrors).some(Boolean)) {
+      setShowKasbonErrors(true);
+      return;
+    }
     setError(null);
-    const payments = [
-      ...(transfer > 0
-        ? [
-            {
-              method: "TRANSFER" as const,
-              amount: transfer,
-              bankAccountId,
-              ...(reference.trim() ? { reference: reference.trim() } : {}),
-            },
-          ]
-        : []),
-      ...(cashDue > 0 ? [{ method: "CASH" as const, amount: cashDue }] : []),
-    ];
+    const payments =
+      mode === "kasbon"
+        ? downPayment
+          ? [{ method: "CASH" as const, amount: downPayment }]
+          : []
+        : [
+            ...(transfer > 0
+              ? [
+                  {
+                    method: "TRANSFER" as const,
+                    amount: transfer,
+                    bankAccountId,
+                    ...(reference.trim() ? { reference: reference.trim() } : {}),
+                  },
+                ]
+              : []),
+            ...(cashDue > 0 ? [{ method: "CASH" as const, amount: cashDue }] : []),
+          ];
     startTransition(async () => {
       try {
         const result = await checkoutAction(locale, {
           idempotencyKey: idempotencyKey.current ?? crypto.randomUUID(),
           lines: props.lines(),
           payments,
+          ...(props.voucherCode ? { voucherCode: props.voucherCode } : {}),
+          ...(mode === "kasbon"
+            ? {
+                kasbon: {
+                  customer: { name: kasbon.name, phone: kasbon.phone, note: kasbon.note },
+                  dueDate: kasbon.dueDate === "" ? null : kasbon.dueDate,
+                },
+              }
+            : {}),
         });
         if (!result.ok) {
           setError(result.message);
@@ -110,11 +146,16 @@ export function PaymentDialog(props: PaymentDialogProps) {
         setCashText("");
         setTransferText("");
         setReference("");
+        setKasbon(emptyKasbonDraft);
+        setShowKasbonErrors(false);
+        setMode("cash");
+        const paidCash = mode !== "kasbon" && cashDue > 0;
         props.onSuccess({
           saleId: result.saleId,
           invoiceNo: result.invoiceNo,
-          change: cashDue > 0 && received !== null ? received - cashDue : null,
-          tendered: cashDue > 0 ? received : null,
+          change: paidCash && received !== null ? received - cashDue : null,
+          tendered: paidCash ? received : null,
+          kasbonTotal: result.kasbonTotal,
         });
       } catch {
         setError(t("errors.network"));
@@ -126,6 +167,7 @@ export function PaymentDialog(props: PaymentDialogProps) {
     { value: "cash", label: t("cash") },
     { value: "transfer", label: t("transfer") },
     { value: "split", label: t("split") },
+    ...(props.canKasbon ? [{ value: "kasbon" as const, label: t("kasbon") }] : []),
   ];
 
   return (
@@ -147,7 +189,12 @@ export function PaymentDialog(props: PaymentDialogProps) {
           {grandTotal > 0 ? (
             <fieldset className="flex flex-col gap-2">
               <legend className="mb-2 text-sm font-medium text-ink">{t("methodLabel")}</legend>
-              <div className="grid grid-cols-3 gap-1 rounded-full bg-surface-muted p-1">
+              <div
+                className={cn(
+                  "grid gap-1 rounded-card bg-surface-muted p-1",
+                  modes.length > 3 ? "grid-cols-2" : "grid-cols-3",
+                )}
+              >
                 {modes.map((option) => (
                   <label
                     key={option.value}
@@ -171,6 +218,18 @@ export function PaymentDialog(props: PaymentDialogProps) {
                 ))}
               </div>
             </fieldset>
+          ) : null}
+
+          {mode === "kasbon" ? (
+            <KasbonFields
+              locale={locale}
+              draft={kasbon}
+              onChange={setKasbon}
+              remainder={grandTotal - (downPayment ?? 0)}
+              today={props.today}
+              showErrors={showKasbonErrors}
+              errors={kasbonErrors}
+            />
           ) : null}
 
           {needsBank || mode === "split" ? (
@@ -231,7 +290,7 @@ export function PaymentDialog(props: PaymentDialogProps) {
             </div>
           ) : null}
 
-          {cashDue > 0 ? (
+          {cashDue > 0 && mode !== "kasbon" ? (
             <div className="flex flex-col gap-2">
               {mode === "split" ? (
                 <p className="text-sm text-ink-muted">{`${t("cashPortion")}: ${money(cashDue)}`}</p>

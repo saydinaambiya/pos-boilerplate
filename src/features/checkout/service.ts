@@ -5,12 +5,15 @@ import { createHash } from "node:crypto";
 import { db } from "@/db/client";
 import { uniqueViolationConstraint } from "@/db/errors";
 import { colorOf } from "@/features/catalog/schemas";
+import { storeDate } from "@/features/kasbon/aging";
+import { openKasbon, resolveKasbonCustomer } from "@/features/kasbon/service";
 import { recordStockMovement } from "@/features/stock/service";
+import { consumeVoucher, resolveVoucher } from "@/features/vouchers/service";
 import { recordAudit } from "@/lib/audit/audit";
 import { assertPermission } from "@/lib/auth/authorize";
 import type { Session } from "@/lib/auth/session";
 import type { RequestContext } from "@/lib/http/request-context";
-import { calculateSale, type CartLine } from "@/lib/money/calculate";
+import { calculateSale, type CartLine, type VoucherRule } from "@/lib/money/calculate";
 import { readSetting } from "@/lib/settings/store";
 
 import { paymentProviders, type PreparedPayment } from "./payment-providers";
@@ -34,6 +37,8 @@ export interface CheckoutSuccess {
   saleId: string;
   invoiceNo: string;
   grandTotal: number;
+  /** Amount put on store credit, 0 when fully paid. */
+  kasbonTotal: number;
   replayed: boolean;
 }
 
@@ -46,7 +51,14 @@ export type CheckoutFailure =
         | "discount-forbidden"
         | "invalid-payment"
         | "payment-mismatch"
-        | "idempotency-conflict";
+        | "idempotency-conflict"
+        | "voucher-invalid"
+        | "voucher-expired"
+        | "voucher-not-started"
+        | "voucher-quota"
+        | "voucher-min-purchase"
+        | "kasbon-forbidden"
+        | "kasbon-due-date";
     }
   | { ok: false; reason: "insufficient-stock"; variantId: string; available: number };
 
@@ -60,7 +72,12 @@ class CheckoutAbort extends Error {
 }
 
 function requestHash(input: CheckoutInput): string {
-  const request = { lines: input.lines, payments: input.payments };
+  const request = {
+    lines: input.lines,
+    payments: input.payments,
+    voucherCode: input.voucherCode ?? null,
+    kasbon: input.kasbon ?? null,
+  };
   return createHash("sha256").update(JSON.stringify(request)).digest("hex");
 }
 
@@ -74,7 +91,10 @@ async function replay(userId: string, input: CheckoutInput): Promise<CheckoutRes
   if (!record) return null;
   if (record.requestHash !== requestHash(input))
     return { ok: false, reason: "idempotency-conflict" };
-  return { ...(record.response as Omit<CheckoutSuccess, "replayed">), replayed: true };
+  const response = record.response as Omit<CheckoutSuccess, "replayed" | "kasbonTotal"> & {
+    kasbonTotal?: number;
+  };
+  return { ...response, kasbonTotal: response.kasbonTotal ?? 0, replayed: true };
 }
 
 /**
@@ -84,7 +104,8 @@ async function replay(userId: string, input: CheckoutInput): Promise<CheckoutRes
  * 1. Replays a stored result for a repeated `Idempotency-Key`.
  * 2. Requires an open shift, share-locked against a concurrent close.
  * 3. Prices every line from the database and recomputes totals (PRD §5).
- * 4. Validates payments through their providers; they must equal the total.
+ * 4. Validates payments through their providers; they must equal the total,
+ *    or leave a remainder that becomes store credit (FR-PAY-05).
  * 5. Takes a gap-free invoice number, writes sale, lines, payments, and
  *    `SALE` stock movements (variants locked in id order to avoid deadlocks).
  *
@@ -103,7 +124,14 @@ export async function checkout(
   if (input.lines.some((line) => line.discount) && !session.permissions.has("pos:item-discount")) {
     return { ok: false, reason: "discount-forbidden" };
   }
+  if (input.kasbon && !session.permissions.has("kasbon:create")) {
+    return { ok: false, reason: "kasbon-forbidden" };
+  }
   const [tax, operations] = await Promise.all([readSetting("tax"), readSetting("operations")]);
+  const dueDate = input.kasbon?.dueDate;
+  if (dueDate && dueDate < storeDate(now, operations.timeZone)) {
+    return { ok: false, reason: "kasbon-due-date" };
+  }
 
   try {
     return await db.transaction(async (tx) => {
@@ -123,7 +151,18 @@ export async function checkout(
         qty: line.qty,
         discount: line.discount ?? null,
       }));
-      const totals = calculateSale(cart, tax);
+      let voucher: { voucherId: string; rule: VoucherRule } | null = null;
+      if (input.voucherCode) {
+        const checked = await resolveVoucher(tx, input.voucherCode, now);
+        if (!checked.ok)
+          throw new CheckoutAbort({ ok: false, reason: `voucher-${checked.reason}` });
+        const { minPurchase } = checked.rule;
+        if (minPurchase != null && calculateSale(cart, tax).subtotal < minPurchase) {
+          throw new CheckoutAbort({ ok: false, reason: "voucher-min-purchase" });
+        }
+        voucher = checked;
+      }
+      const totals = calculateSale(cart, tax, voucher?.rule);
 
       const prepared: PreparedPayment[] = [];
       for (const payment of input.payments) {
@@ -132,8 +171,10 @@ export async function checkout(
         prepared.push(result);
       }
       const paidTotal = prepared.reduce((sum, payment) => sum + payment.amount, 0);
-      if (paidTotal !== totals.grandTotal)
+      const kasbonTotal = totals.grandTotal - paidTotal;
+      if (input.kasbon ? kasbonTotal <= 0 : kasbonTotal !== 0)
         throw new CheckoutAbort({ ok: false, reason: "payment-mismatch" });
+      const customerId = input.kasbon ? await resolveKasbonCustomer(tx, input.kasbon) : null;
 
       const sequence = await nextInvoiceSequence(tx, storeDay(operations.timeZone, now));
       const invoiceNo = `${operations.invoicePrefix}${storeDay(operations.timeZone, now)}-${String(sequence).padStart(operations.invoiceSequenceDigits, "0")}`;
@@ -142,9 +183,11 @@ export async function checkout(
         invoiceNo,
         shiftId: shift.id,
         cashierId: session.user.id,
-        status: "COMPLETED",
+        customerId,
+        status: input.kasbon ? "COMPLETED_WITH_KASBON" : "COMPLETED",
         subtotal: totals.subtotal,
         itemDiscountTotal: totals.itemDiscountTotal,
+        voucherId: voucher?.voucherId ?? null,
         voucherDiscount: totals.voucherDiscount,
         serviceRateBps: tax.serviceEnabled ? tax.serviceRateBps : 0,
         serviceAmount: totals.serviceAmount,
@@ -181,6 +224,17 @@ export async function checkout(
         }),
       );
       await insertPayments(tx, saleId, prepared);
+      if (voucher) await consumeVoucher(tx, voucher.voucherId);
+      if (input.kasbon && customerId) {
+        await openKasbon(
+          tx,
+          session.user.id,
+          { id: saleId, invoiceNo, customerId },
+          input.kasbon,
+          kasbonTotal,
+          context,
+        );
+      }
 
       const quantities = new Map<string, number>();
       for (const line of input.lines) {
@@ -208,7 +262,13 @@ export async function checkout(
         }
       }
 
-      const response = { ok: true as const, saleId, invoiceNo, grandTotal: totals.grandTotal };
+      const response = {
+        ok: true as const,
+        saleId,
+        invoiceNo,
+        grandTotal: totals.grandTotal,
+        kasbonTotal,
+      };
       await insertIdempotencyRecord(tx, {
         userId: session.user.id,
         key: input.idempotencyKey,
@@ -223,7 +283,12 @@ export async function checkout(
           action: "sale.completed",
           entity: "sale",
           entityId: saleId,
-          diff: { invoiceNo, grandTotal: totals.grandTotal, items: input.lines.length },
+          diff: {
+            invoiceNo,
+            grandTotal: totals.grandTotal,
+            kasbonTotal,
+            items: input.lines.length,
+          },
         },
         context,
       );

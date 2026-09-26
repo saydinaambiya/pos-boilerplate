@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { kasbonCheckoutInput } from "@/features/kasbon/schemas";
 import { MAX_RUPIAH, rupiah } from "@/lib/validation/money";
 import { plainText } from "@/lib/validation/text";
 
@@ -8,7 +9,7 @@ const itemDiscount = z.union([
   z.object({ type: z.literal("amount"), value: rupiah.min(1) }).strict(),
 ]);
 
-/** Methods the POS can settle directly; KASBON and MARKETPLACE arrive with M3/M4. */
+/** Methods the POS settles directly; a remainder can go on store credit instead (FR-PAY-05). */
 export const posPaymentMethods = ["CASH", "TRANSFER"] as const;
 
 /**
@@ -44,6 +45,10 @@ export const checkoutInput = z
           .strict(),
       )
       .max(4),
+    /** One voucher per sale, validated again on the server (FR-POS-03). */
+    voucherCode: z.string().trim().max(20).optional(),
+    /** Puts the unpaid remainder on store credit for this customer (FR-PAY-05). */
+    kasbon: kasbonCheckoutInput.optional(),
   })
   .strict();
 

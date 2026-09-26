@@ -243,6 +243,16 @@ export async function changeMarketplaceStatus(
 /** Active transfer destinations offered at checkout (FR-PAY-04); needs only POS access. */
 export async function getCheckoutBankAccounts(session: Session) {
   assertPermission(session, "page:pos");
+  return activeBankAccountOptions();
+}
+
+/** Accounts a store credit payment can be transferred to (FR-KSB-03). */
+export async function getKasbonBankAccounts(session: Session) {
+  assertPermission(session, "kasbon:pay");
+  return activeBankAccountOptions();
+}
+
+async function activeBankAccountOptions() {
   const accounts = await listBankAccounts();
   return accounts
     .filter((account) => account.isActive)

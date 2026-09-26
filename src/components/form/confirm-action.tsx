@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState, useSyncExternalStore } from "react";
+import { type ReactNode, useCallback, useState, useSyncExternalStore } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -21,7 +21,9 @@ import { SubmitButton } from "./submit-button";
 interface ConfirmActionProps {
   action: FormAction;
   locale: Locale;
-  variant?: "danger" | "secondary";
+  variant?: "danger" | "secondary" | "primary";
+  /** Extra fields posted with the confirmation, e.g. a reason. */
+  children?: ReactNode;
   labels: {
     trigger: string;
     title: string;
@@ -39,7 +41,13 @@ const subscribeNever = () => () => undefined;
  * The dialog needs JavaScript, so the trigger stays disabled until hydration
  * instead of silently ignoring early clicks.
  */
-export function ConfirmAction({ action, locale, variant = "danger", labels }: ConfirmActionProps) {
+export function ConfirmAction({
+  action,
+  locale,
+  variant = "danger",
+  children,
+  labels,
+}: ConfirmActionProps) {
   const [open, setOpen] = useState(false);
   const hydrated = useSyncExternalStore(
     subscribeNever,
@@ -61,6 +69,7 @@ export function ConfirmAction({ action, locale, variant = "danger", labels }: Co
         <DialogTitle>{labels.title}</DialogTitle>
         <DialogDescription>{labels.description}</DialogDescription>
         <ActionForm action={action} locale={locale} onSuccess={close}>
+          {children}
           <DialogFooter>
             <DialogClose asChild>
               <Button variant="secondary">{labels.cancel}</Button>

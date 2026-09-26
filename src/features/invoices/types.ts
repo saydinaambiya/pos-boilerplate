@@ -32,10 +32,13 @@ export interface InvoiceDocument {
   subtotal: number;
   itemDiscountTotal: number;
   voucherDiscount: number;
+  voucherCode: string | null;
   service: { rateBps: number; amount: number } | null;
   ppn: { rateBps: number; amount: number; included: boolean } | null;
   grandTotal: number;
   payments: { label: string; amount: number; method: string }[];
+  /** Store credit on this sale with its current balance (FR-INV-04). */
+  kasbon: { customerName: string; balance: number } | null;
 }
 
 /** Translated labels; resolved on the server for the locale chosen at print time (FR-INV-05). */
@@ -59,6 +62,8 @@ export interface InvoiceLabels {
   payments: string;
   cashReceived: string;
   change: string;
+  customer: string;
+  kasbonBalance: string;
   npwp: string;
   voided: string;
 }

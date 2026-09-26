@@ -40,6 +40,18 @@ export const auditActions = [
   "shift.opened",
   "shift.closed",
   "sale.completed",
+  "sale.voided",
+  "approval.requested",
+  "approval.auto-approved",
+  "approval.approved",
+  "approval.rejected",
+  "approval.cancelled",
+  "voucher.revision-approved",
+  "voucher.activated",
+  "voucher.deactivated",
+  "kasbon.opened",
+  "kasbon.payment-recorded",
+  "kasbon.payment-approved",
 ] as const;
 
 export type AuditAction = (typeof auditActions)[number];
