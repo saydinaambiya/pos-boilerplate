@@ -18,6 +18,11 @@ const envSchema = z
       .enum(["true", "false"])
       .default("false")
       .transform((value) => value === "true"),
+    /**
+     * Signs public invoice download links (FR-PDF-04). Rotating it revokes
+     * every link already shared (FR-PDF-06).
+     */
+    INVOICE_LINK_SECRET: z.string().min(32),
     /** Upstash Redis REST credentials for the per-IP login limit (FR-AUTH-04). */
     UPSTASH_REDIS_REST_URL: z.url().optional(),
     UPSTASH_REDIS_REST_TOKEN: z.string().min(1).optional(),

@@ -36,7 +36,7 @@ export default async function CategoriesPage() {
     getLocale(),
     getCategories(session),
   ]);
-  const nextOrder = (categories.at(-1)?.sortOrder ?? -10) + 10;
+  const nextOrder = Math.min((categories.at(-1)?.sortOrder ?? -10) + 10, 9999);
 
   return (
     <>

@@ -3,6 +3,7 @@ export const accounts = {
   owner: { username: "owner", name: "Owner E2E", password: "owner-e2e-password" },
   cashier: { username: "kasir", name: "Kasir", pin: "123456", mustChangePin: false },
   newCashier: { username: "kasir-baru", name: "Kasir Baru", pin: "111111", mustChangePin: true },
+  posCashier: { username: "kasir-pos", name: "Kasir POS", pin: "333333", mustChangePin: false },
   lockedCashier: {
     username: "kasir-kunci",
     name: "Kasir Kunci",
@@ -12,3 +13,6 @@ export const accounts = {
 };
 
 export const OWNER_STATE = "playwright/.auth/owner.json";
+
+/** Deterministic sale with extreme data for invoice layout tests (FR-INV-03). */
+export const EXTREME_SALE_ID = "0199a000-0000-7000-8000-00000000c005";

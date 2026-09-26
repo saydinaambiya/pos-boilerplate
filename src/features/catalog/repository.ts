@@ -254,3 +254,43 @@ export async function updateVariantRow(
 export async function markProductHasVariants(executor: Executor, productId: string): Promise<void> {
   await executor.update(products).set({ hasVariants: true }).where(eq(products.id, productId));
 }
+
+/**
+ * Sellable items for the POS grid: active products with their active
+ * variants and effective prices, grouped client-side (FR-POS-01, FR-VAR-04).
+ * `limit` bounds the preload; bigger catalogues switch to server search
+ * (NFR-PERF-07).
+ */
+export async function queryPosCatalog(options: { limit: number; search?: string }) {
+  const conditions: SQL[] = [eq(products.isActive, true), eq(productVariants.isActive, true)];
+  if (options.search) {
+    const pattern = containsPattern(options.search);
+    const match = or(
+      like(sql`lower(${products.name})`, pattern),
+      like(sql`lower(${productVariants.sku})`, pattern),
+      like(sql`lower(${productVariants.attributes} -> 'color' ->> 'name')`, pattern),
+    );
+    if (match) conditions.push(match);
+  }
+  return db
+    .select({
+      productId: products.id,
+      name: products.name,
+      categoryId: products.categoryId,
+      unit: products.unit,
+      trackStock: products.trackStock,
+      hasVariants: products.hasVariants,
+      variantId: productVariants.id,
+      sku: productVariants.sku,
+      attributes: productVariants.attributes,
+      price: sql<number>`coalesce(${productVariants.priceOverride}, ${products.price})`.mapWith(
+        Number,
+      ),
+      stockQty: productVariants.stockQty,
+    })
+    .from(products)
+    .innerJoin(productVariants, eq(productVariants.productId, products.id))
+    .where(and(...conditions))
+    .orderBy(asc(products.name), asc(productVariants.sortOrder), asc(productVariants.id))
+    .limit(options.limit);
+}

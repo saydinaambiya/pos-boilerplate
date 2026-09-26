@@ -37,6 +37,9 @@ export const auditActions = [
   "variant.activated",
   "variant.deactivated",
   "variant.reordered",
+  "shift.opened",
+  "shift.closed",
+  "sale.completed",
 ] as const;
 
 export type AuditAction = (typeof auditActions)[number];

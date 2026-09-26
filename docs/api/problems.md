@@ -7,11 +7,14 @@ the deployment origin.
 | `type`                             | Status | Meaning                                                           |
 | ---------------------------------- | ------ | ----------------------------------------------------------------- |
 | `/problems/bad-request`            | 400    | Malformed request, e.g. body is not valid JSON                    |
+| `/problems/unauthorized`           | 401    | No valid session                                                  |
+| `/problems/forbidden`              | 403    | Signed in but missing the required permission                     |
 | `/problems/not-found`              | 404    | Resource does not exist or is not visible to the caller           |
 | `/problems/method-not-allowed`     | 405    | Method not supported; see the `Allow` header                      |
 | `/problems/payload-too-large`      | 413    | Body exceeds the route's limit                                    |
 | `/problems/unsupported-media-type` | 415    | Body must be `application/json`                                   |
 | `/problems/validation-error`       | 422    | Body failed validation; `errors[]` lists a JSON Pointer per field |
+| `/problems/too-many-requests`      | 429    | Rate limit hit; see `Retry-After`                                 |
 | `/problems/internal-error`         | 500    | Unexpected failure; `detail` carries the request id for support   |
 
 Every response includes `X-Request-Id`. Clients may send their own

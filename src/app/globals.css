@@ -71,3 +71,97 @@
     }
   }
 }
+
+/*
+ * Invoice paper (PRD §6.1, FR-INV-01/02, ADR-0010). Named pages keep the
+ * paper size in this stylesheet, so printing needs no inline styles under
+ * the CSP. Paper is always black on white, whatever the screen theme.
+ * Thermal: 9.4px monospace gives ~32 characters on 48mm and ~48 on 72mm.
+ */
+@page thermal58 {
+  size: 58mm auto;
+  margin: 0;
+}
+
+@page thermal80 {
+  size: 80mm auto;
+  margin: 0;
+}
+
+@page a4 {
+  size: A4;
+  margin: 12mm;
+}
+
+.invoice {
+  background: #fff;
+  color: #000;
+  overflow-wrap: anywhere;
+  box-sizing: content-box;
+}
+
+.invoice[data-size="58mm"],
+.invoice[data-size="80mm"] {
+  font:
+    9.4px/1.35 ui-monospace,
+    "SFMono-Regular",
+    Menlo,
+    Consolas,
+    "Liberation Mono",
+    monospace;
+}
+
+.invoice[data-size="58mm"] {
+  page: thermal58;
+  width: 48mm;
+  padding: 4mm 5mm;
+}
+
+.invoice[data-size="80mm"] {
+  page: thermal80;
+  width: 72mm;
+  padding: 4mm;
+}
+
+.invoice[data-size="a4"] {
+  page: a4;
+  width: 186mm;
+  padding: 12mm;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.invoice .amount {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.invoice .rule {
+  border-top: 1px dashed #000;
+  margin: 1.5mm 0;
+}
+
+.invoice thead {
+  display: table-header-group;
+}
+
+.invoice tr {
+  break-inside: avoid;
+}
+
+@media print {
+  html,
+  body {
+    background: #fff !important;
+  }
+
+  .invoice[data-size] {
+    padding-top: 0;
+    padding-bottom: 0;
+    box-shadow: none;
+  }
+
+  .invoice[data-size="a4"] {
+    padding: 0;
+  }
+}
