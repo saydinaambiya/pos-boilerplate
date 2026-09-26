@@ -5,7 +5,7 @@ import { getFormatter, getLocale, getMessages, getTranslations } from "next-intl
 import { ActionForm } from "@/components/form/action-form";
 import { FormField } from "@/components/form/form-field";
 import { SubmitButton } from "@/components/form/submit-button";
-import { storeDate } from "@/features/kasbon/aging";
+import { storeDate } from "@/lib/format/zoned-time";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";

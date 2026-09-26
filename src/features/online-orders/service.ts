@@ -95,6 +95,7 @@ export async function createOnlineOrder(
           variantSnapshot: colorOf(variant?.attributes)?.name ?? null,
           qty: line.qty,
           unitPrice,
+          unitCost: variant?.cost ?? 0,
           lineTotal: unitPrice * line.qty,
           sortOrder: index,
         };

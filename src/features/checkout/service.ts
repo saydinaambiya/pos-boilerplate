@@ -5,7 +5,7 @@ import { createHash } from "node:crypto";
 import { db } from "@/db/client";
 import { uniqueViolationConstraint } from "@/db/errors";
 import { colorOf } from "@/features/catalog/schemas";
-import { storeDate } from "@/features/kasbon/aging";
+import { storeDate } from "@/lib/format/zoned-time";
 import { openKasbon, resolveKasbonCustomer } from "@/features/kasbon/service";
 import { recordStockMovement } from "@/features/stock/service";
 import { consumeVoucher, resolveVoucher } from "@/features/vouchers/service";
@@ -210,6 +210,7 @@ export async function checkout(
             nameSnapshot: variant?.productName ?? "",
             variantSnapshot: colorOf(variant?.attributes)?.name ?? null,
             unitPrice: variant?.price ?? 0,
+            unitCost: variant?.cost ?? 0,
             qty: line.qty,
             discountType: line.discount?.type ?? null,
             discountValue: line.discount

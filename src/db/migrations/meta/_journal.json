@@ -78,6 +78,13 @@
       "when": 1790421881504,
       "tag": "0010_online_orders",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1790423502999,
+      "tag": "0011_item_cost_snapshot",
+      "breakpoints": true
     }
   ]
 }

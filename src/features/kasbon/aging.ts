@@ -1,3 +1,7 @@
+import { storeDate } from "@/lib/format/zoned-time";
+
+export { storeDate };
+
 /** Aging buckets of outstanding store credit (FR-KSB-06). */
 export const agingBuckets = ["current", "days31to60", "over60"] as const;
 export type AgingBucket = (typeof agingBuckets)[number];
@@ -5,11 +9,6 @@ export type AgingBucket = (typeof agingBuckets)[number];
 export type DueState = "none" | "upcoming" | "today" | "overdue";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-
-/** Store-local calendar day as `YYYY-MM-DD` (FR-UI-11). */
-export function storeDate(date: Date, timeZone: string): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone }).format(date);
-}
 
 /** Whole calendar days between two `YYYY-MM-DD` dates. */
 export function daysBetween(from: string, to: string): number {

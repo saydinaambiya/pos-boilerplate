@@ -19,3 +19,4 @@ Records are immutable once accepted; a new record supersedes an old one.
 | [0011](./0011-generic-approvals.md)           | Generic approval engine                         | Accepted |
 | [0012](./0012-store-credit.md)                | Store credit, installments and the cash drawer  | Accepted |
 | [0013](./0013-online-orders.md)               | Manual marketplace orders and their stock       | Accepted |
+| [0014](./0014-sales-reports.md)               | Sales reports, cost snapshots and CSV export    | Accepted |

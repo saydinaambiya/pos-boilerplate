@@ -43,6 +43,9 @@ export async function findOrderableVariants(executor: Executor, variantIds: read
       price: sql<number>`coalesce(${productVariants.priceOverride}, ${products.price})`.mapWith(
         Number,
       ),
+      cost: sql<number>`coalesce(${productVariants.costOverride}, ${products.cost})`.mapWith(
+        Number,
+      ),
       sellable: sql<boolean>`${products.isActive} AND ${productVariants.isActive}`,
     })
     .from(productVariants)

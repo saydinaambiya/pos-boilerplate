@@ -91,6 +91,7 @@ export const onlineOrderItems = pgTable(
     variantSnapshot: text(),
     qty: integer().notNull(),
     unitPrice: money().notNull(),
+    unitCost: money().notNull().default(0),
     lineTotal: money().notNull(),
     returnCondition: returnCondition(),
     sortOrder: integer().notNull().default(0),

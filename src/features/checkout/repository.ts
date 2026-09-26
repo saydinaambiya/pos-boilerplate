@@ -45,6 +45,9 @@ export async function findSellableVariants(executor: Executor, variantIds: reado
       price: sql<number>`coalesce(${productVariants.priceOverride}, ${products.price})`.mapWith(
         Number,
       ),
+      cost: sql<number>`coalesce(${productVariants.costOverride}, ${products.cost})`.mapWith(
+        Number,
+      ),
       sellable: sql<boolean>`${products.isActive} AND ${productVariants.isActive}`,
     })
     .from(productVariants)

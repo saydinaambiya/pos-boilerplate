@@ -46,3 +46,8 @@ export function startOfNextZonedDay(isoDate: string, timeZone: string): Date | n
   const next = new Date(Date.UTC(year, month - 1, day + 1)).toISOString().slice(0, 10);
   return startOfZonedDay(next, timeZone);
 }
+
+/** Store-local calendar day of an instant as `YYYY-MM-DD` (FR-UI-11). */
+export function storeDate(date: Date, timeZone: string): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone }).format(date);
+}
