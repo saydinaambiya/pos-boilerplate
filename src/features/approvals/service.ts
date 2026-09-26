@@ -91,6 +91,35 @@ export async function getInbox(
     .limit(200);
 }
 
+/**
+ * Decided requests (approved, rejected, cancelled) of the types the viewer
+ * may decide, newest first, including the Owner's auto-approved ones
+ * (FR-APR-02, FR-APR-05).
+ */
+export async function getHistory(
+  session: Session,
+  filters: ApprovalFilters = {},
+): Promise<ApprovalRow[]> {
+  const types = decidableTypes(session);
+  if (types.length === 0) return [];
+  return db
+    .select(columns)
+    .from(approvals)
+    .innerJoin(users, eq(users.id, approvals.requestedBy))
+    .where(
+      and(
+        ne(approvals.status, "PENDING"),
+        inArray(approvals.type, types),
+        ...filterConditions(filters),
+      ),
+    )
+    .orderBy(
+      desc(sql`coalesce(${approvals.decidedAt}, ${approvals.createdAt})`),
+      desc(approvals.id),
+    )
+    .limit(100);
+}
+
 /** The viewer's own recent requests with their outcome. */
 export async function getMyRequests(session: Session, filters: ApprovalFilters = {}) {
   return db

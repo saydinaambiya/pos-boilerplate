@@ -39,5 +39,8 @@ export async function requestVoidAction(
     return { status: "error", message };
   }
   revalidatePath("/", "layout");
-  return { status: "success" };
+  return {
+    status: "success",
+    message: result.status === "APPROVED" ? t("voidApplied") : t("voidRequested"),
+  };
 }

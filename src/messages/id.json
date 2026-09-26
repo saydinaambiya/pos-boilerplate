@@ -896,7 +896,9 @@
     "errorNotVoidable": "Transaksi ini tidak dapat di-void.",
     "errorNotFound": "Transaksi tidak ditemukan.",
     "kasbonBalance": "Sisa kas bon",
-    "openKasbon": "Buka kas bon {name}"
+    "openKasbon": "Buka kas bon {name}",
+    "voidRequested": "Pengajuan void dikirim dan menunggu persetujuan.",
+    "voidApplied": "Transaksi berhasil di-void."
   },
   "Invoice": {
     "invoice": "Invoice",
@@ -1007,7 +1009,9 @@
     "filterRequesterPlaceholder": "Cari nama atau username",
     "applyFilter": "Terapkan",
     "resetFilter": "Reset",
-    "emptyFiltered": "Tidak ada pengajuan yang cocok dengan filter."
+    "emptyFiltered": "Tidak ada pengajuan yang cocok dengan filter.",
+    "history": "Riwayat",
+    "emptyHistory": "Belum ada pengajuan yang diputuskan."
   },
   "Vouchers": {
     "title": "Voucher",
@@ -1460,7 +1464,12 @@
     "errorTitle": "Gagal",
     "ok": "Oke",
     "close": "Tutup",
-    "checkFields": "Periksa kembali isian yang ditandai."
+    "checkFields": "Periksa kembali isian yang ditandai.",
+    "activated": "Berhasil diaktifkan.",
+    "deactivated": "Berhasil dinonaktifkan.",
+    "approved": "Pengajuan disetujui.",
+    "rejected": "Pengajuan ditolak.",
+    "cancelled": "Pengajuan dibatalkan."
   },
   "Picker": {
     "chooseDate": "Pilih tanggal",

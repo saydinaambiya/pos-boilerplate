@@ -896,7 +896,9 @@
     "errorNotVoidable": "This sale cannot be voided.",
     "errorNotFound": "Sale not found.",
     "kasbonBalance": "Store credit balance",
-    "openKasbon": "Open store credit of {name}"
+    "openKasbon": "Open store credit of {name}",
+    "voidRequested": "Void request sent and waiting for approval.",
+    "voidApplied": "Sale voided."
   },
   "Invoice": {
     "invoice": "Invoice",
@@ -1007,7 +1009,9 @@
     "filterRequesterPlaceholder": "Search name or username",
     "applyFilter": "Apply",
     "resetFilter": "Reset",
-    "emptyFiltered": "No requests match the filter."
+    "emptyFiltered": "No requests match the filter.",
+    "history": "History",
+    "emptyHistory": "No decided requests yet."
   },
   "Vouchers": {
     "title": "Vouchers",
@@ -1460,7 +1464,12 @@
     "errorTitle": "Something went wrong",
     "ok": "OK",
     "close": "Close",
-    "checkFields": "Please check the highlighted fields."
+    "checkFields": "Please check the highlighted fields.",
+    "activated": "Activated.",
+    "deactivated": "Deactivated.",
+    "approved": "Request approved.",
+    "rejected": "Request rejected.",
+    "cancelled": "Request withdrawn."
   },
   "Picker": {
     "chooseDate": "Choose a date",

@@ -93,10 +93,10 @@ test.describe("employees & roles (FR-EMP, FR-RBAC-01)", () => {
     await expectResult(page, "PIN direset. Sampaikan PIN sementara kepada karyawan.");
 
     await page.getByRole("button", { name: "Nonaktifkan" }).click();
-    const dialog = page.getByRole("dialog");
-    await expect(dialog).toContainText(`Nonaktifkan Sementara ${run}?`);
+    const dialog = page.getByRole("dialog", { name: `Nonaktifkan Sementara ${run}?` });
     await dialog.getByRole("button", { name: "Nonaktifkan" }).click();
     await expect(dialog).toBeHidden();
+    await expectResult(page, "Berhasil dinonaktifkan.");
     await expect(page.getByText("Akun ini nonaktif dan tidak dapat login.")).toBeVisible();
 
     const blocked = await signInFresh(browser, username, "111222");

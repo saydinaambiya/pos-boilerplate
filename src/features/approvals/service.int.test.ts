@@ -24,6 +24,7 @@ import {
   cancelApproval,
   countPendingForViewer,
   decideApproval,
+  getHistory,
   getInbox,
   getMyRequests,
 } from "./service";
@@ -283,5 +284,36 @@ describe("inbox filters (FR-APR-02)", () => {
     expect(await getInbox(ownerSession, { requester: "%" })).toHaveLength(0);
     expect(await getMyRequests(cashier, { type: "VOUCHER" })).toHaveLength(0);
     expect(await getMyRequests(cashier, { type: "VOID" })).toHaveLength(1);
+  });
+});
+
+describe("approval visibility (FR-APR-02)", () => {
+  it("shows approvers every decided request and employees only their own", async () => {
+    await grant("sale:void");
+    const cashier = await signIn("kasir", "123456");
+    const { saleId } = await sale(cashier);
+    await requestVoid(cashier, saleId, { reason: "Salah input" }, testContext());
+    const ownerSession = await owner();
+    const ownSale = await sale(ownerSession);
+    await requestVoid(ownerSession, ownSale.saleId, { reason: "Owner batal" }, testContext());
+
+    expect((await getHistory(ownerSession)).map((row) => row.requesterName)).toEqual([
+      fixtures.owner.name,
+    ]);
+    const pending = await pendingVoid(saleId);
+    await decideApproval(
+      ownerSession,
+      pending.id,
+      { decision: "reject", note: "", version: pending.version },
+      testContext(),
+    );
+    const history = await getHistory(ownerSession);
+    expect(history.map((row) => row.status)).toEqual(["REJECTED", "APPROVED"]);
+    expect(await getHistory(ownerSession, { requester: "kasir" })).toHaveLength(1);
+
+    const mine = await getMyRequests(cashier);
+    expect(mine).toHaveLength(1);
+    expect(mine.every((row) => row.requestedBy === cashier.user.id)).toBe(true);
+    expect(await getHistory(cashier)).toEqual([]);
   });
 });

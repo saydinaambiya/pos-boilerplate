@@ -65,7 +65,13 @@ test.describe("vouchers with approval and POS use (FR-VCH, FR-POS-03)", () => {
       .getByRole("dialog", { name: "Setujui pengajuan ini?" })
       .getByRole("button", { name: "Setujui" })
       .click();
+    await expectResult(page, "Pengajuan disetujui.");
     await expect(page.getByRole("listitem").filter({ hasText: code })).toHaveCount(0);
+
+    await page.getByRole("link", { name: "Riwayat" }).click();
+    const decided = page.getByRole("listitem").filter({ hasText: code });
+    await expect(decided).toContainText("Disetujui");
+    await expect(decided.getByRole("button", { name: "Setujui" })).toHaveCount(0);
   });
 
   test("the cashier applies it at the POS", async ({ browser }) => {

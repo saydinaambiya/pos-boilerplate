@@ -1,8 +1,10 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { type ReactNode, useCallback, useState, useSyncExternalStore } from "react";
 
 import { type ActionResult, ResultDialog } from "@/components/feedback/result-dialog";
+import { useShowResult } from "@/components/feedback/result-provider";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -39,8 +41,9 @@ const subscribeNever = () => () => undefined;
 
 /**
  * Confirmation dialog in front of a destructive Server Action (FR-UX-04).
- * Errors open over the confirmation; on success it closes and the result
- * opens on its own.
+ * Errors open over the confirmation; on success it closes, the result opens
+ * on its own and the page refreshes, so actions whose target leaves the page
+ * (an approved request) still show their outcome.
  * The dialog needs JavaScript, so the trigger stays disabled until hydration
  * instead of silently ignoring early clicks.
  */
@@ -58,10 +61,19 @@ export function ConfirmAction({
     () => false,
   );
   const [result, setResult] = useState<ActionResult | null>(null);
-  const succeeded = useCallback((message: string | undefined) => {
-    setOpen(false);
-    if (message) setResult({ status: "success", message });
-  }, []);
+  const showShared = useShowResult();
+  const router = useRouter();
+  const succeeded = useCallback(
+    (message: string | undefined) => {
+      setOpen(false);
+      if (message) {
+        if (showShared) showShared({ status: "success", message });
+        else setResult({ status: "success", message });
+      }
+      router.refresh();
+    },
+    [showShared, router],
+  );
 
   return (
     <>

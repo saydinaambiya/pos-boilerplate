@@ -1,3 +1,4 @@
+import { ResultProvider } from "@/components/feedback/result-provider";
 import { AppShell } from "@/components/shell/app-shell";
 import { env } from "@/config/env";
 import { countPendingForViewer } from "@/features/approvals/service";
@@ -18,7 +19,7 @@ export default async function AppLayout({ children }: LayoutProps<"/[locale]">) 
       badges={{ "/approvals": pendingApprovals }}
     >
       {capacity ? <CapacityBanner level={capacity.level} percent={capacity.percent} /> : null}
-      {children}
+      <ResultProvider>{children}</ResultProvider>
     </AppShell>
   );
 }

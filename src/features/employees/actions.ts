@@ -112,7 +112,8 @@ export async function setEmployeeStatusAction(
   const result = await changeEmployeeStatus(session, id, isActive, await currentRequestContext());
   if (!result.ok) return failure(result.reason, locale);
   revalidatePath("/", "layout");
-  return { status: "success" };
+  const tf = await getTranslations({ locale, namespace: "Feedback" });
+  return { status: "success", message: tf(isActive ? "activated" : "deactivated") };
 }
 
 /** Sets a temporary PIN that must be changed at next login (FR-AUTH-06). */

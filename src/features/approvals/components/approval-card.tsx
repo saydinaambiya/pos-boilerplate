@@ -31,14 +31,15 @@ const statusChip = {
 
 /**
  * One approval request with its snapshot summary (FR-APR-01). `mode`
- * decides the actions: approvers decide, requesters may cancel.
+ * decides the actions: approvers decide, requesters may cancel, history is
+ * read-only.
  */
 export async function ApprovalCard({
   approval,
   mode,
 }: {
   approval: ApprovalRow;
-  mode: "decide" | "mine";
+  mode: "decide" | "history" | "mine";
 }) {
   const [t, tCommon, format, locale] = await Promise.all([
     getTranslations("Approvals"),
@@ -194,7 +195,7 @@ export async function ApprovalCard({
               {noteField}
             </ConfirmAction>
           </>
-        ) : approval.status === "PENDING" ? (
+        ) : mode === "mine" && approval.status === "PENDING" ? (
           <ConfirmAction
             action={cancelApprovalAction.bind(null, approval.id, approval.version)}
             locale={locale}

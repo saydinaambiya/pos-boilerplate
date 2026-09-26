@@ -1,6 +1,7 @@
 "use server";
 
 import { getTranslations } from "next-intl/server";
+import { revalidatePath } from "next/cache";
 
 import { localeFromForm } from "@/i18n/form-locale";
 import { redirect } from "@/i18n/navigation";
@@ -55,15 +56,21 @@ export async function loginAction(_previous: LoginState, formData: FormData): Pr
   }
 
   await setSessionCookie(result.token);
+  revalidatePath("/", "layout");
   return redirect({ href: result.mustChangePin ? "/change-pin" : "/", locale });
 }
 
-/** Signs out ("ganti kasir", FR-AUTH-08); an open shift is left untouched. */
+/**
+ * Signs out ("ganti kasir", FR-AUTH-08); an open shift is left untouched.
+ * Cached pages of the previous account are dropped so the next account never
+ * sees them.
+ */
 export async function logoutAction(formData: FormData): Promise<void> {
   const locale = localeFromForm(formData);
   const token = await getSessionToken();
   if (token) await logout(token, await currentRequestContext());
   await clearSessionCookie();
+  revalidatePath("/", "layout");
   redirect({ href: "/login", locale });
 }
 

@@ -16,6 +16,7 @@ import { ApprovalCard } from "@/features/approvals/components/approval-card";
 import {
   countPendingForViewer,
   decidableTypes,
+  getHistory,
   getInbox,
   getMyRequests,
 } from "@/features/approvals/service";
@@ -28,15 +29,16 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 const query = z.object({
-  view: z.enum(["inbox", "mine"]).optional().catch(undefined),
+  view: z.enum(["inbox", "history", "mine"]).optional().catch(undefined),
   type: z.enum(approvalTypes).optional().catch(undefined),
   q: z.string().trim().max(60).catch(""),
 });
 
 /**
  * Approval inbox (FR-APR-02): pending requests of the types the viewer may
- * decide, and the viewer's own requests with their outcome, as one column of
- * cards filtered by request type and requester.
+ * decide, the history of decided ones, and the viewer's own requests, as one
+ * column of cards filtered by request type and requester. Viewers who cannot
+ * decide only see their own requests.
  */
 export default async function ApprovalsPage({ searchParams }: PageProps<"/[locale]/approvals">) {
   const session = await requirePermission("page:approvals");
@@ -45,16 +47,20 @@ export default async function ApprovalsPage({ searchParams }: PageProps<"/[local
   const filters = query.parse({ view: first(raw.view), type: first(raw.type), q: first(raw.q) });
   const canDecide = decidableTypes(session).length > 0;
   const view = canDecide ? (filters.view ?? "inbox") : "mine";
+  const byRequester = view !== "mine";
 
   const [t, rows, pending] = await Promise.all([
     getTranslations("Approvals"),
     view === "inbox"
       ? getInbox(session, { type: filters.type, requester: filters.q })
-      : getMyRequests(session, { type: filters.type }),
+      : view === "history"
+        ? getHistory(session, { type: filters.type, requester: filters.q })
+        : getMyRequests(session, { type: filters.type }),
     countPendingForViewer(session),
   ]);
+  const viewLabel = t(view === "inbox" ? "inbox" : view === "history" ? "history" : "mine");
   const filtered = filters.type !== undefined || filters.q !== "";
-  const href = (next: "inbox" | "mine") => ({
+  const href = (next: "inbox" | "history" | "mine") => ({
     pathname: "/approvals",
     query: { view: next, ...(filters.type ? { type: filters.type } : {}) },
   });
@@ -72,6 +78,11 @@ export default async function ApprovalsPage({ searchParams }: PageProps<"/[local
                 id: "inbox",
                 href: `/approvals?view=inbox${filters.type ? `&type=${filters.type}` : ""}`,
                 label: `${t("inbox")} (${String(pending)})`,
+              },
+              {
+                id: "history",
+                href: `/approvals?view=history${filters.type ? `&type=${filters.type}` : ""}`,
+                label: t("history"),
               },
               {
                 id: "mine",
@@ -102,7 +113,7 @@ export default async function ApprovalsPage({ searchParams }: PageProps<"/[local
                 />
               )}
             </Field>
-            {view === "inbox" ? (
+            {byRequester ? (
               <Field label={t("filterRequester")}>
                 {(control) => (
                   <Input
@@ -129,7 +140,7 @@ export default async function ApprovalsPage({ searchParams }: PageProps<"/[local
           </form>
         </Card>
 
-        <h2 className="sr-only">{view === "inbox" ? t("inbox") : t("mine")}</h2>
+        <h2 className="sr-only">{viewLabel}</h2>
         {rows.length === 0 ? (
           <Card>
             <EmptyState
@@ -137,18 +148,26 @@ export default async function ApprovalsPage({ searchParams }: PageProps<"/[local
                 view === "inbox" ? <BadgeCheck aria-hidden="true" /> : <Inbox aria-hidden="true" />
               }
               title={
-                filtered ? t("emptyFiltered") : view === "inbox" ? t("emptyInbox") : t("emptyMine")
+                filtered
+                  ? t("emptyFiltered")
+                  : t(
+                      view === "inbox"
+                        ? "emptyInbox"
+                        : view === "history"
+                          ? "emptyHistory"
+                          : "emptyMine",
+                    )
               }
             />
           </Card>
         ) : (
-          <ul
-            aria-label={view === "inbox" ? t("inbox") : t("mine")}
-            className="flex flex-col gap-3"
-          >
+          <ul aria-label={viewLabel} className="flex flex-col gap-3">
             {rows.map((approval) => (
               <li key={approval.id}>
-                <ApprovalCard approval={approval} mode={view === "inbox" ? "decide" : "mine"} />
+                <ApprovalCard
+                  approval={approval}
+                  mode={view === "inbox" ? "decide" : view === "history" ? "history" : "mine"}
+                />
               </li>
             ))}
           </ul>

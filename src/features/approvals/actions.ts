@@ -1,7 +1,6 @@
 "use server";
 
 import { getTranslations } from "next-intl/server";
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import type { Locale } from "@/config/locales";
@@ -37,7 +36,11 @@ async function failure(
   return { status: "error", message: messages[result.reason] };
 }
 
-/** Approves or rejects a request; permission is checked per type in the service (FR-APR-02). */
+/**
+ * Approves or rejects a request; permission is checked per type in the
+ * service (FR-APR-02). The page is refreshed by the client after the result
+ * dialog opens, because the decided card leaves the inbox.
+ */
 export async function decideApprovalAction(
   approvalId: string,
   version: number,
@@ -59,8 +62,11 @@ export async function decideApprovalAction(
     await currentRequestContext(),
   );
   if (!result.ok) return failure(result, locale);
-  revalidatePath("/", "layout");
-  return { status: "success" };
+  const tf = await getTranslations({ locale, namespace: "Feedback" });
+  return {
+    status: "success",
+    message: tf(args.data.decision === "approve" ? "approved" : "rejected"),
+  };
 }
 
 /** Withdraws the caller's own pending request (FR-APR-04). */
@@ -81,6 +87,6 @@ export async function cancelApprovalAction(
     await currentRequestContext(),
   );
   if (!result.ok) return failure(result, locale);
-  revalidatePath("/", "layout");
-  return { status: "success" };
+  const tf = await getTranslations({ locale, namespace: "Feedback" });
+  return { status: "success", message: tf("cancelled") };
 }
