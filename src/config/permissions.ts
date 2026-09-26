@@ -26,6 +26,7 @@ export const permissions = [
   "role:manage",
   "settings:manage",
   "audit:view",
+  "pos:item-discount",
   "voucher:request",
   "report:view",
   "order.online:update-status",
@@ -73,7 +74,7 @@ export const permissionGroups = {
     "product:view-cost",
     "stock:adjust",
   ],
-  sales: ["voucher:request", "order.online:update-status", "report:view"],
+  sales: ["pos:item-discount", "voucher:request", "order.online:update-status", "report:view"],
   approvals: ["approval.kasbon:decide", "approval.voucher:decide", "approval.void:decide"],
   administration: ["employee:manage", "role:manage", "settings:manage", "audit:view"],
 } as const satisfies Record<string, readonly Permission[]>;

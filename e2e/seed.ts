@@ -9,6 +9,6 @@ import { accounts } from "./accounts";
 
 await seed(db, {
   owner: accounts.owner,
-  employees: [accounts.cashier, accounts.newCashier, accounts.lockedCashier],
+  employees: [accounts.cashier, accounts.newCashier, accounts.lockedCashier, accounts.posCashier],
 });
 await db.$client.end();

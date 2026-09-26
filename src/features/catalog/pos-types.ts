@@ -1,0 +1,19 @@
+/** Shapes sent to the POS terminal in the browser; no server-only imports. */
+export interface PosVariant {
+  id: string;
+  sku: string;
+  colorName: string | null;
+  hex: string | null;
+  price: number;
+  stockQty: number;
+}
+
+export interface PosProduct {
+  id: string;
+  name: string;
+  categoryId: string;
+  unit: string;
+  trackStock: boolean;
+  hasVariants: boolean;
+  variants: PosVariant[];
+}

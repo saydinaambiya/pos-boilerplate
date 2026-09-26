@@ -239,3 +239,15 @@ export async function changeMarketplaceStatus(
   });
   return { ok: true, id };
 }
+
+/** Active transfer destinations offered at checkout (FR-PAY-04); needs only POS access. */
+export async function getCheckoutBankAccounts(session: Session) {
+  assertPermission(session, "page:pos");
+  const accounts = await listBankAccounts();
+  return accounts
+    .filter((account) => account.isActive)
+    .map((account) => ({
+      id: account.id,
+      label: `${account.bankName} · ${account.accountNo} · ${account.accountName}`,
+    }));
+}

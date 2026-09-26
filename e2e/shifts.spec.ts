@@ -21,15 +21,15 @@ test.describe("cashier shifts (FR-SHF)", () => {
     await expect(page.getByText("Format tidak valid.")).toBeVisible();
     await page.getByLabel("Modal awal kas").fill("200.000");
     await page.getByRole("button", { name: "Buka shift" }).click();
-    await expect(page.getByRole("heading", { name: "Shift berjalan" })).toBeVisible();
-    await expect(page.getByText(/Rp\s200\.000/).first()).toBeVisible();
+    await expect(page.getByText(/^Shift sejak/)).toBeVisible();
 
+    await page.getByRole("link", { name: "Tutup shift" }).click();
+    await expect(page.getByText(/Rp\s200\.000/).first()).toBeVisible();
     const results = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
       .analyze();
     expect(results.violations).toEqual([]);
 
-    await page.getByRole("link", { name: "Tutup shift" }).click();
     await page.getByLabel("Kas fisik").fill("190.000");
     await page.getByLabel("Catatan").fill("Selisih uji");
     await page.getByRole("button", { name: "Tutup shift" }).click();

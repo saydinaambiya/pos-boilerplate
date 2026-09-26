@@ -3,6 +3,7 @@ export const accounts = {
   owner: { username: "owner", name: "Owner E2E", password: "owner-e2e-password" },
   cashier: { username: "kasir", name: "Kasir", pin: "123456", mustChangePin: false },
   newCashier: { username: "kasir-baru", name: "Kasir Baru", pin: "111111", mustChangePin: true },
+  posCashier: { username: "kasir-pos", name: "Kasir POS", pin: "333333", mustChangePin: false },
   lockedCashier: {
     username: "kasir-kunci",
     name: "Kasir Kunci",
