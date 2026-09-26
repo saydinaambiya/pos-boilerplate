@@ -11,6 +11,8 @@ import { PageHeader } from "@/components/ui/page-header";
 import { toneClasses } from "@/components/ui/tone";
 import { StockCell } from "@/features/catalog/components/stock-cell";
 import { countPendingForViewer } from "@/features/approvals/service";
+import { CapacityWidget } from "@/features/capacity/components/capacity-widget";
+import { getCapacity } from "@/features/capacity/service";
 import { getKasbonSummary } from "@/features/kasbon/service";
 import { statusChips } from "@/features/online-orders/components/order-status-chip";
 import { getOnlineOrderCounts } from "@/features/online-orders/service";
@@ -37,12 +39,13 @@ export default async function DashboardPage() {
     requirePermission("page:dashboard"),
     readSetting("store.profile"),
   ]);
-  const [lowStock, pendingApprovals, kasbon, today, orders] = await Promise.all([
+  const [lowStock, pendingApprovals, kasbon, today, orders, capacity] = await Promise.all([
     session.permissions.has("page:stock") ? getLowStock(session, 5) : null,
     countPendingForViewer(session),
     getKasbonSummary(session),
     getTodaySales(session),
     getOnlineOrderCounts(session),
+    session.permissions.has("page:housekeeping") ? getCapacity(session) : null,
   ]);
   const money = (amount: number) => formatCurrency(amount, locale);
   const profileIncomplete =
@@ -170,6 +173,7 @@ export default async function DashboardPage() {
           </Button>
         </Card>
       ) : null}
+      {capacity ? <CapacityWidget capacity={capacity} /> : null}
       {lowStock ? (
         <Card className="mb-6">
           <CardHeader>

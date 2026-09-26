@@ -1373,5 +1373,23 @@
     "errorChanged": "This month's data changed since the download. Download the ZIP again, then mark it.",
     "errorAlreadyArchived": "This month is already archived.",
     "showArchived": "Show archived data"
+  },
+  "Capacity": {
+    "title": "Database capacity",
+    "usage": "{used} of {limit} used ({percent}%)",
+    "largestTables": "Largest tables",
+    "checkedAt": "Checked at {time}; refreshed hourly.",
+    "levels": {
+      "ok": "Healthy",
+      "info": "Notice",
+      "warning": "Almost full",
+      "critical": "Critical"
+    },
+    "banner": {
+      "info": "The database is {percent}% full. Consider archiving old data.",
+      "warning": "The database is {percent}% full. Archive old data before it fills up.",
+      "critical": "The database is almost full ({percent}%). Archive old data now so sales keep working."
+    },
+    "openHousekeeping": "Open housekeeping"
   }
 }

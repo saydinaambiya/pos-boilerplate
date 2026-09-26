@@ -17,6 +17,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { CapacityWidget } from "@/features/capacity/components/capacity-widget";
+import { getCapacity } from "@/features/capacity/service";
 import { archiveMonthAction } from "@/features/housekeeping/actions";
 import { getHousekeeping } from "@/features/housekeeping/service";
 import { Link } from "@/i18n/navigation";
@@ -34,12 +36,13 @@ export async function generateMetadata(): Promise<Metadata> {
  */
 export default async function HousekeepingPage() {
   const session = await requirePermission("page:housekeeping");
-  const [t, tCommon, format, locale, data] = await Promise.all([
+  const [t, tCommon, format, locale, data, capacity] = await Promise.all([
     getTranslations("Housekeeping"),
     getTranslations("Common"),
     getFormatter(),
     getLocale(),
     getHousekeeping(session),
+    getCapacity(session),
   ]);
   const monthLabel = (month: string) =>
     format.dateTime(new Date(`${month}-01T00:00:00Z`), {
@@ -52,6 +55,7 @@ export default async function HousekeepingPage() {
   return (
     <>
       <PageHeader title={t("title")} description={t("subtitle")} />
+      <CapacityWidget capacity={capacity} />
       <Card className="mb-6 flex flex-col gap-2">
         <CardDescription>
           {t("retention", { months: data.retentionMonths, latest: monthLabel(data.latest) })}

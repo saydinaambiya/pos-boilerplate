@@ -1373,5 +1373,23 @@
     "errorChanged": "Data bulan ini berubah sejak diunduh. Unduh ulang ZIP lalu tandai lagi.",
     "errorAlreadyArchived": "Bulan ini sudah diarsip.",
     "showArchived": "Tampilkan data arsip"
+  },
+  "Capacity": {
+    "title": "Kapasitas database",
+    "usage": "{used} dari {limit} terpakai ({percent}%)",
+    "largestTables": "Tabel terbesar",
+    "checkedAt": "Diperiksa pukul {time}; diperbarui tiap jam.",
+    "levels": {
+      "ok": "Aman",
+      "info": "Perhatian",
+      "warning": "Hampir penuh",
+      "critical": "Kritis"
+    },
+    "banner": {
+      "info": "Database sudah terpakai {percent}%. Pertimbangkan mengarsip data lama.",
+      "warning": "Database sudah terpakai {percent}%. Arsipkan data lama sebelum penuh.",
+      "critical": "Database hampir penuh ({percent}%). Segera arsipkan data lama agar transaksi tidak terganggu."
+    },
+    "openHousekeeping": "Buka housekeeping"
   }
 }
