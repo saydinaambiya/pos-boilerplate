@@ -999,7 +999,15 @@
     "voucherSummary": "{code} · {name} · {value}",
     "openVoucher": "View voucher",
     "kasbonSummary": "{customer} · {invoiceNo}: {amount} ({method}), balance {balance}",
-    "openKasbon": "Open store credit"
+    "openKasbon": "Open store credit",
+    "views": "Approval views",
+    "filterType": "Request type",
+    "allTypes": "All types",
+    "filterRequester": "Requested by",
+    "filterRequesterPlaceholder": "Search name or username",
+    "applyFilter": "Apply",
+    "resetFilter": "Reset",
+    "emptyFiltered": "No requests match the filter."
   },
   "Vouchers": {
     "title": "Vouchers",

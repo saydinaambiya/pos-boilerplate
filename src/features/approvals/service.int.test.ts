@@ -265,3 +265,23 @@ describe("void through the approval engine (FR-POS-09, FR-APR-01..05)", () => {
     );
   });
 });
+
+describe("inbox filters (FR-APR-02)", () => {
+  it("narrows by request type and by requester name or username", async () => {
+    await grant("sale:void");
+    const cashier = await signIn("kasir", "123456");
+    const { saleId } = await sale(cashier);
+    await requestVoid(cashier, saleId, { reason: "Salah input" }, testContext());
+    const ownerSession = await owner();
+
+    expect(await getInbox(ownerSession)).toHaveLength(1);
+    expect(await getInbox(ownerSession, { type: "VOID" })).toHaveLength(1);
+    expect(await getInbox(ownerSession, { type: "VOUCHER" })).toHaveLength(0);
+    expect(await getInbox(ownerSession, { requester: "kas" })).toHaveLength(1);
+    expect(await getInbox(ownerSession, { requester: "KASIR" })).toHaveLength(1);
+    expect(await getInbox(ownerSession, { requester: "orang lain" })).toHaveLength(0);
+    expect(await getInbox(ownerSession, { requester: "%" })).toHaveLength(0);
+    expect(await getMyRequests(cashier, { type: "VOUCHER" })).toHaveLength(0);
+    expect(await getMyRequests(cashier, { type: "VOID" })).toHaveLength(1);
+  });
+});

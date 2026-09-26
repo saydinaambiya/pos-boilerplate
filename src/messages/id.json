@@ -999,7 +999,15 @@
     "voucherSummary": "{code} · {name} · {value}",
     "openVoucher": "Lihat voucher",
     "kasbonSummary": "{customer} · {invoiceNo}: {amount} ({method}), saldo {balance}",
-    "openKasbon": "Buka kas bon"
+    "openKasbon": "Buka kas bon",
+    "views": "Tampilan persetujuan",
+    "filterType": "Jenis pengajuan",
+    "allTypes": "Semua jenis",
+    "filterRequester": "Diajukan oleh",
+    "filterRequesterPlaceholder": "Cari nama atau username",
+    "applyFilter": "Terapkan",
+    "resetFilter": "Reset",
+    "emptyFiltered": "Tidak ada pengajuan yang cocok dengan filter."
   },
   "Vouchers": {
     "title": "Voucher",

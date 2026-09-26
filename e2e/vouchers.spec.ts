@@ -1,6 +1,7 @@
 import { expect, test } from "./fixtures";
 import {
   cashierAtPos,
+  choose,
   createStockedProduct,
   expectResult,
   grantEmployeePermission,
@@ -50,6 +51,13 @@ test.describe("vouchers with approval and POS use (FR-VCH, FR-POS-03)", () => {
   test("the owner approves it from the inbox", async ({ page }) => {
     await page.goto("/id/approvals");
     const card = page.getByRole("listitem").filter({ hasText: code });
+    await choose(page, "Jenis pengajuan", "Void transaksi");
+    await page.getByRole("button", { name: "Terapkan" }).click();
+    await expect(page).toHaveURL(/type=VOID/);
+    await expect(card).toHaveCount(0);
+    await choose(page, "Jenis pengajuan", "Voucher");
+    await page.getByRole("button", { name: "Terapkan" }).click();
+    await expect(page).toHaveURL(/type=VOUCHER/);
     await expect(card).toContainText("Voucher baru");
     await expect(card).toContainText("10%");
     await card.getByRole("button", { name: "Setujui" }).click();
