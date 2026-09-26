@@ -21,7 +21,7 @@ import {
   registerFailedAttempt,
   updatePin,
 } from "./repository";
-import type { ChangePinInput, LoginInput } from "./schemas";
+import { type ChangePinInput, type LoginInput, usernameSchema } from "./schemas";
 
 export type LoginResult =
   | { ok: true; token: string; expiresAt: Date; mustChangePin: boolean }
@@ -55,6 +55,19 @@ async function countIpFailure(key: string | null): Promise<void> {
       JSON.stringify({ level: "error", msg: "rate limiter unavailable", error: String(error) }),
     );
   }
+}
+
+/**
+ * Which secret the second login step asks for (FR-AUTH-01/02): a password
+ * for accounts that have one (the Owner), a PIN otherwise. Unknown,
+ * inactive and malformed usernames also get the PIN step, so the form does
+ * not reveal which employee usernames exist.
+ */
+export async function loginMethodFor(username: string): Promise<"password" | "pin"> {
+  const parsed = usernameSchema.safeParse(username);
+  if (!parsed.success) return "pin";
+  const user = await findUserByUsername(parsed.data);
+  return user?.isActive && user.passwordHash ? "password" : "pin";
 }
 
 /**

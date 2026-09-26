@@ -4,6 +4,7 @@ import type { ComponentProps } from "react";
 
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { PasswordInput, type RevealLabels } from "@/components/ui/password-input";
 import { Select } from "@/components/ui/select";
 
 import { useActionFormState } from "./action-form";
@@ -22,14 +23,22 @@ type FormFieldProps = Omit<ComponentProps<"input">, "name" | "id" | "defaultValu
   label: string;
   hint?: string | undefined;
   defaultValue?: string | undefined;
+  /** Renders a password/PIN input with a show/hide toggle. */
+  reveal?: RevealLabels | undefined;
 };
 
 /** Text input wired to the enclosing `ActionForm`'s errors and echoed values. */
-export function FormField({ name, label, hint, defaultValue, ...input }: FormFieldProps) {
+export function FormField({ name, label, hint, defaultValue, reveal, ...input }: FormFieldProps) {
   const { error, value } = useFieldState(name, defaultValue);
   return (
     <Field label={label} hint={hint} error={error}>
-      {(control) => <Input {...input} {...control} name={name} defaultValue={value} />}
+      {(control) =>
+        reveal ? (
+          <PasswordInput {...input} {...control} labels={reveal} name={name} defaultValue={value} />
+        ) : (
+          <Input {...input} {...control} name={name} defaultValue={value} />
+        )
+      }
     </Field>
   );
 }

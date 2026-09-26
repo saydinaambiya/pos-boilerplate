@@ -7,7 +7,9 @@ test.describe("housekeeping (FR-HK)", () => {
     await expect(page.getByText(/minimal berumur \d+ bulan/)).toBeVisible();
     const meter = page.getByRole("meter", { name: "Kapasitas database" });
     await expect(meter).toHaveAttribute("aria-valuetext", /terpakai/);
-    await expect(page.getByRole("list", { name: "Tabel terbesar" })).toBeVisible();
+    await expect(
+      page.getByRole("list", { name: "Data yang paling banyak memakai ruang" }),
+    ).toBeVisible();
 
     await page.goto("/id/online-orders");
     const toggle = page.getByLabel("Tampilkan data arsip");

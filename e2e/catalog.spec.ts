@@ -62,7 +62,8 @@ test.describe("categories & products (FR-CAT-01, FR-PRD)", () => {
     const cashier = await context.newPage();
     await cashier.goto("/id/login");
     await cashier.getByLabel("Username").fill(accounts.cashier.username);
-    await cashier.getByLabel("Password atau PIN").fill(accounts.cashier.pin);
+    await cashier.getByRole("button", { name: "Lanjut" }).click();
+    await cashier.getByLabel(/^(Password|PIN)$/).fill(accounts.cashier.pin);
     await cashier.getByRole("button", { name: "Masuk" }).click();
     await expect(cashier).toHaveURL(/\/id$/);
     await cashier.goto(`/id/products?q=${sku}`);

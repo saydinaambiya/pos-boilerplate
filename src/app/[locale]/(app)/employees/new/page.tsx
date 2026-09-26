@@ -22,8 +22,9 @@ export async function generateMetadata(): Promise<Metadata> {
 /** Create an employee with an initial PIN (FR-EMP-01, FR-AUTH-06). */
 export default async function NewEmployeePage() {
   const session = await requirePermission("employee:manage");
-  const [t, locale, roles] = await Promise.all([
+  const [t, tCommon, locale, roles] = await Promise.all([
     getTranslations("Employees"),
+    getTranslations("Common"),
     getLocale(),
     getAssignableRoles(session),
   ]);
@@ -72,7 +73,7 @@ export default async function NewEmployeePage() {
               name="pin"
               label={t("initialPin")}
               hint={t("initialPinHint")}
-              type="password"
+              reveal={{ show: tCommon("showSecret"), hide: tCommon("hideSecret") }}
               inputMode="numeric"
               maxLength={6}
               autoComplete="new-password"

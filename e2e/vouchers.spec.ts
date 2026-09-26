@@ -66,7 +66,8 @@ test.describe("vouchers with approval and POS use (FR-VCH, FR-POS-03)", () => {
 
     await cart.getByLabel("Kode voucher").fill(code);
     await cart.getByRole("button", { name: "Pakai" }).click();
-    await expect(cart).toContainText(new RegExp(`Voucher ${code}\\s*−Rp\\s3\\.000`));
+    await expect(cart).toContainText(new RegExp(`Voucher ${code} \\(10%\\)\\s*−Rp\\s3\\.000`));
+    await expect(cart).toContainText("Potongan maksimal Rp 3.000");
 
     await page.keyboard.press("F2");
     const payment = page.getByRole("dialog", { name: "Pembayaran" });

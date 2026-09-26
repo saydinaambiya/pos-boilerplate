@@ -10,31 +10,47 @@ import { formText } from "@/lib/http/form-data";
 import { currentRequestContext } from "@/lib/http/request-context";
 
 import { changePinInput, loginInput } from "./schemas";
-import { changePin, login, logout } from "./service";
+import { changePin, login, loginMethodFor, logout } from "./service";
 
-/** Form state returned to `useActionState`; messages are already translated. */
+/**
+ * Form state returned to `useActionState`; messages are already translated.
+ * `method` is set once the username step is done.
+ */
 export interface LoginState {
   error?: string;
   username?: string;
+  method?: "password" | "pin";
 }
 
 const toMinutes = (seconds: number) => Math.max(Math.ceil(seconds / 60), 1);
 
-/** Login form action (FR-AUTH-01/02). Works before hydration as a plain form post. */
+/**
+ * Two-step login (FR-AUTH-01/02): the first post carries only the username
+ * and returns which secret to ask for; the second signs in. Works before
+ * hydration as a plain form post.
+ */
 export async function loginAction(_previous: LoginState, formData: FormData): Promise<LoginState> {
   const locale = localeFromForm(formData);
   const t = await getTranslations({ locale, namespace: "Auth" });
-  const username = formText(formData, "username");
+  const username = formText(formData, "username").trim();
+  if (formText(formData, "step") === "username") {
+    if (username === "") return { error: t("errorUsernameRequired") };
+    return { username, method: await loginMethodFor(username) };
+  }
+
+  const method = await loginMethodFor(username);
   const parsed = loginInput.safeParse({ username, secret: formText(formData, "secret") });
-  if (!parsed.success) return { error: t("errorInvalid"), username };
+  const invalid = method === "password" ? t("errorInvalidPassword") : t("errorInvalidPin");
+  if (!parsed.success) return { error: invalid, username, method };
 
   const result = await login(parsed.data, await currentRequestContext());
   if (!result.ok) {
-    if (result.reason === "invalid") return { error: t("errorInvalid"), username };
+    if (result.reason === "invalid") return { error: invalid, username, method };
     const minutes = toMinutes(result.retryAfterSeconds);
     return {
       error: t(result.reason === "locked" ? "errorLocked" : "errorRateLimited", { minutes }),
       username,
+      method,
     };
   }
 

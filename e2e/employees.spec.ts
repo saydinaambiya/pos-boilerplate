@@ -10,7 +10,8 @@ async function signInFresh(browser: Browser, username: string, pin: string): Pro
   const page = await context.newPage();
   await page.goto("/id/login");
   await page.getByLabel("Username").fill(username);
-  await page.getByLabel("Password atau PIN").fill(pin);
+  await page.getByRole("button", { name: "Lanjut" }).click();
+  await page.getByLabel(/^(Password|PIN)$/).fill(pin);
   await page.getByRole("button", { name: "Masuk" }).click();
   return page;
 }
@@ -99,9 +100,7 @@ test.describe("employees & roles (FR-EMP, FR-RBAC-01)", () => {
     await expect(page.getByText("Akun ini nonaktif dan tidak dapat login.")).toBeVisible();
 
     const blocked = await signInFresh(browser, username, "111222");
-    await expect(blocked.locator("form").getByRole("alert")).toHaveText(
-      "Username atau password/PIN salah.",
-    );
+    await expect(blocked.locator("form").getByRole("alert")).toHaveText("Username atau PIN salah.");
     await blocked.context().close();
   });
 

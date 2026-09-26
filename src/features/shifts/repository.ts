@@ -28,6 +28,16 @@ export async function findOpenShift(executor: Executor, userId: string) {
   return row;
 }
 
+/** Shifts other cashiers still have open, oldest first. */
+export async function findOtherOpenShifts(executor: Executor, userId: string) {
+  return executor
+    .select({ id: shifts.id, cashierName: users.name, openedAt: shifts.openedAt })
+    .from(shifts)
+    .innerJoin(users, eq(users.id, shifts.userId))
+    .where(and(isNull(shifts.closedAt), ne(shifts.userId, userId)))
+    .orderBy(shifts.openedAt);
+}
+
 /** Locks the user's open shift for closing (no concurrent double close). */
 export async function lockOpenShift(executor: Executor, userId: string) {
   const [row] = await executor

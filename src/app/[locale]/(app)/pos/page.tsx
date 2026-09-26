@@ -1,3 +1,4 @@
+import { TriangleAlert } from "lucide-react";
 import type { Metadata } from "next";
 import { NextIntlClientProvider } from "next-intl";
 import { getFormatter, getLocale, getMessages, getTranslations } from "next-intl/server";
@@ -5,7 +6,6 @@ import { getFormatter, getLocale, getMessages, getTranslations } from "next-intl
 import { ActionForm } from "@/components/form/action-form";
 import { FormField } from "@/components/form/form-field";
 import { SubmitButton } from "@/components/form/submit-button";
-import { storeDate } from "@/lib/format/zoned-time";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
@@ -13,10 +13,13 @@ import { getPosCatalog, getPosCategories } from "@/features/catalog/pos-catalog"
 import { PosTerminal } from "@/features/checkout/components/pos-terminal";
 import { getCheckoutBankAccounts } from "@/features/settings/service";
 import { openShiftAction } from "@/features/shifts/actions";
-import { getOpenShift } from "@/features/shifts/service";
+import { getOpenShift, getOtherOpenShifts } from "@/features/shifts/service";
 import { Link } from "@/i18n/navigation";
 import { requirePermission } from "@/lib/auth/guard";
 import { readSetting } from "@/lib/settings/store";
+import { toneClasses } from "@/components/ui/tone";
+import { storeDate } from "@/lib/format/zoned-time";
+import { cn } from "@/lib/utils/cn";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Navigation");
@@ -39,6 +42,7 @@ export default async function PosPage() {
   ]);
 
   if (!shift) {
+    const others = await getOtherOpenShifts(session);
     return (
       <div className="flex flex-col gap-4">
         <PageHeader
@@ -49,6 +53,34 @@ export default async function PosPage() {
             </Button>
           }
         />
+        {others.length > 0 ? (
+          <div
+            role="status"
+            className={cn(
+              "flex max-w-md gap-3 rounded-card px-4 py-3 text-sm",
+              toneClasses.warning,
+            )}
+          >
+            <TriangleAlert className="size-5 shrink-0" aria-hidden="true" />
+            <div className="flex flex-col gap-1">
+              <p className="font-medium">{t("othersOpenTitle", { count: others.length })}</p>
+              <ul className="flex flex-col gap-0.5">
+                {others.map((other) => (
+                  <li key={other.id}>
+                    {t("othersOpenItem", {
+                      name: other.cashierName,
+                      time: format.dateTime(other.openedAt, {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                      }),
+                    })}
+                  </li>
+                ))}
+              </ul>
+              <p>{t("othersOpenHint")}</p>
+            </div>
+          </div>
+        ) : null}
         <Card className="max-w-md">
           <CardHeader className="flex-col gap-1">
             <CardTitle>{t("openTitle")}</CardTitle>

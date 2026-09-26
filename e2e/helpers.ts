@@ -9,7 +9,8 @@ export async function cashierAtPos(browser: Browser): Promise<Page> {
   const page = await context.newPage();
   await page.goto("/id/login");
   await page.getByLabel("Username").fill(accounts.posCashier.username);
-  await page.getByLabel("Password atau PIN").fill(accounts.posCashier.pin);
+  await page.getByRole("button", { name: "Lanjut" }).click();
+  await page.getByLabel(/^(Password|PIN)$/).fill(accounts.posCashier.pin);
   await page.getByRole("button", { name: "Masuk" }).click();
   await expect(page).toHaveURL(/\/id$/);
   await page.goto("/id/pos");

@@ -74,8 +74,6 @@
     "loginTitle": "Masuk",
     "loginSubtitle": "Masuk ke {appName} untuk melanjutkan.",
     "username": "Username",
-    "secret": "Password atau PIN",
-    "secretHint": "Owner memakai password, karyawan memakai PIN 6 digit.",
     "submit": "Masuk",
     "submitting": "Memproses…",
     "errorInvalid": "Username atau password/PIN salah.",
@@ -91,14 +89,25 @@
     "errorPinSame": "PIN baru harus berbeda dari PIN saat ini.",
     "errorPinMismatch": "PIN tidak sama.",
     "logout": "Keluar",
-    "account": "Akun: {name} ({role})"
+    "account": "Akun: {name} ({role})",
+    "next": "Lanjut",
+    "password": "Password",
+    "pin": "PIN",
+    "pinHint": "6 digit angka.",
+    "changeUser": "Ganti username",
+    "signingInAs": "Masuk sebagai {username}",
+    "errorUsernameRequired": "Isi username terlebih dahulu.",
+    "errorInvalidPassword": "Username atau password salah.",
+    "errorInvalidPin": "Username atau PIN salah."
   },
   "Common": {
     "skipToContent": "Langsung ke konten",
     "close": "Tutup",
     "cancel": "Batal",
     "save": "Simpan",
-    "loading": "Memuat…"
+    "loading": "Memuat…",
+    "showSecret": "Tampilkan",
+    "hideSecret": "Sembunyikan"
   },
   "Showcase": {
     "title": "Komponen UI",
@@ -729,7 +738,10 @@
     "next": "Berikutnya",
     "pagination": "Navigasi halaman",
     "pageLabel": "Halaman {page}",
-    "kasbonCollected": "Cicilan kas bon diterima"
+    "kasbonCollected": "Cicilan kas bon diterima",
+    "othersOpenTitle": "{count, plural, one {Ada shift lain yang masih terbuka} other {Ada # shift lain yang masih terbuka}}",
+    "othersOpenItem": "{name} — sejak {time}",
+    "othersOpenHint": "Anda tetap bisa membuka shift sendiri. Pastikan kas laci tidak tercampur."
   },
   "Pos": {
     "search": "Cari produk",
@@ -834,7 +846,9 @@
     "customerNote": "Catatan (opsional)",
     "customerSuggestions": "Pelanggan sebelumnya",
     "dueDate": "Jatuh tempo (opsional)",
-    "kasbonCreated": "Kas bon: {amount}"
+    "kasbonCreated": "Kas bon: {amount}",
+    "voucherAppliedPercent": "Voucher {code} ({percent}%)",
+    "voucherMaxDiscount": "Potongan maksimal {amount}"
   },
   "Receipt": {
     "title": "Struk {invoiceNo}",
@@ -1377,7 +1391,7 @@
   "Capacity": {
     "title": "Kapasitas database",
     "usage": "{used} dari {limit} terpakai ({percent}%)",
-    "largestTables": "Tabel terbesar",
+    "largestTables": "Data yang paling banyak memakai ruang",
     "checkedAt": "Diperiksa pukul {time}; diperbarui tiap jam.",
     "levels": {
       "ok": "Aman",
@@ -1390,6 +1404,36 @@
       "warning": "Database sudah terpakai {percent}%. Arsipkan data lama sebelum penuh.",
       "critical": "Database hampir penuh ({percent}%). Segera arsipkan data lama agar transaksi tidak terganggu."
     },
-    "openHousekeeping": "Buka housekeeping"
+    "openHousekeeping": "Buka housekeeping",
+    "tables": {
+      "approvals": "Persetujuan",
+      "archive_batches": "Riwayat arsip",
+      "audit_logs": "Catatan aktivitas",
+      "bank_accounts": "Rekening bank",
+      "categories": "Kategori produk",
+      "customers": "Pelanggan",
+      "idempotency_keys": "Pengaman transaksi ganda",
+      "invoice_counters": "Nomor invoice",
+      "kasbons": "Kas bon",
+      "marketplaces": "Marketplace",
+      "online_order_events": "Riwayat status pesanan online",
+      "online_order_items": "Item pesanan online",
+      "online_orders": "Pesanan online",
+      "payments": "Pembayaran",
+      "product_variants": "Varian produk",
+      "products": "Produk",
+      "role_permissions": "Hak akses role",
+      "roles": "Role",
+      "sale_items": "Item transaksi",
+      "sales": "Transaksi kasir",
+      "sessions": "Sesi login",
+      "settings": "Pengaturan",
+      "shifts": "Shift kasir",
+      "stock_movements": "Pergerakan stok",
+      "users": "Akun pengguna",
+      "voucher_revisions": "Riwayat voucher",
+      "vouchers": "Voucher",
+      "other": "Data lainnya"
+    }
   }
 }

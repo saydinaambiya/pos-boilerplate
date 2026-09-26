@@ -41,7 +41,8 @@ test.describe("dashboard and sales report (FR-DSH-01, FR-RPT)", () => {
     const page = await context.newPage();
     await page.goto("/id/login");
     await page.getByLabel("Username").fill("kasir");
-    await page.getByLabel("Password atau PIN").fill("123456");
+    await page.getByRole("button", { name: "Lanjut" }).click();
+    await page.getByLabel(/^(Password|PIN)$/).fill("123456");
     await page.getByRole("button", { name: "Masuk" }).click();
     await expect(page).toHaveURL(/\/id$/);
     await expect(page.getByRole("region", { name: "Ringkasan hari ini" })).toHaveCount(0);
