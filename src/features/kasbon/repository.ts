@@ -203,11 +203,12 @@ const listColumns = {
 
 /** Store credit list, oldest outstanding first (FR-KSB-06). */
 export async function queryKasbons(
-  filters: { filter: KasbonFilter; search: string; today: string },
+  filters: { filter: KasbonFilter; search: string; today: string; includeArchived: boolean },
   page: number,
   pageSize: number,
 ) {
   const conditions: SQL[] = [];
+  if (!filters.includeArchived) conditions.push(isNull(kasbons.archivedAt));
   if (filters.filter === "open") conditions.push(ne(kasbons.status, "SETTLED"));
   if (filters.filter === "settled") conditions.push(eq(kasbons.status, "SETTLED"));
   if (filters.filter === "overdue") {

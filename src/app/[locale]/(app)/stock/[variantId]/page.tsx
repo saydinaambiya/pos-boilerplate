@@ -30,6 +30,7 @@ import {
   receiveStockAction,
   writeOffStockAction,
 } from "@/features/stock/actions";
+import { ShowArchivedField } from "@/features/housekeeping/components/show-archived-field";
 import { movementFilters } from "@/features/stock/schemas";
 import { getMovements, getVariantStock } from "@/features/stock/service";
 import { Link } from "@/i18n/navigation";
@@ -58,6 +59,7 @@ export default async function VariantStockPage({
     from: first(raw.from),
     to: first(raw.to),
     cursor: first(raw.cursor),
+    archived: first(raw.archived),
   });
 
   const [t, format, locale, variant, history] = await Promise.all([
@@ -187,6 +189,7 @@ export default async function VariantStockPage({
               <Input {...control} type="date" name="to" defaultValue={filters.to ?? ""} />
             )}
           </Field>
+          <ShowArchivedField checked={filters.archived === "1"} />
           <Button type="submit" className="self-end">
             {t("filter")}
           </Button>

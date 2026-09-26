@@ -319,7 +319,8 @@
       "approval": "Persetujuan",
       "voucher": "Voucher",
       "kasbon": "Kas bon",
-      "online-order": "Pesanan online"
+      "online-order": "Pesanan online",
+      "archive-batch": "Batch arsip"
     },
     "actions": {
       "auth_login_succeeded": "Login berhasil",
@@ -375,7 +376,9 @@
       "kasbon_payment-recorded": "Cicilan kas bon dicatat",
       "kasbon_payment-approved": "Cicilan kas bon disetujui",
       "online-order_created": "Pesanan online dibuat",
-      "online-order_status-changed": "Status pesanan online diubah"
+      "online-order_status-changed": "Status pesanan online diubah",
+      "housekeeping_exported": "Arsip bulanan diunduh",
+      "housekeeping_archived": "Data bulanan ditandai arsip"
     }
   },
   "Settings": {
@@ -1340,5 +1343,35 @@
     "ppnRate": "Tarif PPN",
     "serviceRate": "Tarif service",
     "taxMode": "Mode harga"
+  },
+  "Housekeeping": {
+    "title": "Housekeeping",
+    "subtitle": "Arsipkan data transaksi lama per bulan agar database tetap ringan.",
+    "retention": "Bulan yang bisa diarsip minimal berumur {months} bulan. Bulan terbaru yang bisa diarsip: {latest}.",
+    "howItWorks": "Unduh ZIP berisi CSV per entitas, simpan di tempat aman, lalu tandai bulan itu sebagai arsip. Data tetap ada dan tetap terhitung di rekap; daftar transaksi menyembunyikannya kecuali difilter. Kas bon yang belum lunas tidak ikut ditandai.",
+    "changeRetention": "Ubah umur minimal di pengaturan operasional",
+    "emptyTitle": "Belum ada bulan yang bisa diarsip",
+    "emptyDescription": "Bulan akan muncul di sini setelah melewati umur minimal.",
+    "caption": "Bulan yang bisa diarsip, terbaru di atas",
+    "month": "Bulan",
+    "sales": "Transaksi",
+    "orders": "Pesanan online",
+    "movements": "Pergerakan stok",
+    "status": "Status",
+    "actions": "Aksi",
+    "archivedTag": "Archived",
+    "exportedAt": "Diunduh {time}",
+    "notExported": "Belum diunduh",
+    "download": "Unduh ZIP {month}",
+    "markArchived": "Tandai arsip {month}",
+    "markTitle": "Tandai {month} sebagai arsip?",
+    "markDescription": "Pastikan file ZIP sudah tersimpan. Data ditandai arsip, tidak dihapus, dan bisa diunduh ulang kapan saja.",
+    "markConfirm": "Tandai arsip",
+    "archived": "Bulan ditandai sebagai arsip.",
+    "errorNotArchivable": "Bulan ini belum boleh diarsip.",
+    "errorNotExported": "Unduh ZIP bulan ini terlebih dahulu.",
+    "errorChanged": "Data bulan ini berubah sejak diunduh. Unduh ulang ZIP lalu tandai lagi.",
+    "errorAlreadyArchived": "Bulan ini sudah diarsip.",
+    "showArchived": "Tampilkan data arsip"
   }
 }

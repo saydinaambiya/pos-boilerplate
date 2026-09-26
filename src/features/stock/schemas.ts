@@ -33,6 +33,8 @@ export const movementFilters = z.object({
   from: z.iso.date().optional().catch(undefined),
   to: z.iso.date().optional().catch(undefined),
   cursor: z.uuid().optional().catch(undefined),
+  /** Include rows marked archived by housekeeping (FR-HK-04). */
+  archived: z.literal("1").optional().catch(undefined),
 });
 
 export type StockFilters = z.infer<typeof stockFilters>;

@@ -319,7 +319,8 @@
       "approval": "Approval",
       "voucher": "Voucher",
       "kasbon": "Store credit",
-      "online-order": "Online order"
+      "online-order": "Online order",
+      "archive-batch": "Archive batch"
     },
     "actions": {
       "auth_login_succeeded": "Signed in",
@@ -375,7 +376,9 @@
       "kasbon_payment-recorded": "Store credit payment recorded",
       "kasbon_payment-approved": "Store credit payment approved",
       "online-order_created": "Online order created",
-      "online-order_status-changed": "Online order status changed"
+      "online-order_status-changed": "Online order status changed",
+      "housekeeping_exported": "Monthly archive downloaded",
+      "housekeeping_archived": "Monthly data marked archived"
     }
   },
   "Settings": {
@@ -1340,5 +1343,35 @@
     "ppnRate": "PPN rate",
     "serviceRate": "Service rate",
     "taxMode": "Price mode"
+  },
+  "Housekeeping": {
+    "title": "Housekeeping",
+    "subtitle": "Archive old transactions month by month to keep the database light.",
+    "retention": "Months must be at least {months} months old to archive. Latest archivable month: {latest}.",
+    "howItWorks": "Download the ZIP with one CSV per entity, keep it somewhere safe, then mark the month as archived. The data stays and still counts in reports; transaction lists hide it unless filtered. Unsettled store credit is never marked.",
+    "changeRetention": "Change the minimum age in operations settings",
+    "emptyTitle": "No month to archive yet",
+    "emptyDescription": "Months appear here once they pass the minimum age.",
+    "caption": "Archivable months, newest first",
+    "month": "Month",
+    "sales": "Transactions",
+    "orders": "Online orders",
+    "movements": "Stock movements",
+    "status": "Status",
+    "actions": "Actions",
+    "archivedTag": "Archived",
+    "exportedAt": "Downloaded {time}",
+    "notExported": "Not downloaded",
+    "download": "Download {month} ZIP",
+    "markArchived": "Mark {month} archived",
+    "markTitle": "Mark {month} as archived?",
+    "markDescription": "Make sure the ZIP file is saved. Rows are marked, not deleted, and can be downloaded again at any time.",
+    "markConfirm": "Mark archived",
+    "archived": "Month marked as archived.",
+    "errorNotArchivable": "This month cannot be archived yet.",
+    "errorNotExported": "Download this month's ZIP first.",
+    "errorChanged": "This month's data changed since the download. Download the ZIP again, then mark it.",
+    "errorAlreadyArchived": "This month is already archived.",
+    "showArchived": "Show archived data"
   }
 }

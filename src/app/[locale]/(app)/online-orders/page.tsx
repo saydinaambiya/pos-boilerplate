@@ -10,6 +10,7 @@ import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
 import { onlineOrderStatuses } from "@/db/schema/online-orders";
+import { ShowArchivedField } from "@/features/housekeeping/components/show-archived-field";
 import {
   OrderStatusChip,
   statusChips,
@@ -41,12 +42,18 @@ export default async function OnlineOrdersPage({
     status: first(raw.status),
     q: first(raw.q),
     page: first(raw.page),
+    archived: first(raw.archived),
   });
   const [t, format, locale, board] = await Promise.all([
     getTranslations("OnlineOrders"),
     getFormatter(),
     getLocale(),
-    listOnlineOrders(session, { status: query.status, search: query.q, page: query.page }),
+    listOnlineOrders(session, {
+      status: query.status,
+      search: query.q,
+      page: query.page,
+      includeArchived: query.archived === "1",
+    }),
   ]);
   const money = (amount: number) => formatCurrency(amount, locale);
   const total = Object.values(board.counts).reduce((sum, count) => sum + count, 0);
@@ -55,6 +62,7 @@ export default async function OnlineOrdersPage({
     query: {
       ...(status ? { status } : {}),
       ...(query.q ? { q: query.q } : {}),
+      ...(query.archived ? { archived: "1" } : {}),
       ...(page > 1 ? { page: String(page) } : {}),
     },
   });
@@ -120,6 +128,7 @@ export default async function OnlineOrdersPage({
               />
             )}
           </Field>
+          <ShowArchivedField checked={query.archived === "1"} />
           <Button type="submit">{t("search")}</Button>
           {query.q ? (
             <Button asChild variant="ghost">

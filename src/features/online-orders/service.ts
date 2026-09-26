@@ -291,8 +291,8 @@ export async function changeOnlineOrderStatus(
 }
 
 /** Status counts for the chips; every status is present (FR-ONL-04). */
-async function statusCounts(search: string) {
-  const rows = await countOrdersByStatus(search);
+async function statusCounts(search: string, includeArchived = false) {
+  const rows = await countOrdersByStatus(search, includeArchived);
   const counts = Object.fromEntries(onlineOrderStatuses.map((status) => [status, 0])) as Record<
     OnlineOrderStatus,
     number
@@ -304,17 +304,26 @@ async function statusCounts(search: string) {
 /** The order board: chips per status, cards, code search and held markers (FR-ONL-04/07). */
 export async function listOnlineOrders(
   session: Session,
-  options: { status: OnlineOrderStatus | undefined; search: string; page: number },
+  options: {
+    status: OnlineOrderStatus | undefined;
+    search: string;
+    page: number;
+    includeArchived?: boolean;
+  },
   now = new Date(),
 ) {
   assertPermission(session, "page:online-orders");
   const [rows, counts, operations] = await Promise.all([
     queryOrders(
-      { status: options.status, search: options.search },
+      {
+        status: options.status,
+        search: options.search,
+        includeArchived: options.includeArchived ?? false,
+      },
       options.page,
       ONLINE_ORDER_PAGE_SIZE,
     ),
-    statusCounts(options.search),
+    statusCounts(options.search, options.includeArchived),
     readSetting("operations"),
   ]);
   return {

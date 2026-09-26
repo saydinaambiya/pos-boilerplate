@@ -50,4 +50,6 @@ export const onlineOrderListQuery = z.object({
   status: z.enum(onlineOrderStatuses).optional().catch(undefined),
   q: z.string().trim().max(40).catch(""),
   page: z.coerce.number().int().min(1).max(1000).catch(1),
+  /** Include orders marked archived by housekeeping (FR-HK-04). */
+  archived: z.literal("1").optional().catch(undefined),
 });

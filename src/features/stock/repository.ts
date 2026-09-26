@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, desc, eq, gte, like, lt, lte, or, type SQL, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, isNull, like, lt, lte, or, type SQL, sql } from "drizzle-orm";
 
 import { db, type Executor } from "@/db/client";
 import { containsPattern } from "@/db/like";
@@ -146,6 +146,7 @@ export interface MovementQuery {
   from?: Date;
   until?: Date;
   before?: string;
+  includeArchived?: boolean;
   limit: number;
 }
 
@@ -156,6 +157,7 @@ export async function queryMovements(query: MovementQuery) {
   if (query.from) conditions.push(gte(stockMovements.createdAt, query.from));
   if (query.until) conditions.push(lt(stockMovements.createdAt, query.until));
   if (query.before) conditions.push(lt(stockMovements.id, query.before));
+  if (!query.includeArchived) conditions.push(isNull(stockMovements.archivedAt));
   return db
     .select({
       id: stockMovements.id,

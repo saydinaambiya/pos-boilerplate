@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, desc, eq, inArray, like, type SQL, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, like, type SQL, sql } from "drizzle-orm";
 
 import { db, type Executor } from "@/db/client";
 import {
@@ -150,21 +150,22 @@ const boardColumns = {
   )`,
 };
 
-function codeCondition(term: string): SQL | undefined {
-  if (term === "") return undefined;
+function codeCondition(term: string, includeArchived = false): SQL | undefined {
+  const live = includeArchived ? undefined : isNull(onlineOrders.archivedAt);
+  if (term === "") return live;
   const pattern = `%${term.toUpperCase().replace(/[\\%_]/g, "\\$&")}%`;
-  return like(sql`upper(${onlineOrders.orderCode})`, pattern);
+  return and(live, like(sql`upper(${onlineOrders.orderCode})`, pattern));
 }
 
 /** Orders on the board, oldest status change first so waiting orders surface (FR-ONL-04). */
 export async function queryOrders(
-  filters: { status: OnlineOrderStatus | undefined; search: string },
+  filters: { status: OnlineOrderStatus | undefined; search: string; includeArchived: boolean },
   page: number,
   pageSize: number,
 ) {
   const conditions: SQL[] = [];
   if (filters.status) conditions.push(eq(onlineOrders.status, filters.status));
-  const code = codeCondition(filters.search);
+  const code = codeCondition(filters.search, filters.includeArchived);
   if (code) conditions.push(code);
   return db
     .select(boardColumns)
@@ -180,8 +181,8 @@ export async function queryOrders(
 }
 
 /** Order count per status for the chips (FR-ONL-04, FR-DSH-01). */
-export async function countOrdersByStatus(search: string) {
-  const code = codeCondition(search);
+export async function countOrdersByStatus(search: string, includeArchived: boolean) {
+  const code = codeCondition(search, includeArchived);
   return db
     .select({ status: onlineOrders.status, count: sql<number>`count(*)`.mapWith(Number) })
     .from(onlineOrders)
