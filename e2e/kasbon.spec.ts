@@ -67,6 +67,10 @@ test.describe("store credit with approved installments (FR-PAY-05, FR-KSB)", () 
     await page.getByRole("link", { name: `Buka kas bon ${customer} (${invoiceNo})` }).click();
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(customer);
 
+    const methods = page.getByRole("group", { name: "Metode" });
+    for (const method of ["Tunai", "Transfer", "Tunai + transfer"]) {
+      await expect(methods.getByRole("radio", { name: method, exact: true })).toBeVisible();
+    }
     const amount = page.getByLabel("Nominal", { exact: true });
     await amount.fill(String(credit + 1));
     await expect(amount).toHaveAttribute("aria-invalid", "true");

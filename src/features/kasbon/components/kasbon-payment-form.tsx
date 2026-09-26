@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MoneyInput } from "@/components/ui/money-input";
 import { Select } from "@/components/ui/select";
+import { toneClasses } from "@/components/ui/tone";
 import type { Locale } from "@/config/locales";
 import { useRouter } from "@/i18n/navigation";
 import { formatCurrency } from "@/lib/format/currency";
@@ -71,12 +72,8 @@ export function KasbonPaymentForm({
 
   const modes: readonly { value: Mode; label: string }[] = [
     { value: "cash", label: t("methods.CASH") },
-    ...(bankAccounts.length > 0
-      ? [
-          { value: "transfer" as const, label: t("methods.TRANSFER") },
-          { value: "split" as const, label: t("methods.SPLIT") },
-        ]
-      : []),
+    { value: "transfer", label: t("methods.TRANSFER") },
+    { value: "split", label: t("methods.SPLIT") },
   ];
 
   const submit = () => {
@@ -112,12 +109,7 @@ export function KasbonPaymentForm({
     >
       <fieldset className="flex flex-col gap-2">
         <legend className="mb-2 text-sm font-medium text-ink">{t("method")}</legend>
-        <div
-          className={cn(
-            "grid gap-1 rounded-card bg-surface-muted p-1",
-            modes.length === 3 ? "grid-cols-3" : "grid-cols-1",
-          )}
-        >
+        <div className={cn("grid gap-1 rounded-card bg-surface-muted p-1", "grid-cols-3")}>
           {modes.map((option) => (
             <label
               key={option.value}
@@ -184,17 +176,29 @@ export function KasbonPaymentForm({
               />
             </div>
           ) : null}
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor={`${id}-bank`} className="text-sm font-medium text-ink">
-              {t("bankAccount")}
-            </label>
-            <Select
-              id={`${id}-bank`}
-              value={bankAccountId}
-              onValueChange={setBankAccountId}
-              options={bankAccounts.map((account) => ({ value: account.id, label: account.label }))}
-            />
-          </div>
+          {bankAccounts.length === 0 ? (
+            <p
+              role="status"
+              className={cn("rounded-control px-3 py-2 text-sm", toneClasses.warning)}
+            >
+              {t("noBankAccounts")}
+            </p>
+          ) : (
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor={`${id}-bank`} className="text-sm font-medium text-ink">
+                {t("bankAccount")}
+              </label>
+              <Select
+                id={`${id}-bank`}
+                value={bankAccountId}
+                onValueChange={setBankAccountId}
+                options={bankAccounts.map((account) => ({
+                  value: account.id,
+                  label: account.label,
+                }))}
+              />
+            </div>
+          )}
           <div className="flex flex-col gap-1.5">
             <label htmlFor={`${id}-reference`} className="text-sm font-medium text-ink">
               {t("reference")}

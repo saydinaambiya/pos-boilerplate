@@ -1178,7 +1178,8 @@
     "errorAmount": "Nominal pembayaran tidak valid.",
     "errorNetwork": "Gagal terhubung. Periksa koneksi lalu coba lagi.",
     "cashPart": "Tunai",
-    "transferPart": "Transfer {bank}"
+    "transferPart": "Transfer {bank}",
+    "noBankAccounts": "Belum ada rekening bank aktif. Tambahkan di Pengaturan → Rekening bank untuk menerima transfer."
   },
   "OnlineOrders": {
     "title": "Pesanan online",

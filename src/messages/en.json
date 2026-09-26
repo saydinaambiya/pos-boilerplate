@@ -1178,7 +1178,8 @@
     "errorAmount": "Invalid payment amount.",
     "errorNetwork": "Connection failed. Check your connection and try again.",
     "cashPart": "Cash",
-    "transferPart": "Transfer {bank}"
+    "transferPart": "Transfer {bank}",
+    "noBankAccounts": "No active bank account yet. Add one in Settings → Bank accounts to accept transfers."
   },
   "OnlineOrders": {
     "title": "Online orders",
