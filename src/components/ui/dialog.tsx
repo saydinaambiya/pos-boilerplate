@@ -21,11 +21,14 @@ type DialogContentProps = ComponentProps<typeof DialogPrimitive.Content> & {
   /** `bottom` and `right` render the dialog as a sheet. */
   side?: keyof typeof sideClasses;
   closeLabel: string;
+  /** Hide the corner close button when the dialog has its own dismiss button. */
+  showClose?: boolean;
 };
 
 export function DialogContent({
   side = "center",
   closeLabel,
+  showClose = true,
   className,
   children,
   ...props
@@ -42,12 +45,14 @@ export function DialogContent({
         {...props}
       >
         {children}
-        <DialogPrimitive.Close
-          aria-label={closeLabel}
-          className="absolute top-3 right-3 inline-flex size-11 items-center justify-center rounded-full text-ink-muted hover:bg-surface-muted"
-        >
-          <X className="size-5" aria-hidden="true" />
-        </DialogPrimitive.Close>
+        {showClose ? (
+          <DialogPrimitive.Close
+            aria-label={closeLabel}
+            className="absolute top-3 right-3 inline-flex size-11 items-center justify-center rounded-full text-ink-muted hover:bg-surface-muted"
+          >
+            <X className="size-5" aria-hidden="true" />
+          </DialogPrimitive.Close>
+        ) : null}
       </DialogPrimitive.Content>
     </DialogPrimitive.Portal>
   );

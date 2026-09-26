@@ -168,7 +168,7 @@ export function DatePicker({
           onClick={() => {
             change("");
           }}
-          className="absolute inset-y-0 right-8 flex w-8 items-center justify-center text-ink-muted hover:text-ink"
+          className="absolute inset-y-1 right-1 flex w-9 items-center justify-center rounded-control text-ink-muted hover:bg-surface-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-primary"
         >
           <X className="size-4" aria-hidden="true" />
         </button>

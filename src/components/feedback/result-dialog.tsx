@@ -45,6 +45,7 @@ export function ResultDialog({
     >
       <DialogContent
         closeLabel={t("close")}
+        showClose={false}
         className="max-w-sm"
         onCloseAutoFocus={(event) => {
           if (!onCloseFocus) return;
@@ -52,12 +53,14 @@ export function ResultDialog({
           onCloseFocus();
         }}
       >
-        <div className="flex flex-col items-center gap-3 text-center">
+        <div className="flex flex-col items-center gap-2 pt-2 text-center">
           <Icon
             className={cn("size-12", success ? "text-success-ink" : "text-danger-ink")}
             aria-hidden="true"
           />
-          <DialogTitle>{success ? t("successTitle") : t("errorTitle")}</DialogTitle>
+          <DialogTitle className="pr-0">
+            {success ? t("successTitle") : t("errorTitle")}
+          </DialogTitle>
           <DialogDescription className="[overflow-wrap:anywhere]">
             {result?.message}
           </DialogDescription>
