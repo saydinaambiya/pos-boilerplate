@@ -1,0 +1,73 @@
+@import "tailwindcss";
+
+/*
+ * Semantic design tokens (PRD §7.1). Values come from src/config/palettes.ts
+ * and are injected per request by <PaletteStyle>; this file only maps them
+ * to Tailwind utilities so components never reference raw colors.
+ */
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-border: var(--border);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-primary: var(--primary);
+  --color-primary-ink: var(--primary-ink);
+  --color-focus: var(--focus);
+  --color-success: var(--success-bg);
+  --color-success-ink: var(--success-ink);
+  --color-warning: var(--warning-bg);
+  --color-warning-ink: var(--warning-ink);
+  --color-danger: var(--danger-bg);
+  --color-danger-ink: var(--danger-ink);
+  --color-info: var(--info-bg);
+  --color-info-ink: var(--info-ink);
+  --color-neutral: var(--neutral-bg);
+  --color-neutral-ink: var(--neutral-ink);
+
+  --font-sans: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
+
+  --radius-control: 0.75rem;
+  --radius-card: 1.25rem;
+
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.04), 0 8px 24px -12px rgb(0 0 0 / 0.08);
+}
+
+/* Matches an explicit dark theme and the "system" theme on dark devices. */
+@custom-variant theme-dark {
+  &:where([data-theme="dark"] *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where([data-theme="system"] *) {
+      @slot;
+    }
+  }
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    @apply bg-canvas font-sans text-ink antialiased;
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-focus;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}

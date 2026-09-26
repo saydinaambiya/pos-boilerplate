@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 40" role="img" aria-label="Kasir">
+  <circle cx="20" cy="20" r="18" fill="#ECEBE8"/>
+  <path d="M12 23a5 5 0 0 1 4.6-5 6.5 6.5 0 0 1 12.4 1.6A3.8 3.8 0 0 1 28.4 27H16a4 4 0 0 1-4-4z" fill="#1C1D1F"/>
+  <text x="46" y="27" font-family="Outfit, system-ui, sans-serif" font-size="20" font-weight="600" fill="#ECEBE8">Kasir</text>
+</svg>

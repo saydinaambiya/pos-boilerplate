@@ -1,0 +1,70 @@
+name: Deploy
+
+# Tag-centric deployment (PRD §12): Vercel's Git integration is disabled in
+# vercel.json, so only version tags reach an environment.
+#   vX.Y.Z        -> production
+#   vX.Y.Z-rc.N   -> preview (staging)
+
+on:
+  push:
+    tags: ["v*.*.*"]
+  workflow_call:
+    inputs:
+      tag:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    needs: ci
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    environment:
+      name: ${{ contains(inputs.tag || github.ref_name, '-rc.') && 'staging' || 'production' }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.TAG }}
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Verify tag matches package version
+        run: |
+          expected="v$(node -p "require('./package.json').version")"
+          case "$TAG" in
+            "$expected"|"$expected"-rc.*) ;;
+            *) echo "Tag $TAG does not match package.json version $expected"; exit 1 ;;
+          esac
+
+      - name: Resolve Vercel target
+        id: target
+        run: |
+          if [[ "$TAG" == *-rc.* ]]; then
+            echo "environment=preview" >> "$GITHUB_OUTPUT"
+            echo "flag=" >> "$GITHUB_OUTPUT"
+          else
+            echo "environment=production" >> "$GITHUB_OUTPUT"
+            echo "flag=--prod" >> "$GITHUB_OUTPUT"
+          fi
+
+      - run: pnpm dlx vercel@latest pull --yes --environment=${{ steps.target.outputs.environment }} --token=${{ secrets.VERCEL_TOKEN }}
+      - run: pnpm dlx vercel@latest build ${{ steps.target.outputs.flag }} --token=${{ secrets.VERCEL_TOKEN }}
+      - run: pnpm dlx vercel@latest deploy --prebuilt ${{ steps.target.outputs.flag }} --token=${{ secrets.VERCEL_TOKEN }} --meta tag=$TAG

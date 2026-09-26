@@ -1,0 +1,89 @@
+{
+  "Metadata": {
+    "description": "Point of sale for {storeName}"
+  },
+  "Navigation": {
+    "label": "Main navigation",
+    "more": "More",
+    "dashboard": "Dashboard",
+    "pos": "Cashier",
+    "onlineOrders": "Online Orders",
+    "products": "Products",
+    "stock": "Stock",
+    "employees": "Employees",
+    "vouchers": "Vouchers",
+    "kasbon": "Store Credit",
+    "approvals": "Approvals",
+    "reports": "Reports",
+    "housekeeping": "Housekeeping",
+    "settings": "Settings",
+    "showcase": "UI Components"
+  },
+  "Preferences": {
+    "theme": "Theme",
+    "themeLight": "Light",
+    "themeDark": "Dark",
+    "themeSystem": "Match device",
+    "language": "Language",
+    "languageId": "Bahasa Indonesia",
+    "languageEn": "English"
+  },
+  "Dashboard": {
+    "title": "Dashboard",
+    "subtitle": "Today's store overview",
+    "emptyTitle": "No data yet",
+    "emptyDescription": "The sales overview appears after the first transaction."
+  },
+  "Placeholder": {
+    "title": "Coming soon",
+    "description": "This module is being built in an upcoming milestone."
+  },
+  "NotFound": {
+    "title": "Page not found",
+    "description": "The address you opened is not available.",
+    "back": "Back to dashboard"
+  },
+  "Common": {
+    "skipToContent": "Skip to content",
+    "close": "Close",
+    "cancel": "Cancel",
+    "save": "Save",
+    "loading": "Loading…"
+  },
+  "Showcase": {
+    "title": "UI Components",
+    "subtitle": "Preview of the base components for the active palette and theme.",
+    "buttons": "Buttons",
+    "primary": "Primary",
+    "secondary": "Secondary",
+    "ghost": "Ghost",
+    "danger": "Delete",
+    "disabled": "Disabled",
+    "status": "Status",
+    "statusNew": "New",
+    "statusProcessing": "Processing",
+    "statusInTransit": "In transit",
+    "statusComplaint": "Complaint",
+    "statusCompleted": "Completed",
+    "form": "Form",
+    "productName": "Product name",
+    "productNameHint": "Up to 120 characters.",
+    "price": "Price",
+    "priceError": "Price is required.",
+    "autoAssign": "Auto-assign new orders",
+    "table": "Table",
+    "tableCaption": "Sample order list",
+    "orderCode": "Code",
+    "customer": "Customer",
+    "total": "Total",
+    "overlays": "Dialogs & sheets",
+    "openDialog": "Open dialog",
+    "openSheet": "Open sheet",
+    "dialogTitle": "Confirm",
+    "dialogDescription": "This action will be recorded in the audit log.",
+    "sheetTitle": "Cart",
+    "sheetDescription": "On mobile devices the cart appears as a bottom sheet.",
+    "loadingState": "Loading state",
+    "emptyState": "Empty state"
+  }
+}

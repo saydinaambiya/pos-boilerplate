@@ -1,0 +1,89 @@
+{
+  "Metadata": {
+    "description": "Aplikasi kasir untuk {storeName}"
+  },
+  "Navigation": {
+    "label": "Navigasi utama",
+    "more": "Lainnya",
+    "dashboard": "Dasbor",
+    "pos": "Kasir",
+    "onlineOrders": "Pesanan Online",
+    "products": "Produk",
+    "stock": "Stok",
+    "employees": "Karyawan",
+    "vouchers": "Voucher",
+    "kasbon": "Kas Bon",
+    "approvals": "Persetujuan",
+    "reports": "Rekap",
+    "housekeeping": "Housekeeping",
+    "settings": "Pengaturan",
+    "showcase": "Komponen UI"
+  },
+  "Preferences": {
+    "theme": "Tema",
+    "themeLight": "Terang",
+    "themeDark": "Gelap",
+    "themeSystem": "Ikuti perangkat",
+    "language": "Bahasa",
+    "languageId": "Bahasa Indonesia",
+    "languageEn": "English"
+  },
+  "Dashboard": {
+    "title": "Dasbor",
+    "subtitle": "Ringkasan toko hari ini",
+    "emptyTitle": "Belum ada data",
+    "emptyDescription": "Ringkasan penjualan akan tampil setelah transaksi pertama."
+  },
+  "Placeholder": {
+    "title": "Segera hadir",
+    "description": "Modul ini sedang dikembangkan pada milestone berikutnya."
+  },
+  "NotFound": {
+    "title": "Halaman tidak ditemukan",
+    "description": "Alamat yang Anda buka tidak tersedia.",
+    "back": "Kembali ke dasbor"
+  },
+  "Common": {
+    "skipToContent": "Langsung ke konten",
+    "close": "Tutup",
+    "cancel": "Batal",
+    "save": "Simpan",
+    "loading": "Memuat…"
+  },
+  "Showcase": {
+    "title": "Komponen UI",
+    "subtitle": "Pratinjau komponen dasar untuk palette dan tema aktif.",
+    "buttons": "Tombol",
+    "primary": "Utama",
+    "secondary": "Sekunder",
+    "ghost": "Ghost",
+    "danger": "Hapus",
+    "disabled": "Nonaktif",
+    "status": "Status",
+    "statusNew": "Baru",
+    "statusProcessing": "Diproses",
+    "statusInTransit": "Dalam perjalanan",
+    "statusComplaint": "Komplain",
+    "statusCompleted": "Selesai",
+    "form": "Formulir",
+    "productName": "Nama produk",
+    "productNameHint": "Maksimal 120 karakter.",
+    "price": "Harga",
+    "priceError": "Harga wajib diisi.",
+    "autoAssign": "Tugaskan pesanan baru otomatis",
+    "table": "Tabel",
+    "tableCaption": "Contoh daftar pesanan",
+    "orderCode": "Kode",
+    "customer": "Pelanggan",
+    "total": "Total",
+    "overlays": "Dialog & sheet",
+    "openDialog": "Buka dialog",
+    "openSheet": "Buka sheet",
+    "dialogTitle": "Konfirmasi",
+    "dialogDescription": "Tindakan ini akan tercatat di audit log.",
+    "sheetTitle": "Keranjang",
+    "sheetDescription": "Di perangkat mobile keranjang tampil sebagai bottom sheet.",
+    "loadingState": "Status memuat",
+    "emptyState": "Status kosong"
+  }
+}

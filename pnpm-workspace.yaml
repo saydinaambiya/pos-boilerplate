@@ -1,0 +1,10 @@
+allowBuilds:
+  lefthook: true
+  unrs-resolver: true
+  "@parcel/watcher": false
+  "@swc/core": false
+minimumReleaseAgeExclude:
+  - icu-minify@4.14.7
+  - next-intl-swc-plugin-extractor@4.14.7
+  - next-intl@4.14.7
+  - use-intl@4.14.7
