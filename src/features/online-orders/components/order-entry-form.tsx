@@ -4,18 +4,17 @@ import { Minus, Plus, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useId, useState, useTransition } from "react";
 
+import { ResultDialog } from "@/components/feedback/result-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MoneyInput } from "@/components/ui/money-input";
 import { Select } from "@/components/ui/select";
-import { toneClasses } from "@/components/ui/tone";
 import type { Locale } from "@/config/locales";
 import { ColorSwatch } from "@/features/catalog/components/color-swatch";
 import type { PosProduct, PosVariant } from "@/features/catalog/pos-types";
 import { useRouter } from "@/i18n/navigation";
 import { formatCurrency } from "@/lib/format/currency";
 import { parseRupiah } from "@/lib/format/rupiah-input";
-import { cn } from "@/lib/utils/cn";
 
 import { createOnlineOrderAction, searchOrderCatalogAction } from "../actions";
 
@@ -357,11 +356,12 @@ export function OrderEntryForm({ locale, marketplaces }: OrderEntryFormProps) {
         </div>
       </dl>
 
-      {error && !error.field ? (
-        <p role="alert" className={cn("rounded-control px-3 py-2 text-sm", toneClasses.danger)}>
-          {error.message}
-        </p>
-      ) : null}
+      <ResultDialog
+        result={error && !error.field ? { status: "error", message: error.message } : null}
+        onClose={() => {
+          setError(null);
+        }}
+      />
       <Button type="submit" disabled={pending} aria-busy={pending} className="self-start">
         {pending ? t("saving") : t("save")}
       </Button>

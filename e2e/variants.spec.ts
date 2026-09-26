@@ -1,6 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 
 import { expect, test } from "./fixtures";
+import { expectResult } from "./helpers";
 
 /** Unique names per run: the E2E database is not truncated between runs. */
 const run = Date.now().toString(36);
@@ -15,7 +16,7 @@ test.describe("colour variants (FR-VAR)", () => {
     await page.goto("/id/products/categories");
     await page.getByLabel("Nama kategori").fill(`Pakaian ${run}`);
     await page.getByRole("button", { name: "Tambah kategori" }).click();
-    await expect(page.getByRole("status")).toHaveText("Kategori disimpan.");
+    await expectResult(page, "Kategori disimpan.");
 
     await page.goto("/id/products/new");
     await page.getByLabel("Nama produk").fill(product);
@@ -29,7 +30,7 @@ test.describe("colour variants (FR-VAR)", () => {
     await page.getByRole("link", { name: `Buka stok ${product}` }).click();
     await page.getByLabel("Jumlah").first().fill("7");
     await page.getByRole("button", { name: "Tambah stok" }).click();
-    await expect(page.getByRole("status")).toHaveText("Stok diperbarui: +7 → 7.");
+    await expectResult(page, "Stok diperbarui: +7 → 7.");
   });
 
   test("enables variants and moves the stock to the first colour", async ({ page }) => {
@@ -57,6 +58,7 @@ test.describe("colour variants (FR-VAR)", () => {
     await page.getByLabel("Nama warna").fill("merah");
     await page.getByLabel("SKU", { exact: true }).last().fill(`${sku}-X`);
     await page.getByRole("button", { name: "Tambah varian" }).click();
+    await expectResult(page, /./, "error");
     await expect(
       page.getByText("Nama warna sudah dipakai varian lain di produk ini."),
     ).toBeVisible();
@@ -67,7 +69,7 @@ test.describe("colour variants (FR-VAR)", () => {
     await page.getByLabel("Harga jual khusus").fill("55.000");
     await page.getByLabel("Stok awal").fill("3");
     await page.getByRole("button", { name: "Tambah varian" }).click();
-    await expect(page.getByRole("status")).toHaveText("Varian ditambahkan.");
+    await expectResult(page, "Varian ditambahkan.");
 
     const table = page.getByRole("table", { name: "Daftar varian warna" });
     const blue = table.getByRole("row", { name: /Biru Laut/ });

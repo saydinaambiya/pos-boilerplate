@@ -1,5 +1,10 @@
 import { expect, test } from "./fixtures";
-import { cashierAtPos, createStockedProduct, grantEmployeePermission } from "./helpers";
+import {
+  cashierAtPos,
+  createStockedProduct,
+  expectResult,
+  grantEmployeePermission,
+} from "./helpers";
 
 /** Unique names per run: the E2E database is not truncated between runs. */
 const run = Date.now().toString(36).toUpperCase();
@@ -30,6 +35,7 @@ test.describe("vouchers with approval and POS use (FR-VCH, FR-POS-03)", () => {
     await page.getByLabel("Nama").fill("Diskon E2E");
     await page.getByLabel("Nilai").fill("120");
     await page.getByRole("button", { name: "Ajukan voucher" }).click();
+    await expectResult(page, /./, "error");
     await expect(page.getByText("Maksimal 100.")).toBeVisible();
 
     await page.getByLabel("Nilai").fill("10");

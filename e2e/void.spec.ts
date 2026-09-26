@@ -1,5 +1,10 @@
 import { expect, test } from "./fixtures";
-import { cashierAtPos, createStockedProduct, grantEmployeePermission } from "./helpers";
+import {
+  cashierAtPos,
+  createStockedProduct,
+  expectResult,
+  grantEmployeePermission,
+} from "./helpers";
 
 /** Unique names per run: the E2E database is not truncated between runs. */
 const run = Date.now().toString(36);
@@ -41,6 +46,7 @@ test.describe("void through approvals (FR-POS-09, FR-APR)", () => {
     await page.getByRole("button", { name: "Void transaksi" }).click();
     const dialog = page.getByRole("dialog", { name: `Ajukan void ${invoiceNo}?` });
     await dialog.getByRole("button", { name: "Ajukan void" }).click();
+    await expectResult(page, /./, "error");
     await expect(dialog.getByText("Wajib diisi.")).toBeVisible();
     await dialog.getByLabel("Alasan void").fill("Pelanggan batal membeli");
     await dialog.getByRole("button", { name: "Ajukan void" }).click();

@@ -31,7 +31,7 @@ export async function createStockedProduct(
   await page.goto("/id/products/categories");
   await page.getByLabel("Nama kategori").fill(options.category);
   await page.getByRole("button", { name: "Tambah kategori" }).click();
-  await expect(page.getByRole("status")).toHaveText("Kategori disimpan.");
+  await expectResult(page, "Kategori disimpan.");
 
   await page.goto("/id/products/new");
   await page.getByLabel("Nama produk").fill(options.name);
@@ -45,7 +45,7 @@ export async function createStockedProduct(
   await page.getByRole("link", { name: `Buka stok ${options.name}` }).click();
   await page.getByLabel("Jumlah").first().fill(options.stock);
   await page.getByRole("button", { name: "Tambah stok" }).click();
-  await expect(page.getByRole("status")).toContainText("Stok diperbarui");
+  await expectResult(page, "Stok diperbarui");
 }
 
 /** Ensures the default employee role holds a permission (checkbox in the role matrix). */
@@ -56,6 +56,18 @@ export async function grantEmployeePermission(page: Page, label: string) {
   if (!(await box.isChecked())) {
     await box.check();
     await page.getByRole("button", { name: "Simpan perubahan" }).click();
-    await expect(page.getByRole("status")).toHaveText("Role disimpan.");
+    await expectResult(page, "Role disimpan.");
   }
+}
+
+/** Checks the action result dialog (FR-UX-05) and closes it with OK. */
+export async function expectResult(
+  page: Page,
+  text: string | RegExp,
+  status: "success" | "error" = "success",
+) {
+  const dialog = page.getByRole("dialog", { name: status === "success" ? "Berhasil" : "Gagal" });
+  await expect(dialog).toContainText(text);
+  await dialog.getByRole("button", { name: "Oke" }).click();
+  await expect(dialog).toBeHidden();
 }

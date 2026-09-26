@@ -1,6 +1,7 @@
 import type { Browser, Page } from "@playwright/test";
 
 import { expect, test } from "./fixtures";
+import { expectResult } from "./helpers";
 
 /** Names are unique per run because the E2E database is not truncated between runs. */
 const run = Date.now().toString(36);
@@ -22,6 +23,7 @@ test.describe("employees & roles (FR-EMP, FR-RBAC-01)", () => {
   test("validates the employee form inline and keeps typed values", async ({ page }) => {
     await page.goto("/id/employees/new");
     await page.getByRole("button", { name: "Buat karyawan" }).click();
+    await expectResult(page, /./, "error");
     await expect(page.getByText("Wajib diisi.").first()).toBeVisible();
     await expect(page.getByLabel("Nama")).toBeFocused();
 
@@ -88,9 +90,7 @@ test.describe("employees & roles (FR-EMP, FR-RBAC-01)", () => {
 
     await page.getByLabel("PIN sementara").fill("111222");
     await page.getByRole("button", { name: "Reset PIN" }).click();
-    await expect(page.getByRole("status")).toHaveText(
-      "PIN direset. Sampaikan PIN sementara kepada karyawan.",
-    );
+    await expectResult(page, "PIN direset. Sampaikan PIN sementara kepada karyawan.");
 
     await page.getByRole("button", { name: "Nonaktifkan" }).click();
     const dialog = page.getByRole("dialog");

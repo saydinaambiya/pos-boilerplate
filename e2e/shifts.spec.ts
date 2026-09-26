@@ -1,6 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 
 import { expect, test } from "./fixtures";
+import { expectResult } from "./helpers";
 
 test.describe("cashier shifts (FR-SHF)", () => {
   test.skip(({ isMobile }) => isMobile, "stateful shift flows run once, on desktop");
@@ -18,6 +19,7 @@ test.describe("cashier shifts (FR-SHF)", () => {
 
     await page.getByLabel("Modal awal kas").fill("abc");
     await page.getByRole("button", { name: "Buka shift" }).click();
+    await expectResult(page, /./, "error");
     await expect(page.getByText("Format tidak valid.")).toBeVisible();
     await page.getByLabel("Modal awal kas").fill("200.000");
     await page.getByRole("button", { name: "Buka shift" }).click();

@@ -2,6 +2,7 @@
 
 import { type ReactNode, useCallback, useState, useSyncExternalStore } from "react";
 
+import { type ActionResult, ResultDialog } from "@/components/feedback/result-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -38,6 +39,8 @@ const subscribeNever = () => () => undefined;
 
 /**
  * Confirmation dialog in front of a destructive Server Action (FR-UX-04).
+ * Errors open over the confirmation; on success it closes and the result
+ * opens on its own.
  * The dialog needs JavaScript, so the trigger stays disabled until hydration
  * instead of silently ignoring early clicks.
  */
@@ -54,30 +57,40 @@ export function ConfirmAction({
     () => true,
     () => false,
   );
-  const close = useCallback(() => {
+  const [result, setResult] = useState<ActionResult | null>(null);
+  const succeeded = useCallback((message: string | undefined) => {
     setOpen(false);
+    if (message) setResult({ status: "success", message });
   }, []);
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant={variant} disabled={!hydrated}>
-          {labels.trigger}
-        </Button>
-      </DialogTrigger>
-      <DialogContent closeLabel={labels.close}>
-        <DialogTitle>{labels.title}</DialogTitle>
-        <DialogDescription>{labels.description}</DialogDescription>
-        <ActionForm action={action} locale={locale} onSuccess={close}>
-          {children}
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="secondary">{labels.cancel}</Button>
-            </DialogClose>
-            <SubmitButton variant={variant}>{labels.confirm}</SubmitButton>
-          </DialogFooter>
-        </ActionForm>
-      </DialogContent>
-    </Dialog>
+    <>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger asChild>
+          <Button variant={variant} disabled={!hydrated}>
+            {labels.trigger}
+          </Button>
+        </DialogTrigger>
+        <DialogContent closeLabel={labels.close}>
+          <DialogTitle>{labels.title}</DialogTitle>
+          <DialogDescription>{labels.description}</DialogDescription>
+          <ActionForm action={action} locale={locale} onSuccess={succeeded} successDialog={false}>
+            {children}
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button variant="secondary">{labels.cancel}</Button>
+              </DialogClose>
+              <SubmitButton variant={variant}>{labels.confirm}</SubmitButton>
+            </DialogFooter>
+          </ActionForm>
+        </DialogContent>
+      </Dialog>
+      <ResultDialog
+        result={result}
+        onClose={() => {
+          setResult(null);
+        }}
+      />
+    </>
   );
 }

@@ -1,5 +1,6 @@
 import { accounts } from "./accounts";
 import { expect, test } from "./fixtures";
+import { expectResult } from "./helpers";
 
 /** Unique names per run: the E2E database is not truncated between runs. */
 const run = Date.now().toString(36);
@@ -14,7 +15,7 @@ test.describe("categories & products (FR-CAT-01, FR-PRD)", () => {
     await page.goto("/id/products/categories");
     await page.getByLabel("Nama kategori").fill(category);
     await page.getByRole("button", { name: "Tambah kategori" }).click();
-    await expect(page.getByRole("status")).toHaveText("Kategori disimpan.");
+    await expectResult(page, "Kategori disimpan.");
     await expect(page.getByRole("link", { name: `Ubah ${category}` })).toBeVisible();
   });
 
@@ -26,6 +27,7 @@ test.describe("categories & products (FR-CAT-01, FR-PRD)", () => {
     await page.getByLabel("Harga modal").fill("7.000");
     await page.getByLabel("SKU").fill(sku);
     await page.getByRole("button", { name: "Simpan produk" }).click();
+    await expectResult(page, /./, "error");
     await expect(page.getByText("Format tidak valid.")).toBeVisible();
     await expect(page.getByLabel("Harga jual")).toBeFocused();
     await expect(page.getByLabel("Kategori").locator("option:checked")).toHaveText(category);

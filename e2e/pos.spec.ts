@@ -5,6 +5,7 @@ import type { Browser, Page } from "@playwright/test";
 
 import { accounts } from "./accounts";
 import { expect, test } from "./fixtures";
+import { expectResult } from "./helpers";
 
 /** Unique names per run: the E2E database is not truncated between runs. */
 const run = Date.now().toString(36);
@@ -51,7 +52,7 @@ test.describe("POS terminal and checkout (FR-POS, FR-PAY)", () => {
     await page.goto("/id/products/categories");
     await page.getByLabel("Nama kategori").fill(`Minuman POS ${run}`);
     await page.getByRole("button", { name: "Tambah kategori" }).click();
-    await expect(page.getByRole("status")).toHaveText("Kategori disimpan.");
+    await expectResult(page, "Kategori disimpan.");
 
     await page.goto("/id/products/new");
     await page.getByLabel("Nama produk").fill(product);
@@ -65,7 +66,7 @@ test.describe("POS terminal and checkout (FR-POS, FR-PAY)", () => {
     await page.getByRole("link", { name: `Buka stok ${product}` }).click();
     await page.getByLabel("Jumlah").first().fill("10");
     await page.getByRole("button", { name: "Tambah stok" }).click();
-    await expect(page.getByRole("status")).toHaveText("Stok diperbarui: +10 → 10.");
+    await expectResult(page, "Stok diperbarui: +10 → 10.");
   });
 
   test("sells with cash, keeps the cart across reloads and shows the change", async ({

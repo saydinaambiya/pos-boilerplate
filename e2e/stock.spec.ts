@@ -1,4 +1,5 @@
 import { expect, test } from "./fixtures";
+import { expectResult } from "./helpers";
 
 /** Unique names per run: the E2E database is not truncated between runs. */
 const run = Date.now().toString(36);
@@ -13,7 +14,7 @@ test.describe("stock ledger (FR-STK)", () => {
     await page.goto("/id/products/categories");
     await page.getByLabel("Nama kategori").fill(`Sembako ${run}`);
     await page.getByRole("button", { name: "Tambah kategori" }).click();
-    await expect(page.getByRole("status")).toHaveText("Kategori disimpan.");
+    await expectResult(page, "Kategori disimpan.");
 
     await page.goto("/id/products/new");
     await page.getByLabel("Nama produk").fill(product);
@@ -35,18 +36,19 @@ test.describe("stock ledger (FR-STK)", () => {
     await receive.getByLabel("Jumlah").fill("12");
     await receive.getByLabel("Catatan").fill("Faktur 77");
     await receive.getByRole("button", { name: "Tambah stok" }).click();
-    await expect(receive.getByRole("status")).toHaveText("Stok diperbarui: +12 → 12.");
+    await expectResult(page, "Stok diperbarui: +12 → 12.");
 
     const count = page
       .locator("form")
       .filter({ has: page.getByRole("button", { name: "Simpan hasil opname" }) });
     await count.getByLabel("Jumlah fisik").fill("10");
     await count.getByRole("button", { name: "Simpan hasil opname" }).click();
+    await expectResult(page, /./, "error");
     await expect(count.getByText("Wajib diisi.")).toBeVisible();
     await expect(count.getByLabel("Alasan")).toBeFocused();
     await count.getByLabel("Alasan").fill("Opname mingguan");
     await count.getByRole("button", { name: "Simpan hasil opname" }).click();
-    await expect(count.getByRole("status")).toHaveText("Stok diperbarui: -2 → 10.");
+    await expectResult(page, "Stok diperbarui: -2 → 10.");
 
     const writeOff = page
       .locator("form")
@@ -54,10 +56,11 @@ test.describe("stock ledger (FR-STK)", () => {
     await writeOff.getByLabel("Jumlah").fill("11");
     await writeOff.getByLabel("Alasan").fill("Basah");
     await writeOff.getByRole("button", { name: "Catat write-off" }).click();
+    await expectResult(page, /./, "error");
     await expect(writeOff.getByText("Stok tidak cukup. Tersedia 10.")).toBeVisible();
     await writeOff.getByLabel("Jumlah").fill("6");
     await writeOff.getByRole("button", { name: "Catat write-off" }).click();
-    await expect(writeOff.getByRole("status")).toHaveText("Stok diperbarui: -6 → 4.");
+    await expectResult(page, "Stok diperbarui: -6 → 4.");
 
     const history = page.getByRole("table", { name: "Pergerakan stok, terbaru di atas" });
     await expect(history.getByRole("row")).toHaveCount(4);
