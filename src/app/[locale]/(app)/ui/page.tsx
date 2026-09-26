@@ -18,6 +18,7 @@ import {
 import { EmptyState } from "@/components/ui/empty-state";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { requireSession } from "@/lib/auth/guard";
 import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
@@ -46,6 +47,7 @@ const sampleOrders = [
 /** Component showcase for reviewing palettes and layouts; staging/local only. */
 export default async function ShowcasePage({ params }: PageProps<"/[locale]/ui">) {
   if (!env.ENABLE_DIAGNOSTICS) notFound();
+  await requireSession();
   const { locale } = await params;
   const [t, tCommon] = await Promise.all([getTranslations("Showcase"), getTranslations("Common")]);
 

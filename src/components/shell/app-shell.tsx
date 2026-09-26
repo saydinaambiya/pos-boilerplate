@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { appConfig } from "@/config/app.config";
 import { layouts } from "@/config/layouts";
 import { navigation, type NavigationItem } from "@/config/navigation";
+import type { Permission } from "@/config/permissions";
 import { cn } from "@/lib/utils/cn";
 
 import { BrandLogo } from "./brand-logo";
@@ -15,6 +16,8 @@ const layout = layouts[appConfig.appearance.layout];
 
 interface AppShellProps {
   showDiagnostics: boolean;
+  /** Viewer's permissions; menu entries without access are hidden (FR-RBAC-02). */
+  permissions: ReadonlySet<Permission>;
   children: ReactNode;
 }
 
@@ -24,12 +27,16 @@ interface AppShellProps {
  * both rendered and toggled with CSS breakpoints, so no client script
  * decides the layout.
  */
-export async function AppShell({ showDiagnostics, children }: AppShellProps) {
+export async function AppShell({ showDiagnostics, permissions, children }: AppShellProps) {
   const [t, tCommon] = await Promise.all([
     getTranslations("Navigation"),
     getTranslations("Common"),
   ]);
-  const items = navigation.filter((item) => showDiagnostics || !item.diagnostics);
+  const items = navigation.filter(
+    (item) =>
+      (showDiagnostics || !item.diagnostics) &&
+      (item.permission === undefined || permissions.has(item.permission)),
+  );
   const label = (item: NavigationItem) => t(item.label);
 
   const verticalLinks = (compact: boolean) => (

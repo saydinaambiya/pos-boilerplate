@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 
+import { OWNER_STATE } from "./accounts";
 import { expect, test } from "./fixtures";
 
 test.describe("routing & i18n", () => {
@@ -35,7 +36,10 @@ test.describe("theme (FR-UI-09)", () => {
 
   test("works without JavaScript", async ({ browser, isMobile }) => {
     test.skip(isMobile, "mobile preferences live in a dialog that needs JavaScript");
-    const context = await browser.newContext({ javaScriptEnabled: false });
+    const context = await browser.newContext({
+      javaScriptEnabled: false,
+      storageState: OWNER_STATE,
+    });
     const page = await context.newPage();
     await page.goto("/id");
     await page.getByRole("button", { name: "Terang" }).first().click();
@@ -82,8 +86,22 @@ test.describe("responsive layout (FR-UX-01)", () => {
 
 test.describe("accessibility (FR-UX-06, WCAG 2.2 AA)", () => {
   for (const theme of ["light", "dark"] as const) {
-    for (const path of ["/id", "/id/ui"]) {
+    for (const path of [
+      "/id",
+      "/id/ui",
+      "/id/login",
+      "/id/employees",
+      "/id/employees/roles/new",
+      "/id/settings",
+      "/id/settings/tax",
+      "/id/audit",
+      "/id/products",
+      "/id/products/new",
+      "/id/products/categories",
+      "/id/stock",
+    ]) {
       test(`${path} in ${theme} theme has no violations`, async ({ page, context, baseURL }) => {
+        if (path.endsWith("/login")) await context.clearCookies();
         await context.addCookies([{ name: "theme", value: theme, url: baseURL ?? "" }]);
         await page.goto(path);
         const results = await new AxeBuilder({ page })

@@ -1,0 +1,21 @@
+# Local Postgres for development and E2E (PRD §12.3). `pnpm db:up` starts it.
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: pos
+      POSTGRES_PASSWORD: pos
+      POSTGRES_DB: pos
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pos -d pos"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  db-data:
