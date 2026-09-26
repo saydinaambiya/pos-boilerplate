@@ -207,6 +207,7 @@ const ENTITIES = new Set<string>([
   "category",
   "product",
   "product-variant",
+  "shift",
 ]);
 
 function isEntity(value: string): value is EntityKey {

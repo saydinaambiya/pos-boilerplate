@@ -37,6 +37,8 @@ export const auditActions = [
   "variant.activated",
   "variant.deactivated",
   "variant.reordered",
+  "shift.opened",
+  "shift.closed",
 ] as const;
 
 export type AuditAction = (typeof auditActions)[number];

@@ -293,7 +293,8 @@
       "marketplace": "Marketplace",
       "category": "Category",
       "product": "Product",
-      "product-variant": "Product variant"
+      "product-variant": "Product variant",
+      "shift": "Shift"
     },
     "actions": {
       "auth_login_succeeded": "Signed in",
@@ -332,7 +333,9 @@
       "variant_updated": "Variant updated",
       "variant_activated": "Variant activated",
       "variant_deactivated": "Variant deactivated",
-      "variant_reordered": "Variant order changed"
+      "variant_reordered": "Variant order changed",
+      "shift_opened": "Shift opened",
+      "shift_closed": "Shift closed"
     }
   },
   "Settings": {
@@ -629,5 +632,59 @@
     "errorStockForbidden": "You may not change stock; leave the opening stock empty.",
     "errorDefaultVariant": "The primary variant cannot be deactivated while the product is active.",
     "errorNotFound": "Variant not found."
+  },
+  "Shifts": {
+    "title": "Cashier shifts",
+    "subtitle": "Open a shift before selling and close it at the end of the day.",
+    "openTitle": "Open shift",
+    "openDescription": "Enter the opening cash in the drawer before you start selling.",
+    "openingCash": "Opening cash",
+    "moneyHint": "Rupiah, e.g. 200,000.",
+    "open": "Open shift",
+    "opened": "Shift opened.",
+    "current": "Current shift",
+    "openedAt": "Opened {time}",
+    "cashier": "Cashier",
+    "salesCount": "Transactions",
+    "revenue": "Sales",
+    "expectedCash": "Expected cash",
+    "expectedHint": "Opening cash + cash payments",
+    "close": "Close shift",
+    "closeTitle": "Close shift",
+    "closeDescription": "Count the money in the drawer and enter the amount. The difference from the expected cash is recorded.",
+    "countedCash": "Counted cash",
+    "note": "Note",
+    "noteHint": "Optional, explain any difference.",
+    "history": "Shift history",
+    "historyCaption": "Shift history, newest first",
+    "status": "Status",
+    "statusOpen": "Open",
+    "statusClosed": "Closed",
+    "closedAt": "Closed",
+    "variance": "Variance",
+    "reportTitle": "Shift report",
+    "byMethod": "By payment method",
+    "voids": "Voids",
+    "openingCashShort": "Opening cash",
+    "countedCashShort": "Counted cash",
+    "noShifts": "No shifts yet",
+    "noShiftsDescription": "Opened shifts are recorded here.",
+    "view": "View shift report {date}",
+    "back": "Back",
+    "varianceOver": "Over {amount}",
+    "varianceShort": "Short {amount}",
+    "varianceZero": "Balanced",
+    "methods": {
+      "CASH": "Cash",
+      "TRANSFER": "Transfer",
+      "MARKETPLACE": "Marketplace",
+      "KASBON": "Store credit"
+    },
+    "errorAlreadyOpen": "You already have an open shift.",
+    "errorNoOpenShift": "There is no open shift.",
+    "previous": "Previous",
+    "next": "Next",
+    "pagination": "Pagination",
+    "pageLabel": "Page {page}"
   }
 }

@@ -293,7 +293,8 @@
       "marketplace": "Marketplace",
       "category": "Kategori",
       "product": "Produk",
-      "product-variant": "Varian produk"
+      "product-variant": "Varian produk",
+      "shift": "Shift"
     },
     "actions": {
       "auth_login_succeeded": "Login berhasil",
@@ -332,7 +333,9 @@
       "variant_updated": "Varian diubah",
       "variant_activated": "Varian diaktifkan",
       "variant_deactivated": "Varian dinonaktifkan",
-      "variant_reordered": "Urutan varian diubah"
+      "variant_reordered": "Urutan varian diubah",
+      "shift_opened": "Shift dibuka",
+      "shift_closed": "Shift ditutup"
     }
   },
   "Settings": {
@@ -629,5 +632,59 @@
     "errorStockForbidden": "Anda tidak memiliki izin mengubah stok; kosongkan stok awal.",
     "errorDefaultVariant": "Varian utama tidak dapat dinonaktifkan selama produk aktif.",
     "errorNotFound": "Varian tidak ditemukan."
+  },
+  "Shifts": {
+    "title": "Shift kasir",
+    "subtitle": "Buka shift sebelum berjualan dan tutup di akhir hari.",
+    "openTitle": "Buka shift",
+    "openDescription": "Masukkan modal awal kas di laci sebelum mulai berjualan.",
+    "openingCash": "Modal awal kas",
+    "moneyHint": "Rupiah, contoh 200.000.",
+    "open": "Buka shift",
+    "opened": "Shift dibuka.",
+    "current": "Shift berjalan",
+    "openedAt": "Dibuka {time}",
+    "cashier": "Kasir",
+    "salesCount": "Transaksi",
+    "revenue": "Penjualan",
+    "expectedCash": "Kas seharusnya",
+    "expectedHint": "Modal awal + pembayaran tunai",
+    "close": "Tutup shift",
+    "closeTitle": "Tutup shift",
+    "closeDescription": "Hitung uang di laci lalu masukkan jumlahnya. Selisih dengan kas seharusnya akan dicatat.",
+    "countedCash": "Kas fisik",
+    "note": "Catatan",
+    "noteHint": "Opsional, jelaskan bila ada selisih.",
+    "history": "Riwayat shift",
+    "historyCaption": "Riwayat shift, terbaru di atas",
+    "status": "Status",
+    "statusOpen": "Berjalan",
+    "statusClosed": "Selesai",
+    "closedAt": "Ditutup",
+    "variance": "Selisih",
+    "reportTitle": "Laporan shift",
+    "byMethod": "Per metode pembayaran",
+    "voids": "Void",
+    "openingCashShort": "Modal awal",
+    "countedCashShort": "Kas fisik",
+    "noShifts": "Belum ada shift",
+    "noShiftsDescription": "Shift yang dibuka akan tercatat di sini.",
+    "view": "Lihat laporan shift {date}",
+    "back": "Kembali",
+    "varianceOver": "Lebih {amount}",
+    "varianceShort": "Kurang {amount}",
+    "varianceZero": "Sesuai",
+    "methods": {
+      "CASH": "Tunai",
+      "TRANSFER": "Transfer",
+      "MARKETPLACE": "Marketplace",
+      "KASBON": "Kas bon"
+    },
+    "errorAlreadyOpen": "Anda sudah memiliki shift yang berjalan.",
+    "errorNoOpenShift": "Tidak ada shift yang berjalan.",
+    "previous": "Sebelumnya",
+    "next": "Berikutnya",
+    "pagination": "Navigasi halaman",
+    "pageLabel": "Halaman {page}"
   }
 }
