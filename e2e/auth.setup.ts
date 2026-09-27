@@ -6,7 +6,8 @@ import { accounts, OWNER_STATE } from "./accounts";
 setup("sign in as owner", async ({ page }) => {
   await page.goto("/id/login");
   await page.getByLabel("Username").fill(accounts.owner.username);
-  await page.getByLabel("Password atau PIN").fill(accounts.owner.password);
+  await page.getByRole("button", { name: "Lanjut" }).click();
+  await page.getByLabel(/^(Password|PIN)$/).fill(accounts.owner.password);
   await page.getByRole("button", { name: "Masuk" }).click();
   await expect(page).toHaveURL(/\/id$/);
   await page.context().storageState({ path: OWNER_STATE });

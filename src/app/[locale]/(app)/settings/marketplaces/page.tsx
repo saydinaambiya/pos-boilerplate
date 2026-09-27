@@ -16,10 +16,12 @@ import {
 } from "@/components/ui/table";
 import { createMarketplaceAction } from "@/features/settings/actions";
 import { SettingsForm, SettingsHeader } from "@/features/settings/components/settings-frame";
+import { EditMarketplaceDialog } from "@/features/settings/components/edit-dialogs";
 import { ActiveChip } from "@/features/settings/components/status-chip";
 import { getMarketplaces } from "@/features/settings/service";
 import { Link } from "@/i18n/navigation";
 import { requirePermission } from "@/lib/auth/guard";
+import { firstParam } from "@/lib/utils/search-params";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Settings");
@@ -27,8 +29,11 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /** Marketplaces for online orders (FR-SET-06). */
-export default async function MarketplacesPage() {
+export default async function MarketplacesPage({
+  searchParams,
+}: PageProps<"/[locale]/settings/marketplaces">) {
   const session = await requirePermission("page:settings");
+  const editing = firstParam((await searchParams).edit);
   const [t, marketplaces] = await Promise.all([
     getTranslations("Settings"),
     getMarketplaces(session),
@@ -61,7 +66,11 @@ export default async function MarketplacesPage() {
                     <TableCell className="font-medium">
                       {canManage ? (
                         <Link
-                          href={`/settings/marketplaces/${marketplace.id}`}
+                          href={{
+                            pathname: "/settings/marketplaces",
+                            query: { edit: marketplace.id },
+                          }}
+                          scroll={false}
                           aria-label={t("edit", { name: marketplace.name })}
                           className="underline-offset-4 hover:underline"
                         >
@@ -100,6 +109,14 @@ export default async function MarketplacesPage() {
           </Card>
         ) : null}
       </div>
+      {canManage && editing ? (
+        <EditMarketplaceDialog
+          key={editing}
+          session={session}
+          id={editing}
+          closeHref="/settings/marketplaces"
+        />
+      ) : null}
     </>
   );
 }

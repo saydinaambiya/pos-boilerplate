@@ -431,7 +431,7 @@ export function PosTerminal(props: PosTerminalProps) {
             {completed ? (
               <>
                 <Button asChild variant="ghost">
-                  <Link href={`/pos/sales/${completed.saleId}`}>{t("viewReceipt")}</Link>
+                  <Link href={`/pos/sales?view=${completed.saleId}`}>{t("viewReceipt")}</Link>
                 </Button>
                 <Button asChild variant="secondary">
                   <Link

@@ -60,6 +60,7 @@ export async function VariantFields({ canSeeCost, withInitialStock, variant }: V
       <div className="grid gap-4 sm:grid-cols-2">
         <FormField
           name="priceOverride"
+          money
           label={t("priceOverride")}
           hint={t("priceOverrideHint")}
           defaultValue={variant?.priceOverride == null ? "" : String(variant.priceOverride)}
@@ -68,6 +69,7 @@ export async function VariantFields({ canSeeCost, withInitialStock, variant }: V
         {canSeeCost ? (
           <FormField
             name="costOverride"
+            money
             label={t("costOverride")}
             hint={t("costOverrideHint")}
             defaultValue={variant?.costOverride == null ? "" : String(variant.costOverride)}

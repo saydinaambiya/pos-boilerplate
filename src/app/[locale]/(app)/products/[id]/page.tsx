@@ -9,19 +9,28 @@ import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/ca
 import { PageHeader } from "@/components/ui/page-header";
 import { setProductStatusAction, updateProductAction } from "@/features/catalog/actions";
 import { ProductForm } from "@/features/catalog/components/product-form";
+import { VariantDialog } from "@/features/catalog/components/variant-dialog";
 import { VariantsSection } from "@/features/catalog/components/variants-section";
 import { getCategories, getProduct } from "@/features/catalog/service";
 import { Link } from "@/i18n/navigation";
 import { requirePermission } from "@/lib/auth/guard";
+import { firstParam } from "@/lib/utils/search-params";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Catalog");
   return { title: t("editTitle") };
 }
 
-/** Edit a product and its default variant, or change its status (FR-PRD-01/03). */
-export default async function EditProductPage({ params }: PageProps<"/[locale]/products/[id]">) {
+/**
+ * Edit a product and its default variant, or change its status
+ * (FR-PRD-01/03); `?variant=` opens a variant's edit dialog (ADR-0018).
+ */
+export default async function EditProductPage({
+  params,
+  searchParams,
+}: PageProps<"/[locale]/products/[id]">) {
   const { id } = await params;
+  const editingVariant = firstParam((await searchParams).variant);
   const session = await requirePermission("product:update");
   if (!z.uuid().safeParse(id).success) notFound();
 
@@ -90,6 +99,14 @@ export default async function EditProductPage({ params }: PageProps<"/[locale]/p
           />
         </Card>
       </div>
+      {editingVariant ? (
+        <VariantDialog
+          key={editingVariant}
+          session={session}
+          productId={product.id}
+          variantId={editingVariant}
+        />
+      ) : null}
     </>
   );
 }

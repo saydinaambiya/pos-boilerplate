@@ -1,80 +1,69 @@
 "use server";
 
+import { hasLocale } from "next-intl";
 import { getTranslations } from "next-intl/server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import { localeFromForm } from "@/i18n/form-locale";
+import { routing } from "@/i18n/routing";
 import { requirePermission } from "@/lib/auth/guard";
 import { formatCurrency } from "@/lib/format/currency";
-import { formText } from "@/lib/http/form-data";
 import { currentRequestContext } from "@/lib/http/request-context";
-import { fieldErrors, type FormState, submittedValues } from "@/lib/validation/form-state";
-import { parseRupiah } from "@/lib/validation/money";
 
 import { kasbonPaymentInput } from "./schemas";
 import { recordKasbonPayment } from "./service";
 
 const kasbonId = z.uuid();
-const FIELDS = ["method", "amount", "bankAccountId", "reference"] as const;
 
-/** Records an installment or payoff for approval (FR-KSB-03..05). */
+export type KasbonPaymentResponse =
+  { ok: true; message: string } | { ok: false; message: string; field?: "amount" | "bankAccount" };
+
+/** Records an installment or payoff (cash, transfer or both) for approval (FR-KSB-03..05). */
 export async function recordKasbonPaymentAction(
-  id: string,
-  _previous: FormState,
-  formData: FormData,
-): Promise<FormState> {
-  const locale = localeFromForm(formData);
+  localeValue: unknown,
+  id: unknown,
+  payload: unknown,
+): Promise<KasbonPaymentResponse> {
+  const locale =
+    typeof localeValue === "string" && hasLocale(routing.locales, localeValue)
+      ? localeValue
+      : routing.defaultLocale;
   const session = await requirePermission("kasbon:pay", locale);
-  const [t, tv] = await Promise.all([
-    getTranslations({ locale, namespace: "Kasbon" }),
-    getTranslations({ locale, namespace: "Validation" }),
-  ]);
-  const values = submittedValues(formData, FIELDS);
-  if (!kasbonId.safeParse(id).success) return { status: "error", message: t("errorNotFound") };
+  const t = await getTranslations({ locale, namespace: "Kasbon" });
+  const parsedId = kasbonId.safeParse(id);
+  if (!parsedId.success) return { ok: false, message: t("errorNotFound") };
+  const parsed = kasbonPaymentInput.safeParse(payload);
+  if (!parsed.success) return { ok: false, message: t("errorAmount"), field: "amount" };
 
-  const method = formText(formData, "method");
-  const amount = parseRupiah(formText(formData, "amount")) ?? Number.NaN;
-  const parsed = kasbonPaymentInput.safeParse(
-    method === "TRANSFER"
-      ? {
-          method,
-          amount,
-          bankAccountId: formText(formData, "bankAccountId"),
-          reference: formText(formData, "reference"),
-        }
-      : { method, amount },
+  const result = await recordKasbonPayment(
+    session,
+    parsedId.data,
+    parsed.data,
+    await currentRequestContext(),
   );
-  if (!parsed.success) {
-    return { status: "error", errors: fieldErrors(parsed.error, tv), values };
-  }
-
-  const result = await recordKasbonPayment(session, id, parsed.data, await currentRequestContext());
   if (result.ok) {
     revalidatePath("/", "layout");
     return {
-      status: "success",
+      ok: true,
       message: result.status === "APPROVED" ? t("paymentApproved") : t("paymentPending"),
     };
   }
   switch (result.reason) {
     case "exceeds-balance":
       return {
-        status: "error",
-        errors: {
-          amount: t("errorExceedsBalance", {
-            amount: formatCurrency(result.available ?? 0, locale),
-          }),
-        },
-        values,
+        ok: false,
+        message: t("errorExceedsBalance", {
+          amount: formatCurrency(result.available ?? 0, locale),
+        }),
+        field: "amount",
       };
     case "no-open-shift":
-      return { status: "error", message: t("errorNoOpenShift"), values };
+      return { ok: false, message: t("errorNoOpenShift") };
     case "invalid-bank-account":
-      return { status: "error", errors: { bankAccountId: t("errorBankAccount") }, values };
+      return { ok: false, message: t("errorBankAccount"), field: "bankAccount" };
     case "settled":
-      return { status: "error", message: t("errorSettled") };
+      return { ok: false, message: t("errorSettled") };
     case "not-found":
-      return { status: "error", message: t("errorNotFound") };
+      return { ok: false, message: t("errorNotFound") };
   }
 }

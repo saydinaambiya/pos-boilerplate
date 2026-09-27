@@ -6,7 +6,14 @@ import { payments, sales, shifts } from "@/db/schema";
 import { fixtures, resetDatabase } from "@/test/database";
 import { signIn, testContext } from "@/test/sessions";
 
-import { closeShift, getOpenShift, getShiftReport, listShifts, openShift } from "./service";
+import {
+  closeShift,
+  getOpenShift,
+  getOtherOpenShifts,
+  getShiftReport,
+  listShifts,
+  openShift,
+} from "./service";
 
 const cashier = () => signIn("kasir", "123456");
 const owner = () => signIn(fixtures.owner.username, fixtures.owner.password);
@@ -104,5 +111,17 @@ describe("shifts (FR-SHF-01..04)", () => {
 
     expect((await listShifts(colleague, 1)).shifts).toHaveLength(0);
     expect((await listShifts(await owner(), 1)).shifts).toHaveLength(1);
+  });
+});
+
+describe("other open shifts (FR-SHF-01)", () => {
+  it("tells a cashier who else has a shift open", async () => {
+    const owner = await signIn(fixtures.owner.username, fixtures.owner.password);
+    const cashier = await signIn("kasir", "123456");
+    expect(await getOtherOpenShifts(cashier)).toEqual([]);
+    await openShift(owner, { openingCash: 0 }, testContext());
+    const others = await getOtherOpenShifts(cashier);
+    expect(others.map((shift) => shift.cashierName)).toEqual([fixtures.owner.name]);
+    expect(await getOtherOpenShifts(owner)).toEqual([]);
   });
 });

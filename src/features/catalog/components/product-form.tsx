@@ -61,19 +61,19 @@ export async function ProductForm({
       <div className="grid gap-4 sm:grid-cols-2">
         <FormField
           name="price"
+          money
           label={t("price")}
           hint={t("moneyHint")}
           defaultValue={product ? String(product.price) : undefined}
-          inputMode="numeric"
           maxLength={20}
         />
         {canSeeCost ? (
           <FormField
             name="cost"
+            money
             label={t("cost")}
             hint={t("costHint")}
             defaultValue={product && product.cost !== null ? String(product.cost) : undefined}
-            inputMode="numeric"
             maxLength={20}
           />
         ) : null}

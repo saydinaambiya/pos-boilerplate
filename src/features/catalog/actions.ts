@@ -218,5 +218,6 @@ export async function setProductStatusAction(
   const result = await changeProductStatus(session, id, isActive, await currentRequestContext());
   if (!result.ok) return failure(result, locale);
   revalidatePath("/", "layout");
-  return { status: "success" };
+  const tf = await getTranslations({ locale, namespace: "Feedback" });
+  return { status: "success", message: tf(isActive ? "activated" : "deactivated") };
 }

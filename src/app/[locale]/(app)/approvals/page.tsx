@@ -1,12 +1,27 @@
 import { BadgeCheck, Inbox } from "lucide-react";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
+import { z } from "zod";
 
+import { SectionTabs } from "@/components/shell/section-tabs";
+import { FilterForm } from "@/components/form/filter-form";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Field } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
+import { Select } from "@/components/ui/select";
+import { approvalTypes } from "@/db/schema";
 import { ApprovalCard } from "@/features/approvals/components/approval-card";
-import { decidableTypes, getInbox, getMyRequests } from "@/features/approvals/service";
+import {
+  countPendingForViewer,
+  decidableTypes,
+  getHistory,
+  getInbox,
+  getMyRequests,
+} from "@/features/approvals/service";
+import { Link } from "@/i18n/navigation";
 import { requirePermission } from "@/lib/auth/guard";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -14,61 +29,146 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t("title") };
 }
 
+const query = z.object({
+  view: z.enum(["inbox", "history", "mine"]).optional().catch(undefined),
+  type: z.enum(approvalTypes).optional().catch(undefined),
+  q: z.string().trim().max(60).catch(""),
+});
+
 /**
  * Approval inbox (FR-APR-02): pending requests of the types the viewer may
- * decide, and the viewer's own requests with their outcome.
+ * decide, the history of decided ones, and the viewer's own requests, as one
+ * column of cards filtered by request type and requester. Viewers who cannot
+ * decide only see their own requests.
  */
-export default async function ApprovalsPage() {
+export default async function ApprovalsPage({ searchParams }: PageProps<"/[locale]/approvals">) {
   const session = await requirePermission("page:approvals");
-  const [t, inbox, mine] = await Promise.all([
-    getTranslations("Approvals"),
-    getInbox(session),
-    getMyRequests(session),
-  ]);
+  const raw = await searchParams;
+  const first = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value);
+  const filters = query.parse({ view: first(raw.view), type: first(raw.type), q: first(raw.q) });
   const canDecide = decidableTypes(session).length > 0;
+  const view = canDecide ? (filters.view ?? "inbox") : "mine";
+  const byRequester = view !== "mine";
+
+  const [t, rows, pending] = await Promise.all([
+    getTranslations("Approvals"),
+    view === "inbox"
+      ? getInbox(session, { type: filters.type, requester: filters.q })
+      : view === "history"
+        ? getHistory(session, { type: filters.type, requester: filters.q })
+        : getMyRequests(session, { type: filters.type }),
+    countPendingForViewer(session),
+  ]);
+  const viewLabel = t(view === "inbox" ? "inbox" : view === "history" ? "history" : "mine");
+  const filtered = filters.type !== undefined || filters.q !== "";
+  const href = (next: "inbox" | "history" | "mine") => ({
+    pathname: "/approvals",
+    query: { view: next, ...(filters.type ? { type: filters.type } : {}) },
+  });
 
   return (
     <>
       <PageHeader title={t("title")} description={t("subtitle")} />
-      <div className="flex flex-col gap-8">
+      <div className="mx-auto flex max-w-3xl flex-col">
         {canDecide ? (
-          <section aria-labelledby="inbox-heading" className="flex flex-col gap-3">
-            <h2 id="inbox-heading" className="text-lg font-semibold text-ink">
-              {t("inbox")}
-            </h2>
-            {inbox.length === 0 ? (
-              <Card>
-                <EmptyState icon={<BadgeCheck aria-hidden="true" />} title={t("emptyInbox")} />
-              </Card>
-            ) : (
-              <ul className="grid gap-3 lg:grid-cols-2">
-                {inbox.map((approval) => (
-                  <li key={approval.id}>
-                    <ApprovalCard approval={approval} mode="decide" />
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
+          <SectionTabs
+            label={t("views")}
+            current={view}
+            tabs={[
+              {
+                id: "inbox",
+                href: `/approvals?view=inbox${filters.type ? `&type=${filters.type}` : ""}`,
+                label: `${t("inbox")} (${String(pending)})`,
+              },
+              {
+                id: "history",
+                href: `/approvals?view=history${filters.type ? `&type=${filters.type}` : ""}`,
+                label: t("history"),
+              },
+              {
+                id: "mine",
+                href: `/approvals?view=mine${filters.type ? `&type=${filters.type}` : ""}`,
+                label: t("mine"),
+              },
+            ]}
+          />
         ) : null}
-        <section aria-labelledby="mine-heading" className="flex flex-col gap-3">
-          <h2 id="mine-heading" className="text-lg font-semibold text-ink">
-            {t("mine")}
-          </h2>
-          {mine.length === 0 ? (
-            <Card>
-              <EmptyState icon={<Inbox aria-hidden="true" />} title={t("emptyMine")} />
-            </Card>
-          ) : (
-            <ul className="grid gap-3 lg:grid-cols-2">
-              {mine.map((approval) => (
-                <li key={approval.id}>
-                  <ApprovalCard approval={approval} mode="mine" />
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+
+        <Card className="mb-4">
+          <FilterForm
+            applyLabel={t("applyFilter")}
+            className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end"
+          >
+            <input type="hidden" name="view" value={view} />
+            <Field label={t("filterType")}>
+              {(control) => (
+                <Select
+                  {...control}
+                  name="type"
+                  defaultValue={filters.type ?? ""}
+                  options={[
+                    { value: "", label: t("allTypes") },
+                    ...approvalTypes.map((type) => ({ value: type, label: t(`types.${type}`) })),
+                  ]}
+                />
+              )}
+            </Field>
+            {byRequester ? (
+              <Field label={t("filterRequester")}>
+                {(control) => (
+                  <Input
+                    {...control}
+                    type="search"
+                    name="q"
+                    defaultValue={filters.q}
+                    placeholder={t("filterRequesterPlaceholder")}
+                    maxLength={60}
+                  />
+                )}
+              </Field>
+            ) : (
+              <span className="hidden sm:block" />
+            )}
+            {filtered ? (
+              <Button asChild variant="ghost">
+                <Link href={href(view)}>{t("resetFilter")}</Link>
+              </Button>
+            ) : null}
+          </FilterForm>
+        </Card>
+
+        <h2 className="sr-only">{viewLabel}</h2>
+        {rows.length === 0 ? (
+          <Card>
+            <EmptyState
+              icon={
+                view === "inbox" ? <BadgeCheck aria-hidden="true" /> : <Inbox aria-hidden="true" />
+              }
+              title={
+                filtered
+                  ? t("emptyFiltered")
+                  : t(
+                      view === "inbox"
+                        ? "emptyInbox"
+                        : view === "history"
+                          ? "emptyHistory"
+                          : "emptyMine",
+                    )
+              }
+            />
+          </Card>
+        ) : (
+          <ul aria-label={viewLabel} className="flex flex-col gap-3">
+            {rows.map((approval) => (
+              <li key={approval.id}>
+                <ApprovalCard
+                  approval={approval}
+                  mode={view === "inbox" ? "decide" : view === "history" ? "history" : "mine"}
+                />
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </>
   );

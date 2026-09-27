@@ -1,6 +1,7 @@
 import type { Browser, Page } from "@playwright/test";
 
 import { expect, test } from "./fixtures";
+import { choose, expectResult } from "./helpers";
 
 /** Names are unique per run because the E2E database is not truncated between runs. */
 const run = Date.now().toString(36);
@@ -10,7 +11,8 @@ async function signInFresh(browser: Browser, username: string, pin: string): Pro
   const page = await context.newPage();
   await page.goto("/id/login");
   await page.getByLabel("Username").fill(username);
-  await page.getByLabel("Password atau PIN").fill(pin);
+  await page.getByRole("button", { name: "Lanjut" }).click();
+  await page.getByLabel(/^(Password|PIN)$/).fill(pin);
   await page.getByRole("button", { name: "Masuk" }).click();
   return page;
 }
@@ -19,8 +21,9 @@ test.describe("employees & roles (FR-EMP, FR-RBAC-01)", () => {
   test.skip(({ isMobile }) => isMobile, "stateful management flows run once, on desktop");
 
   test("validates the employee form inline and keeps typed values", async ({ page }) => {
-    await page.goto("/id/employees/new");
+    await page.goto("/id/employees?new=1");
     await page.getByRole("button", { name: "Buat karyawan" }).click();
+    await expectResult(page, /./, "error");
     await expect(page.getByText("Wajib diisi.").first()).toBeVisible();
     await expect(page.getByLabel("Nama")).toBeFocused();
 
@@ -39,7 +42,7 @@ test.describe("employees & roles (FR-EMP, FR-RBAC-01)", () => {
     const roleName = `Gudang ${run}`;
     const username = `gudang-${run}`;
 
-    await page.goto("/id/employees/roles/new");
+    await page.goto("/id/employees/roles?new=1");
     await page.getByLabel("Nama role").fill(roleName);
     await page.getByLabel("Halaman dasbor").check();
     await page.getByLabel("Halaman stok").check();
@@ -47,10 +50,10 @@ test.describe("employees & roles (FR-EMP, FR-RBAC-01)", () => {
     await expect(page).toHaveURL(/\/id\/employees\/roles$/);
     await expect(page.getByRole("link", { name: `Ubah ${roleName}` })).toBeVisible();
 
-    await page.goto("/id/employees/new");
+    await page.goto("/id/employees?new=1");
     await page.getByLabel("Nama").fill(`Staf Gudang ${run}`);
     await page.getByLabel("Username").fill(username);
-    await page.getByLabel("Role").selectOption({ label: roleName });
+    await choose(page, "Role", roleName);
     await page.getByLabel("PIN awal").fill("135790");
     await page.getByRole("button", { name: "Buat karyawan" }).click();
     await expect(page).toHaveURL(/\/id\/employees$/);
@@ -78,7 +81,7 @@ test.describe("employees & roles (FR-EMP, FR-RBAC-01)", () => {
     browser,
   }) => {
     const username = `sementara-${run}`;
-    await page.goto("/id/employees/new");
+    await page.goto("/id/employees?new=1");
     await page.getByLabel("Nama").fill(`Sementara ${run}`);
     await page.getByLabel("Username").fill(username);
     await page.getByLabel("PIN awal").fill("246802");
@@ -87,21 +90,17 @@ test.describe("employees & roles (FR-EMP, FR-RBAC-01)", () => {
 
     await page.getByLabel("PIN sementara").fill("111222");
     await page.getByRole("button", { name: "Reset PIN" }).click();
-    await expect(page.getByRole("status")).toHaveText(
-      "PIN direset. Sampaikan PIN sementara kepada karyawan.",
-    );
+    await expectResult(page, "PIN direset. Sampaikan PIN sementara kepada karyawan.");
 
     await page.getByRole("button", { name: "Nonaktifkan" }).click();
-    const dialog = page.getByRole("dialog");
-    await expect(dialog).toContainText(`Nonaktifkan Sementara ${run}?`);
+    const dialog = page.getByRole("dialog", { name: `Nonaktifkan Sementara ${run}?` });
     await dialog.getByRole("button", { name: "Nonaktifkan" }).click();
     await expect(dialog).toBeHidden();
+    await expectResult(page, "Berhasil dinonaktifkan.");
     await expect(page.getByText("Akun ini nonaktif dan tidak dapat login.")).toBeVisible();
 
     const blocked = await signInFresh(browser, username, "111222");
-    await expect(blocked.locator("form").getByRole("alert")).toHaveText(
-      "Username atau password/PIN salah.",
-    );
+    await expect(blocked.locator("form").getByRole("alert")).toHaveText("Username atau PIN salah.");
     await blocked.context().close();
   });
 

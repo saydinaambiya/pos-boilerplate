@@ -101,7 +101,7 @@ export default async function EditEmployeePage({ params }: PageProps<"/[locale]/
                   name="pin"
                   label={t("temporaryPin")}
                   hint={t("temporaryPinHint")}
-                  type="password"
+                  reveal={{ show: tCommon("showSecret"), hide: tCommon("hideSecret") }}
                   inputMode="numeric"
                   maxLength={6}
                   autoComplete="new-password"

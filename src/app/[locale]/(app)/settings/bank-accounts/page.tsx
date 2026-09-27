@@ -16,10 +16,12 @@ import {
 } from "@/components/ui/table";
 import { createBankAccountAction } from "@/features/settings/actions";
 import { SettingsForm, SettingsHeader } from "@/features/settings/components/settings-frame";
+import { EditBankAccountDialog } from "@/features/settings/components/edit-dialogs";
 import { ActiveChip } from "@/features/settings/components/status-chip";
 import { getBankAccounts } from "@/features/settings/service";
 import { Link } from "@/i18n/navigation";
 import { requirePermission } from "@/lib/auth/guard";
+import { firstParam } from "@/lib/utils/search-params";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Settings");
@@ -27,8 +29,11 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /** Transfer destinations (FR-SET-05). */
-export default async function BankAccountsPage() {
+export default async function BankAccountsPage({
+  searchParams,
+}: PageProps<"/[locale]/settings/bank-accounts">) {
   const session = await requirePermission("page:settings");
+  const editing = firstParam((await searchParams).edit);
   const [t, accounts] = await Promise.all([getTranslations("Settings"), getBankAccounts(session)]);
   const canManage = session.permissions.has("settings:manage");
 
@@ -60,7 +65,11 @@ export default async function BankAccountsPage() {
                     <TableCell className="font-medium">
                       {canManage ? (
                         <Link
-                          href={`/settings/bank-accounts/${account.id}`}
+                          href={{
+                            pathname: "/settings/bank-accounts",
+                            query: { edit: account.id },
+                          }}
+                          scroll={false}
                           aria-label={t("edit", {
                             name: `${account.bankName} ${account.accountNo}`,
                           })}
@@ -111,6 +120,14 @@ export default async function BankAccountsPage() {
           </Card>
         ) : null}
       </div>
+      {canManage && editing ? (
+        <EditBankAccountDialog
+          key={editing}
+          session={session}
+          id={editing}
+          closeHref="/settings/bank-accounts"
+        />
+      ) : null}
     </>
   );
 }

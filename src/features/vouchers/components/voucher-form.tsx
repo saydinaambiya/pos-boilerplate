@@ -1,7 +1,7 @@
 import { getLocale, getTranslations } from "next-intl/server";
 
 import { ActionForm } from "@/components/form/action-form";
-import { FormField, FormSelect } from "@/components/form/form-field";
+import { FormDateField, FormField, FormSelect } from "@/components/form/form-field";
 import { SubmitButton } from "@/components/form/submit-button";
 import type { FormAction } from "@/lib/validation/form-state";
 
@@ -25,7 +25,7 @@ interface VoucherFormProps {
 /** Voucher terms form shared by "new voucher" and "revise" (FR-VCH-01). */
 export async function VoucherForm({ action, submitLabel, withCode, defaults }: VoucherFormProps) {
   const [t, locale] = await Promise.all([getTranslations("Vouchers"), getLocale()]);
-  const money = { inputMode: "numeric", maxLength: 20 } as const;
+  const money = { money: true, maxLength: 20 } as const;
   return (
     <ActionForm action={action} locale={locale}>
       {withCode ? (
@@ -75,17 +75,17 @@ export async function VoucherForm({ action, submitLabel, withCode, defaults }: V
         />
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
-        <FormField
+        <FormDateField
           name="startDate"
           label={t("startDate")}
           hint={t("periodHint")}
-          type="date"
+          clearable
           defaultValue={defaults?.startDate}
         />
-        <FormField
+        <FormDateField
           name="endDate"
           label={t("endDate")}
-          type="date"
+          clearable
           defaultValue={defaults?.endDate}
         />
       </div>

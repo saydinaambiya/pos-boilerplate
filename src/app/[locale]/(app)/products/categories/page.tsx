@@ -18,24 +18,33 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { createCategoryAction } from "@/features/catalog/actions";
+import { CategoryDialog } from "@/features/catalog/components/category-dialog";
 import { CatalogTabs } from "@/features/catalog/components/catalog-tabs";
 import { getCategories } from "@/features/catalog/service";
 import { Link } from "@/i18n/navigation";
 import { requirePermission } from "@/lib/auth/guard";
+import { firstParam } from "@/lib/utils/search-params";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Catalog");
   return { title: t("tabCategories") };
 }
 
-/** Category list in display order with an add form (FR-CAT-01). */
-export default async function CategoriesPage() {
+/**
+ * Category list in display order with an add form (FR-CAT-01); `?edit=`
+ * opens the edit dialog (ADR-0018).
+ */
+export default async function CategoriesPage({
+  searchParams,
+}: PageProps<"/[locale]/products/categories">) {
   const session = await requirePermission("category:manage");
+  const editing = firstParam((await searchParams).edit);
   const [t, locale, categories] = await Promise.all([
     getTranslations("Catalog"),
     getLocale(),
     getCategories(session),
   ]);
+  const editingCategory = categories.find((entry) => entry.id === editing);
   const nextOrder = Math.min((categories.at(-1)?.sortOrder ?? -10) + 10, 9999);
 
   return (
@@ -65,7 +74,8 @@ export default async function CategoriesPage() {
                   <TableRow key={category.id}>
                     <TableCell className="font-medium">
                       <Link
-                        href={`/products/categories/${category.id}`}
+                        href={{ pathname: "/products/categories", query: { edit: category.id } }}
+                        scroll={false}
                         aria-label={t("edit", { name: category.name })}
                         className="underline-offset-4 hover:underline"
                       >
@@ -107,6 +117,13 @@ export default async function CategoriesPage() {
           </ActionForm>
         </Card>
       </div>
+      {editingCategory ? (
+        <CategoryDialog
+          key={editingCategory.id}
+          category={editingCategory}
+          closeHref="/products/categories"
+        />
+      ) : null}
     </>
   );
 }

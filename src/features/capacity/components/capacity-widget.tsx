@@ -14,8 +14,8 @@ const bars = {
 } as const;
 
 /**
- * Database usage against the quota with the largest tables as housekeeping
- * hints (FR-CAP-02/04, FR-DSH-01). The bar is an SVG so it needs no inline
+ * Database usage against the quota with the largest tables, named in plain
+ * words, as housekeeping hints (FR-CAP-02/04, FR-DSH-01). The bar is an SVG so it needs no inline
  * style under the nonce CSP.
  */
 export async function CapacityWidget({ capacity }: { capacity: CapacitySnapshot }) {
@@ -31,6 +31,10 @@ export async function CapacityWidget({ capacity }: { capacity: CapacitySnapshot 
       maximumFractionDigits: 1,
     }).format(bytes / (1024 * 1024));
   const width = Math.min(capacity.percent, 100);
+  const tableLabel = (name: string) => {
+    const key = `tables.${name}` as "tables.other";
+    return t.has(key) ? t(key) : t("tables.other");
+  };
 
   return (
     <Card className="mb-6 flex flex-col gap-3">
@@ -75,7 +79,7 @@ export async function CapacityWidget({ capacity }: { capacity: CapacitySnapshot 
               key={table.name}
               className="flex justify-between gap-3 rounded-control bg-surface-muted px-3 py-1.5"
             >
-              <span className="font-mono text-xs [overflow-wrap:anywhere]">{table.name}</span>
+              <span className="[overflow-wrap:anywhere]">{tableLabel(table.name)}</span>
               <span className="tabular-nums">{mb(table.bytes)}</span>
             </li>
           ))}

@@ -113,6 +113,7 @@ export async function insertKasbonPayment(
   executor: Executor,
   values: {
     kasbonId: string;
+    installmentId: string;
     shiftId: string | null;
     method: "CASH" | "TRANSFER";
     amount: number;
@@ -128,8 +129,9 @@ export async function insertKasbonPayment(
   return row.id;
 }
 
-export async function lockPayment(executor: Executor, paymentId: string) {
-  const [row] = await executor
+/** Locks every part (cash, transfer) of one installment. */
+export async function lockInstallment(executor: Executor, installmentId: string) {
+  return executor
     .select({
       id: payments.id,
       kasbonId: payments.kasbonId,
@@ -137,20 +139,19 @@ export async function lockPayment(executor: Executor, paymentId: string) {
       status: payments.status,
     })
     .from(payments)
-    .where(eq(payments.id, paymentId))
+    .where(eq(payments.installmentId, installmentId))
     .for("update");
-  return row;
 }
 
-export async function setPaymentStatus(
+export async function setInstallmentStatus(
   executor: Executor,
-  paymentId: string,
+  installmentId: string,
   status: "SETTLED" | "FAILED",
 ): Promise<void> {
   await executor
     .update(payments)
     .set({ status, updatedAt: new Date() })
-    .where(eq(payments.id, paymentId));
+    .where(and(eq(payments.installmentId, installmentId), eq(payments.status, "PENDING")));
 }
 
 export async function updateKasbonAmounts(
@@ -287,6 +288,7 @@ export async function findKasbonDetail(kasbonId: string) {
   const history = await db
     .select({
       id: payments.id,
+      installmentId: payments.installmentId,
       method: payments.method,
       amount: payments.amount,
       status: payments.status,
@@ -304,7 +306,7 @@ export async function findKasbonDetail(kasbonId: string) {
     .leftJoin(bankAccounts, eq(bankAccounts.id, payments.bankAccountId))
     .leftJoin(
       approvals,
-      and(eq(approvals.targetId, payments.id), eq(approvals.type, "KASBON_PAYMENT")),
+      and(eq(approvals.targetId, payments.installmentId), eq(approvals.type, "KASBON_PAYMENT")),
     )
     .leftJoin(users, eq(users.id, approvals.requestedBy))
     .where(eq(payments.kasbonId, kasbonId))

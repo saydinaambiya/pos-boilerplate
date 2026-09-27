@@ -5,6 +5,7 @@ import type { Browser, Page } from "@playwright/test";
 
 import { accounts } from "./accounts";
 import { expect, test } from "./fixtures";
+import { choose, expectResult } from "./helpers";
 
 /** Unique names per run: the E2E database is not truncated between runs. */
 const run = Date.now().toString(36);
@@ -29,7 +30,8 @@ async function cashierAtPos(browser: Browser): Promise<Page> {
   const page = await context.newPage();
   await page.goto("/id/login");
   await page.getByLabel("Username").fill(accounts.posCashier.username);
-  await page.getByLabel("Password atau PIN").fill(accounts.posCashier.pin);
+  await page.getByRole("button", { name: "Lanjut" }).click();
+  await page.getByLabel(/^(Password|PIN)$/).fill(accounts.posCashier.pin);
   await page.getByRole("button", { name: "Masuk" }).click();
   await expect(page).toHaveURL(/\/id$/);
   await page.goto("/id/pos");
@@ -50,11 +52,11 @@ test.describe("POS terminal and checkout (FR-POS, FR-PAY)", () => {
     await page.goto("/id/products/categories");
     await page.getByLabel("Nama kategori").fill(`Minuman POS ${run}`);
     await page.getByRole("button", { name: "Tambah kategori" }).click();
-    await expect(page.getByRole("status")).toHaveText("Kategori disimpan.");
+    await expectResult(page, "Kategori disimpan.");
 
-    await page.goto("/id/products/new");
+    await page.goto("/id/products?new=1");
     await page.getByLabel("Nama produk").fill(product);
-    await page.getByLabel("Kategori").selectOption({ label: `Minuman POS ${run}` });
+    await choose(page.getByRole("dialog"), "Kategori", `Minuman POS ${run}`);
     await page.getByLabel("Harga jual").fill("8000");
     await page.getByLabel("SKU").fill(sku);
     await page.getByRole("button", { name: "Simpan produk" }).click();
@@ -64,7 +66,7 @@ test.describe("POS terminal and checkout (FR-POS, FR-PAY)", () => {
     await page.getByRole("link", { name: `Buka stok ${product}` }).click();
     await page.getByLabel("Jumlah").first().fill("10");
     await page.getByRole("button", { name: "Tambah stok" }).click();
-    await expect(page.getByRole("status")).toHaveText("Stok diperbarui: +10 → 10.");
+    await expectResult(page, "Stok diperbarui: +10 → 10.");
   });
 
   test("sells with cash, keeps the cart across reloads and shows the change", async ({
@@ -106,6 +108,7 @@ test.describe("POS terminal and checkout (FR-POS, FR-PAY)", () => {
 
     const success = page.getByRole("dialog", { name: "Transaksi berhasil" });
     await expect(success).toContainText(/Nomor invoice INV-\d{8}-\d{4}/);
+    const invoiceNo = (/INV-\d{8}-\d{4}/.exec(await success.innerText()) ?? [""])[0];
     await expect(success).toContainText(`Kembalian: ${rupiah(100_000 - total)}`);
     await success.getByRole("link", { name: "Cetak struk" }).click();
     await expect(page).toHaveURL(/\/id\/print\/invoices\/[0-9a-f-]+\?print=1&tendered=100000$/);
@@ -114,13 +117,27 @@ test.describe("POS terminal and checkout (FR-POS, FR-PAY)", () => {
     await expect(page.getByTestId("invoice")).toContainText("Tunai diterima");
     const saleId = /invoices\/([0-9a-f-]+)/.exec(page.url())?.[1] ?? "";
     await page.goto(`/id/pos/sales/${saleId}`);
-    await expect(page).toHaveURL(/\/id\/pos\/sales\/[0-9a-f-]+$/);
-    await expect(page.getByRole("row", { name: new RegExp(product) })).toContainText(/Rp\s24\.000/);
+    await expect(page).toHaveURL(new RegExp(`/id/pos/sales\\?view=${saleId}$`));
+    const detail = page.getByRole("dialog", { name: `Struk ${invoiceNo}` });
+    await expect(detail.getByRole("row", { name: new RegExp(product) })).toContainText(
+      /Rp\s24\.000/,
+    );
 
     await page.goto("/id/pos");
     await expect(page.getByRole("complementary", { name: "Keranjang" })).toContainText(
       "Keranjang kosong",
     );
+
+    await page.getByRole("link", { name: "Riwayat transaksi" }).click();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Riwayat transaksi");
+    await page.getByRole("searchbox", { name: "No. invoice" }).fill(invoiceNo.slice(-9));
+    await expect(page).toHaveURL(/q=/);
+    const history = page.getByRole("table", { name: "Riwayat transaksi, terbaru di atas" });
+    await expect(history.getByRole("row")).toHaveCount(2);
+    await expect(history).toContainText("Tunai");
+    await history.getByRole("link", { name: `Buka transaksi ${invoiceNo}` }).click();
+    await expect(page).toHaveURL(new RegExp(`[?&]view=${saleId}$`));
+    await expect(page.getByRole("dialog", { name: `Struk ${invoiceNo}` })).toBeVisible();
     await page.context().close();
   });
 

@@ -194,7 +194,8 @@ export async function setBankAccountStatusAction(
   );
   if (!result.ok) return masterDataFailure(result, locale);
   revalidatePath("/", "layout");
-  return { status: "success" };
+  const tf = await getTranslations({ locale, namespace: "Feedback" });
+  return { status: "success", message: tf(isActive ? "activated" : "deactivated") };
 }
 
 async function saveMarketplace(id: string | null, formData: FormData): Promise<FormState> {
@@ -254,5 +255,6 @@ export async function setMarketplaceStatusAction(
   );
   if (!result.ok) return masterDataFailure(result, locale);
   revalidatePath("/", "layout");
-  return { status: "success" };
+  const tf = await getTranslations({ locale, namespace: "Feedback" });
+  return { status: "success", message: tf(isActive ? "activated" : "deactivated") };
 }

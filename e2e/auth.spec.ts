@@ -6,7 +6,8 @@ import { expect, test } from "./fixtures";
 async function signIn(page: Page, username: string, secret: string) {
   await page.goto("/id/login");
   await page.getByLabel("Username").fill(username);
-  await page.getByLabel("Password atau PIN").fill(secret);
+  await page.getByRole("button", { name: "Lanjut" }).click();
+  await page.getByLabel(/^(Password|PIN)$/).fill(secret);
   await page.getByRole("button", { name: "Masuk" }).click();
 }
 
@@ -38,11 +39,30 @@ test.describe("authentication (FR-AUTH, FR-RBAC)", () => {
 
     test("rejects a wrong PIN with a generic message and focuses the field", async ({ page }) => {
       await signIn(page, accounts.cashier.username, "000000");
-      await expect(page.locator("form").getByRole("alert")).toHaveText(
-        "Username atau password/PIN salah.",
+      await expect(page.locator("form").getByRole("alert")).toHaveText("Username atau PIN salah.");
+      await expect(page.getByLabel("PIN", { exact: true })).toBeFocused();
+      await expect(page.getByText(`Masuk sebagai ${accounts.cashier.username}`)).toBeVisible();
+    });
+
+    test("asks the owner for a password and everyone else for a PIN", async ({ page }) => {
+      await page.goto("/id/login");
+      await page.getByLabel("Username").fill(accounts.owner.username);
+      await page.getByRole("button", { name: "Lanjut" }).click();
+      const password = page.getByLabel("Password", { exact: true });
+      await expect(password).toBeFocused();
+      await expect(password).toHaveAttribute("type", "password");
+      await password.fill("rahasia");
+      await page.getByRole("button", { name: "Tampilkan" }).click();
+      await expect(password).toHaveAttribute("type", "text");
+      await expect(page.getByRole("button", { name: "Sembunyikan" })).toHaveAttribute(
+        "aria-pressed",
+        "true",
       );
-      await expect(page.getByLabel("Password atau PIN")).toBeFocused();
-      await expect(page.getByLabel("Username")).toHaveValue(accounts.cashier.username);
+
+      await page.getByRole("button", { name: "Ganti username" }).click();
+      await page.getByLabel("Username").fill("tidak-ada-akun");
+      await page.getByRole("button", { name: "Lanjut" }).click();
+      await expect(page.getByLabel("PIN", { exact: true })).toBeVisible();
     });
 
     test("locks the account after five failed attempts", async ({ page }) => {

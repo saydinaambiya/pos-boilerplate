@@ -92,6 +92,13 @@
       "when": 1790424782181,
       "tag": "0012_housekeeping",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1790430653139,
+      "tag": "0013_kasbon_installments",
+      "breakpoints": true
     }
   ]
 }

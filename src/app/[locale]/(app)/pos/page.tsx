@@ -1,3 +1,4 @@
+import { TriangleAlert } from "lucide-react";
 import type { Metadata } from "next";
 import { NextIntlClientProvider } from "next-intl";
 import { getFormatter, getLocale, getMessages, getTranslations } from "next-intl/server";
@@ -5,18 +6,23 @@ import { getFormatter, getLocale, getMessages, getTranslations } from "next-intl
 import { ActionForm } from "@/components/form/action-form";
 import { FormField } from "@/components/form/form-field";
 import { SubmitButton } from "@/components/form/submit-button";
-import { storeDate } from "@/lib/format/zoned-time";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
+import { RouteDialog } from "@/components/ui/route-dialog";
 import { getPosCatalog, getPosCategories } from "@/features/catalog/pos-catalog";
 import { PosTerminal } from "@/features/checkout/components/pos-terminal";
 import { getCheckoutBankAccounts } from "@/features/settings/service";
-import { openShiftAction } from "@/features/shifts/actions";
-import { getOpenShift } from "@/features/shifts/service";
+import { closeShiftAction, openShiftAction } from "@/features/shifts/actions";
+import { ShiftFigures } from "@/features/shifts/components/shift-figures";
+import { getOpenShift, getOtherOpenShifts } from "@/features/shifts/service";
 import { Link } from "@/i18n/navigation";
 import { requirePermission } from "@/lib/auth/guard";
 import { readSetting } from "@/lib/settings/store";
+import { toneClasses } from "@/components/ui/tone";
+import { storeDate } from "@/lib/format/zoned-time";
+import { cn } from "@/lib/utils/cn";
+import { firstParam } from "@/lib/utils/search-params";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Navigation");
@@ -25,30 +31,67 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /**
  * Cashier screen. Without an open shift the only action is opening one
- * (FR-SHF-01); with a shift the terminal loads the sellable catalogue.
+ * (FR-SHF-01); with a shift the terminal loads the sellable catalogue and
+ * `?close=1` opens the close-shift dialog over it (FR-SHF-03, ADR-0018).
  */
-export default async function PosPage() {
+export default async function PosPage({ searchParams }: PageProps<"/[locale]/pos">) {
   const session = await requirePermission("page:pos");
-  const [t, tPos, tNav, format, locale, shift] = await Promise.all([
+  const closing = firstParam((await searchParams).close) === "1";
+  const [t, tPos, tNav, tCommon, format, locale, shift] = await Promise.all([
     getTranslations("Shifts"),
     getTranslations("Pos"),
     getTranslations("Navigation"),
+    getTranslations("Common"),
     getFormatter(),
     getLocale(),
     getOpenShift(session),
   ]);
 
   if (!shift) {
+    const others = await getOtherOpenShifts(session);
     return (
       <div className="flex flex-col gap-4">
         <PageHeader
           title={tNav("pos")}
           actions={
-            <Button asChild variant="ghost">
-              <Link href="/pos/shifts">{t("history")}</Link>
-            </Button>
+            <>
+              <Button asChild variant="ghost">
+                <Link href="/pos/sales">{tPos("salesHistory")}</Link>
+              </Button>
+              <Button asChild variant="ghost">
+                <Link href="/pos/shifts">{t("history")}</Link>
+              </Button>
+            </>
           }
         />
+        {others.length > 0 ? (
+          <div
+            role="status"
+            className={cn(
+              "flex max-w-md gap-3 rounded-card px-4 py-3 text-sm",
+              toneClasses.warning,
+            )}
+          >
+            <TriangleAlert className="size-5 shrink-0" aria-hidden="true" />
+            <div className="flex flex-col gap-1">
+              <p className="font-medium">{t("othersOpenTitle", { count: others.length })}</p>
+              <ul className="flex flex-col gap-0.5">
+                {others.map((other) => (
+                  <li key={other.id}>
+                    {t("othersOpenItem", {
+                      name: other.cashierName,
+                      time: format.dateTime(other.openedAt, {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                      }),
+                    })}
+                  </li>
+                ))}
+              </ul>
+              <p>{t("othersOpenHint")}</p>
+            </div>
+          </div>
+        ) : null}
         <Card className="max-w-md">
           <CardHeader className="flex-col gap-1">
             <CardTitle>{t("openTitle")}</CardTitle>
@@ -57,9 +100,9 @@ export default async function PosPage() {
           <ActionForm action={openShiftAction} locale={locale}>
             <FormField
               name="openingCash"
+              money
               label={t("openingCash")}
               hint={t("moneyHint")}
-              inputMode="numeric"
               maxLength={20}
             />
             <SubmitButton className="self-start">{t("open")}</SubmitButton>
@@ -87,14 +130,21 @@ export default async function PosPage() {
         </span>
         <span className="flex gap-2">
           <Button asChild variant="ghost" size="sm">
+            <Link href="/pos/sales">{tPos("salesHistory")}</Link>
+          </Button>
+          <Button asChild variant="ghost" size="sm">
             <Link href="/pos/shifts">{tPos("shiftHistory")}</Link>
           </Button>
           <Button asChild variant="secondary" size="sm">
-            <Link href="/pos/shift/close">{tPos("closeShift")}</Link>
+            <Link href="/pos?close=1" scroll={false}>
+              {tPos("closeShift")}
+            </Link>
           </Button>
         </span>
       </div>
-      <NextIntlClientProvider messages={{ Pos: messages.Pos }}>
+      <NextIntlClientProvider
+        messages={{ Pos: messages.Pos, Feedback: messages.Feedback, Picker: messages.Picker }}
+      >
         <PosTerminal
           locale={locale}
           storageKey={`pos-cart:${session.user.id}`}
@@ -109,6 +159,36 @@ export default async function PosPage() {
           bankAccounts={bankAccounts}
         />
       </NextIntlClientProvider>
+      {closing ? (
+        <RouteDialog
+          closeHref="/pos"
+          closeLabel={tCommon("close")}
+          size="lg"
+          title={t("closeTitle")}
+          description={t("closeDescription")}
+        >
+          <ShiftFigures shift={{ ...shift, countedCash: null, variance: null }} />
+          <ActionForm
+            action={closeShiftAction}
+            locale={locale}
+            className="border-t border-border pt-4"
+          >
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormField
+                name="countedCash"
+                money
+                label={t("countedCash")}
+                hint={t("moneyHint")}
+                maxLength={20}
+              />
+              <FormField name="note" label={t("note")} hint={t("noteHint")} maxLength={200} />
+            </div>
+            <SubmitButton variant="danger" className="self-start">
+              {t("close")}
+            </SubmitButton>
+          </ActionForm>
+        </RouteDialog>
+      ) : null}
     </>
   );
 }

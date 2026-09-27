@@ -104,5 +104,6 @@ export async function setRoleStatusAction(
   const result = await changeRoleStatus(session, id, isActive, await currentRequestContext());
   if (!result.ok) return failure(result.reason, locale);
   revalidatePath("/", "layout");
-  return { status: "success" };
+  const tf = await getTranslations({ locale, namespace: "Feedback" });
+  return { status: "success", message: tf(isActive ? "activated" : "deactivated") };
 }

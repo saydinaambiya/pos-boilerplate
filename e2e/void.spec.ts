@@ -1,5 +1,10 @@
 import { expect, test } from "./fixtures";
-import { cashierAtPos, createStockedProduct, grantEmployeePermission } from "./helpers";
+import {
+  cashierAtPos,
+  createStockedProduct,
+  expectResult,
+  grantEmployeePermission,
+} from "./helpers";
 
 /** Unique names per run: the E2E database is not truncated between runs. */
 const run = Date.now().toString(36);
@@ -35,12 +40,14 @@ test.describe("void through approvals (FR-POS-09, FR-APR)", () => {
     const success = page.getByRole("dialog", { name: "Transaksi berhasil" });
     invoiceNo = (/INV-\d{8}-\d{4}/.exec(await success.innerText()) ?? [""])[0];
     await success.getByRole("link", { name: "Lihat struk" }).click();
-    await expect(page).toHaveURL(/\/id\/pos\/sales\/[0-9a-f-]+$/);
-    saleUrl = new URL(page.url()).pathname;
+    await expect(page).toHaveURL(/\/id\/pos\/sales\?view=[0-9a-f-]+$/);
+    const url = new URL(page.url());
+    saleUrl = `${url.pathname}${url.search}`;
 
     await page.getByRole("button", { name: "Void transaksi" }).click();
     const dialog = page.getByRole("dialog", { name: `Ajukan void ${invoiceNo}?` });
     await dialog.getByRole("button", { name: "Ajukan void" }).click();
+    await expectResult(page, /./, "error");
     await expect(dialog.getByText("Wajib diisi.")).toBeVisible();
     await dialog.getByLabel("Alasan void").fill("Pelanggan batal membeli");
     await dialog.getByRole("button", { name: "Ajukan void" }).click();

@@ -32,6 +32,11 @@ for an installment reaches the shift's expected cash.
   `SETTLED`, moves `paid_total`/`balance`, and settles the credit at zero.
   Rejection or withdrawal sets the payment to `FAILED`. A check constraint
   keeps `balance = total − paid_total ≥ 0`.
+- **Split installments** (amended after the v1.0 review): one installment
+  may combine a cash part and a transfer part, like a POS payment. The
+  parts share `payments.installment_id`, and the single `KASBON_PAYMENT`
+  approval targets that id; approval settles or fails all parts together.
+  Earlier single-part installments were backfilled with their own id.
 - **Cash drawer**: cash for an installment is physically received when it
   is recorded, so a cash installment requires the recorder's open shift and
   counts towards that shift's expected cash while pending or settled. A

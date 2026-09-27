@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, isNull, lt, sql } from "drizzle-orm";
 
 import { db, type Executor } from "@/db/client";
 import {
@@ -223,4 +223,84 @@ export async function soldTrackedQuantities(executor: Executor, saleId: string) 
     .where(and(eq(saleItems.saleId, saleId), eq(products.trackStock, true)))
     .groupBy(saleItems.variantId)
     .orderBy(saleItems.variantId);
+}
+
+export interface SaleListQuery {
+  start: Date;
+  end: Date;
+  /** Restricts to one cashier; null lists every cashier. */
+  cashierId: string | null;
+  invoice: string;
+  method: "CASH" | "TRANSFER" | "KASBON" | undefined;
+  status: (typeof sales.$inferSelect)["status"] | undefined;
+  includeArchived: boolean;
+}
+
+function saleListConditions(query: SaleListQuery) {
+  const conditions = [gte(sales.createdAt, query.start), lt(sales.createdAt, query.end)];
+  if (query.cashierId) conditions.push(eq(sales.cashierId, query.cashierId));
+  if (!query.includeArchived) conditions.push(isNull(sales.archivedAt));
+  if (query.status) conditions.push(eq(sales.status, query.status));
+  if (query.invoice !== "") {
+    const pattern = `%${query.invoice.toUpperCase().replace(/[\\%_]/g, "\\$&")}%`;
+    conditions.push(sql`upper(${sales.invoiceNo}) like ${pattern}`);
+  }
+  if (query.method === "KASBON") {
+    conditions.push(sql`exists (select 1 from ${kasbons} where ${kasbons.saleId} = ${sales.id})`);
+  } else if (query.method) {
+    conditions.push(
+      sql`exists (select 1 from ${payments} where ${payments.saleId} = ${sales.id} and ${payments.method} = ${query.method})`,
+    );
+  }
+  return and(...conditions);
+}
+
+/** One page of sales, newest first, with cashier, methods and customer (FR-POS-10). */
+export async function querySales(query: SaleListQuery, page: number, pageSize: number) {
+  return db
+    .select({
+      id: sales.id,
+      invoiceNo: sales.invoiceNo,
+      createdAt: sales.createdAt,
+      status: sales.status,
+      grandTotal: sales.grandTotal,
+      cashierName: users.name,
+      customerName: customers.name,
+      methods: sql<string[]>`array(
+        select distinct ${payments.method}::text from ${payments} where ${payments.saleId} = ${sales.id}
+        union select 'KASBON' from ${kasbons} where ${kasbons.saleId} = ${sales.id}
+      )`,
+    })
+    .from(sales)
+    .innerJoin(users, eq(users.id, sales.cashierId))
+    .leftJoin(customers, eq(customers.id, sales.customerId))
+    .where(saleListConditions(query))
+    .orderBy(sql`${sales.createdAt} desc`, sql`${sales.id} desc`)
+    .limit(pageSize + 1)
+    .offset((page - 1) * pageSize);
+}
+
+/** Count and total of the filtered sales; voided ones are counted but not summed. */
+export async function summarizeSales(query: SaleListQuery) {
+  const [row] = await db
+    .select({
+      count: sql<number>`count(*)`.mapWith(Number),
+      voided: sql<number>`count(*) filter (where ${sales.status} = 'VOIDED')`.mapWith(Number),
+      total:
+        sql<number>`coalesce(sum(${sales.grandTotal}) filter (where ${sales.status} <> 'VOIDED'), 0)`.mapWith(
+          Number,
+        ),
+    })
+    .from(sales)
+    .where(saleListConditions(query));
+  return { count: row?.count ?? 0, voided: row?.voided ?? 0, total: row?.total ?? 0 };
+}
+
+/** Cashiers who have sold anything, for the history filter. */
+export async function listSellingCashiers() {
+  return db
+    .selectDistinct({ id: users.id, name: users.name })
+    .from(users)
+    .innerJoin(sales, eq(sales.cashierId, users.id))
+    .orderBy(asc(users.name));
 }

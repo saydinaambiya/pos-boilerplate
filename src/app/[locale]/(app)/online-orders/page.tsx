@@ -2,6 +2,7 @@ import { Hourglass, PackagePlus, ShoppingBag } from "lucide-react";
 import type { Metadata } from "next";
 import { getFormatter, getLocale, getTranslations } from "next-intl/server";
 
+import { FilterForm } from "@/components/form/filter-form";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Chip } from "@/components/ui/chip";
@@ -15,6 +16,7 @@ import {
   OrderStatusChip,
   statusChips,
 } from "@/features/online-orders/components/order-status-chip";
+import { NewOrderDialog } from "@/features/online-orders/components/new-order-dialog";
 import { onlineOrderListQuery } from "@/features/online-orders/schemas";
 import { listOnlineOrders } from "@/features/online-orders/service";
 import type { OnlineOrderStatus } from "@/features/online-orders/transitions";
@@ -22,6 +24,7 @@ import { Link } from "@/i18n/navigation";
 import { requirePermission } from "@/lib/auth/guard";
 import { formatCurrency } from "@/lib/format/currency";
 import { cn } from "@/lib/utils/cn";
+import { firstParam as first, keptQuery } from "@/lib/utils/search-params";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("OnlineOrders");
@@ -31,13 +34,13 @@ export async function generateMetadata(): Promise<Metadata> {
 /**
  * Online order board (FR-ONL-04, FR-ONL-07): a chip per status with its
  * count, order cards for the chosen status, code search and held markers.
+ * `?new=1` opens the manual entry dialog (FR-ONL-01, ADR-0018).
  */
 export default async function OnlineOrdersPage({
   searchParams,
 }: PageProps<"/[locale]/online-orders">) {
   const session = await requirePermission("page:online-orders");
   const raw = await searchParams;
-  const first = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value);
   const query = onlineOrderListQuery.parse({
     status: first(raw.status),
     q: first(raw.q),
@@ -56,6 +59,7 @@ export default async function OnlineOrdersPage({
     }),
   ]);
   const money = (amount: number) => formatCurrency(amount, locale);
+  const kept = keptQuery(raw, ["new"]);
   const total = Object.values(board.counts).reduce((sum, count) => sum + count, 0);
   const href = (status: OnlineOrderStatus | undefined, page = 1) => ({
     pathname: "/online-orders",
@@ -79,7 +83,10 @@ export default async function OnlineOrdersPage({
         description={t("subtitle")}
         actions={
           <Button asChild>
-            <Link href="/online-orders/new">
+            <Link
+              href={{ pathname: "/online-orders", query: { ...kept, new: "1" } }}
+              scroll={false}
+            >
               <PackagePlus aria-hidden="true" />
               {t("add")}
             </Link>
@@ -114,7 +121,7 @@ export default async function OnlineOrdersPage({
       </nav>
 
       <Card className="mb-6">
-        <form method="get" role="search" className="flex flex-wrap items-end gap-3">
+        <FilterForm applyLabel={t("search")} className="flex flex-wrap items-end gap-3">
           {query.status ? <input type="hidden" name="status" value={query.status} /> : null}
           <Field label={t("searchCode")} className="min-w-56 flex-1">
             {(control) => (
@@ -129,13 +136,12 @@ export default async function OnlineOrdersPage({
             )}
           </Field>
           <ShowArchivedField checked={query.archived === "1"} />
-          <Button type="submit">{t("search")}</Button>
           {query.q ? (
             <Button asChild variant="ghost">
               <Link href={href(query.status)}>{t("reset")}</Link>
             </Button>
           ) : null}
-        </form>
+        </FilterForm>
       </Card>
 
       {board.orders.length === 0 ? (
@@ -208,6 +214,9 @@ export default async function OnlineOrdersPage({
             <span />
           )}
         </nav>
+      ) : null}
+      {first(raw.new) === "1" ? (
+        <NewOrderDialog session={session} closeHref={{ pathname: "/online-orders", query: kept }} />
       ) : null}
     </>
   );

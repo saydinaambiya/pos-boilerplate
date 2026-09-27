@@ -1,5 +1,5 @@
 import { expect, test } from "./fixtures";
-import { cashierAtPos, createStockedProduct, grantEmployeePermission } from "./helpers";
+import { cashierAtPos, choose, createStockedProduct, grantEmployeePermission } from "./helpers";
 
 /** Unique names per run: the E2E database is not truncated between runs. */
 const run = Date.now().toString(36).toUpperCase();
@@ -29,12 +29,13 @@ test.describe("online orders from entry to return (FR-ONL)", () => {
 
   test("a cashier enters an order and stock drops", async ({ browser }) => {
     const page = await cashierAtPos(browser);
-    await page.goto("/id/online-orders/new");
-    await page.getByLabel("Marketplace").selectOption({ label: market });
+    await page.goto("/id/online-orders?new=1");
+    const entry = page.getByRole("dialog", { name: "Pesanan online baru" });
+    await choose(entry, "Marketplace", market);
     await page.getByRole("button", { name: "Simpan pesanan" }).click();
     await expect(page.getByText("Kode order wajib diisi.")).toBeVisible();
 
-    await page.getByLabel("Kode order").fill(code.toLowerCase());
+    await entry.getByLabel("Kode order").fill(code.toLowerCase());
     await page.getByRole("searchbox", { name: "Cari produk" }).fill(product);
     await page.getByRole("button", { name: `Tambah ${product}` }).click();
     await page.getByRole("button", { name: `Tambah ${product}` }).click();
@@ -53,7 +54,7 @@ test.describe("online orders from entry to return (FR-ONL)", () => {
     const page = await cashierAtPos(browser);
     await page.goto("/id/online-orders");
     await page.getByRole("searchbox", { name: "Kode order" }).fill(code);
-    await page.getByRole("button", { name: "Cari" }).click();
+    await expect(page).toHaveURL(/q=/);
     await page.getByRole("link", { name: `Buka pesanan ${code}` }).click();
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(code);
 
@@ -68,9 +69,7 @@ test.describe("online orders from entry to return (FR-ONL)", () => {
 
     await page.getByRole("button", { name: "Terima retur" }).click();
     const dialog = page.getByRole("dialog", { name: "Ubah status ke Retur diterima?" });
-    await dialog
-      .getByLabel(`Kondisi ${product} (2 pcs)`)
-      .selectOption({ label: "Rusak — write-off" });
+    await choose(dialog, `Kondisi ${product} (2 pcs)`, "Rusak — write-off");
     await dialog.getByRole("button", { name: "Terima retur" }).click();
     await expect(page.getByRole("table", { name: "Item pesanan" })).toContainText(
       "Rusak — write-off",

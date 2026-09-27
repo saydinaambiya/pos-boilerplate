@@ -2,6 +2,7 @@ import { Boxes } from "lucide-react";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
+import { FilterForm } from "@/components/form/filter-form";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -51,9 +52,8 @@ export default async function StockPage({ searchParams }: PageProps<"/[locale]/s
     <>
       <PageHeader title={t("title")} description={t("subtitle")} />
       <Card className="mb-6">
-        <form
-          method="get"
-          role="search"
+        <FilterForm
+          applyLabel={t("filter")}
           className="grid gap-4 sm:grid-cols-[1fr_auto_auto] sm:items-end"
         >
           <Field label={t("search")}>
@@ -78,15 +78,12 @@ export default async function StockPage({ searchParams }: PageProps<"/[locale]/s
             />
             {t("lowOnly")}
           </label>
-          <div className="flex gap-2">
-            <Button type="submit">{t("filter")}</Button>
-            {filtered ? (
-              <Button asChild variant="ghost">
-                <Link href="/stock">{t("reset")}</Link>
-              </Button>
-            ) : null}
-          </div>
-        </form>
+          {filtered ? (
+            <Button asChild variant="ghost">
+              <Link href="/stock">{t("reset")}</Link>
+            </Button>
+          ) : null}
+        </FilterForm>
       </Card>
       <Card>
         {page.levels.length === 0 ? (

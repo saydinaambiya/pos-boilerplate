@@ -6,6 +6,7 @@ import { useId, useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { MoneyInput } from "@/components/ui/money-input";
 import { Select } from "@/components/ui/select";
 import type { Locale } from "@/config/locales";
 import { formatCurrency } from "@/lib/format/currency";
@@ -33,6 +34,19 @@ interface CartPanelProps {
   onRemoveVoucher: () => void;
 }
 
+/** "Voucher HEMAT (10%)" for percentage vouchers, "Voucher HEMAT" otherwise. */
+function voucherLabel(
+  t: ReturnType<typeof useTranslations<"Pos">>,
+  voucher: { code: string; rule: VoucherRule },
+) {
+  return voucher.rule.type === "percent"
+    ? t("voucherAppliedPercent", {
+        code: voucher.code,
+        percent: basisPointsToPercent(voucher.rule.value),
+      })
+    : t("voucherApplied", { code: voucher.code });
+}
+
 /** One voucher per sale (FR-POS-03); the server validates it again at checkout. */
 function VoucherField(
   props: Pick<
@@ -52,11 +66,18 @@ function VoucherField(
     return (
       <div className="flex flex-col gap-1 rounded-control bg-surface-muted px-3 py-2 text-sm">
         <div className="flex items-center justify-between gap-2">
-          <span className="font-medium">{`${t("voucherApplied", { code: voucher.code })} · ${voucher.name}`}</span>
+          <span className="font-medium">{`${voucherLabel(t, voucher)} · ${voucher.name}`}</span>
           <Button size="sm" variant="ghost" onClick={props.onRemoveVoucher}>
             {t("removeVoucher")}
           </Button>
         </div>
+        {voucher.rule.type === "percent" && voucher.rule.maxDiscount != null ? (
+          <p className="text-xs text-ink-muted">
+            {t("voucherMaxDiscount", {
+              amount: formatCurrency(voucher.rule.maxDiscount, props.locale),
+            })}
+          </p>
+        ) : null}
         {minPurchase != null && props.totals.subtotal < minPurchase ? (
           <p className="text-xs text-danger-ink">
             {t("voucherMinPurchase", { amount: formatCurrency(minPurchase, props.locale) })}
@@ -146,27 +167,38 @@ function DiscountEditor({
       <Select
         id={`${id}-type`}
         value={type}
-        onChange={(event) => {
-          setType(event.target.value === "amount" ? "amount" : "percent");
+        onValueChange={(next) => {
+          setType(next === "amount" ? "amount" : "percent");
         }}
         className="w-32"
-      >
-        <option value="percent">{t("discountPercent")}</option>
-        <option value="amount">{t("discountAmount")}</option>
-      </Select>
+        options={[
+          { value: "percent", label: t("discountPercent") },
+          { value: "amount", label: t("discountAmount") },
+        ]}
+      />
       <label className="sr-only" htmlFor={`${id}-value`}>
         {t("discountValue")}
       </label>
-      <Input
-        id={`${id}-value`}
-        value={value}
-        onChange={(event) => {
-          setValue(event.target.value);
-        }}
-        inputMode="decimal"
-        maxLength={16}
-        className="w-28"
-      />
+      {type === "amount" ? (
+        <MoneyInput
+          id={`${id}-value`}
+          value={value}
+          onValueChange={setValue}
+          maxLength={16}
+          className="w-28"
+        />
+      ) : (
+        <Input
+          id={`${id}-value`}
+          value={value}
+          onChange={(event) => {
+            setValue(event.target.value);
+          }}
+          inputMode="decimal"
+          maxLength={16}
+          className="w-28"
+        />
+      )}
       <Button
         size="sm"
         disabled={!valid}
@@ -334,7 +366,7 @@ export function CartPanel(props: CartPanelProps) {
         {totals.voucherDiscount > 0 ? (
           <div className="flex justify-between">
             <dt className="text-ink-muted">
-              {t("voucherApplied", { code: props.voucher?.code ?? "" })}
+              {props.voucher ? voucherLabel(t, props.voucher) : null}
             </dt>
             <dd className="tabular-nums">{`−${money(totals.voucherDiscount)}`}</dd>
           </div>

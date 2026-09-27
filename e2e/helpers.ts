@@ -1,4 +1,4 @@
-import type { Browser, Page } from "@playwright/test";
+import type { Browser, Locator, Page } from "@playwright/test";
 
 import { accounts } from "./accounts";
 import { expect } from "./fixtures";
@@ -9,7 +9,8 @@ export async function cashierAtPos(browser: Browser): Promise<Page> {
   const page = await context.newPage();
   await page.goto("/id/login");
   await page.getByLabel("Username").fill(accounts.posCashier.username);
-  await page.getByLabel("Password atau PIN").fill(accounts.posCashier.pin);
+  await page.getByRole("button", { name: "Lanjut" }).click();
+  await page.getByLabel(/^(Password|PIN)$/).fill(accounts.posCashier.pin);
   await page.getByRole("button", { name: "Masuk" }).click();
   await expect(page).toHaveURL(/\/id$/);
   await page.goto("/id/pos");
@@ -30,11 +31,11 @@ export async function createStockedProduct(
   await page.goto("/id/products/categories");
   await page.getByLabel("Nama kategori").fill(options.category);
   await page.getByRole("button", { name: "Tambah kategori" }).click();
-  await expect(page.getByRole("status")).toHaveText("Kategori disimpan.");
+  await expectResult(page, "Kategori disimpan.");
 
-  await page.goto("/id/products/new");
+  await page.goto("/id/products?new=1");
   await page.getByLabel("Nama produk").fill(options.name);
-  await page.getByLabel("Kategori").selectOption({ label: options.category });
+  await choose(page.getByRole("dialog"), "Kategori", options.category);
   await page.getByLabel("Harga jual").fill(options.price);
   await page.getByLabel("SKU").fill(options.sku);
   await page.getByRole("button", { name: "Simpan produk" }).click();
@@ -44,7 +45,7 @@ export async function createStockedProduct(
   await page.getByRole("link", { name: `Buka stok ${options.name}` }).click();
   await page.getByLabel("Jumlah").first().fill(options.stock);
   await page.getByRole("button", { name: "Tambah stok" }).click();
-  await expect(page.getByRole("status")).toContainText("Stok diperbarui");
+  await expectResult(page, "Stok diperbarui");
 }
 
 /** Ensures the default employee role holds a permission (checkbox in the role matrix). */
@@ -55,6 +56,25 @@ export async function grantEmployeePermission(page: Page, label: string) {
   if (!(await box.isChecked())) {
     await box.check();
     await page.getByRole("button", { name: "Simpan perubahan" }).click();
-    await expect(page.getByRole("status")).toHaveText("Role disimpan.");
+    await expectResult(page, "Role disimpan.");
   }
+}
+
+/** Checks the action result dialog (FR-UX-05) and closes it with OK. */
+export async function expectResult(
+  page: Page,
+  text: string | RegExp,
+  status: "success" | "error" = "success",
+) {
+  const dialog = page.getByRole("dialog", { name: status === "success" ? "Berhasil" : "Gagal" });
+  await expect(dialog).toContainText(text);
+  await dialog.getByRole("button", { name: "Oke" }).click();
+  await expect(dialog).toBeHidden();
+}
+
+/** Picks an option in a design-system dropdown (FR-UI-01) by its label. */
+export async function choose(scope: Page | Locator, label: string, option: string) {
+  const page = "page" in scope ? scope.page() : scope;
+  await scope.getByLabel(label, { exact: true }).click();
+  await page.getByRole("option", { name: option, exact: true }).click();
 }

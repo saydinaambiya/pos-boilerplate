@@ -4,17 +4,17 @@ import { Minus, Plus, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useId, useState, useTransition } from "react";
 
+import { ResultDialog } from "@/components/feedback/result-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { MoneyInput } from "@/components/ui/money-input";
 import { Select } from "@/components/ui/select";
-import { toneClasses } from "@/components/ui/tone";
 import type { Locale } from "@/config/locales";
 import { ColorSwatch } from "@/features/catalog/components/color-swatch";
 import type { PosProduct, PosVariant } from "@/features/catalog/pos-types";
 import { useRouter } from "@/i18n/navigation";
 import { formatCurrency } from "@/lib/format/currency";
 import { parseRupiah } from "@/lib/format/rupiah-input";
-import { cn } from "@/lib/utils/cn";
 
 import { createOnlineOrderAction, searchOrderCatalogAction } from "../actions";
 
@@ -163,16 +163,12 @@ export function OrderEntryForm({ locale, marketplaces }: OrderEntryFormProps) {
           <Select
             id={`${id}-marketplace`}
             value={marketplaceId}
-            onChange={(event) => {
-              setMarketplaceId(event.target.value);
-            }}
-          >
-            {marketplaces.map((marketplace) => (
-              <option key={marketplace.id} value={marketplace.id}>
-                {marketplace.name}
-              </option>
-            ))}
-          </Select>
+            onValueChange={setMarketplaceId}
+            options={marketplaces.map((marketplace) => ({
+              value: marketplace.id,
+              label: marketplace.name,
+            }))}
+          />
         </div>
         <div className="flex flex-col gap-1.5">
           <label htmlFor={`${id}-code`} className="text-sm font-medium text-ink">
@@ -319,13 +315,11 @@ export function OrderEntryForm({ locale, marketplaces }: OrderEntryFormProps) {
           <label htmlFor={`${id}-shipping`} className="text-sm font-medium text-ink">
             {t("shippingFee")}
           </label>
-          <Input
+          <MoneyInput
             id={`${id}-shipping`}
             value={shippingText}
-            onChange={(event) => {
-              setShippingText(event.target.value);
-            }}
-            inputMode="numeric"
+            onValueChange={setShippingText}
+
             maxLength={20}
             aria-invalid={error?.field === "shippingFee" ? true : undefined}
             aria-describedby={describedBy("shippingFee")}
@@ -358,11 +352,12 @@ export function OrderEntryForm({ locale, marketplaces }: OrderEntryFormProps) {
         </div>
       </dl>
 
-      {error && !error.field ? (
-        <p role="alert" className={cn("rounded-control px-3 py-2 text-sm", toneClasses.danger)}>
-          {error.message}
-        </p>
-      ) : null}
+      <ResultDialog
+        result={error && !error.field ? { status: "error", message: error.message } : null}
+        onClose={() => {
+          setError(null);
+        }}
+      />
       <Button type="submit" disabled={pending} aria-busy={pending} className="self-start">
         {pending ? t("saving") : t("save")}
       </Button>

@@ -24,6 +24,17 @@ test.describe("dashboard and sales report (FR-DSH-01, FR-RPT)", () => {
       await expect(page.getByRole("heading", { name: section, level: 2 })).toBeVisible();
     }
 
+    const from = page.locator('input[name="from"]');
+    const before = await from.inputValue();
+    await page.getByLabel("Dari", { exact: true }).click();
+    await expect(page.getByRole("grid")).toBeVisible();
+    await page.keyboard.press("ArrowLeft");
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("grid")).toBeHidden();
+    await expect(from).not.toHaveValue(before);
+    await expect(from).toHaveValue(/^\d{4}-\d{2}-\d{2}$/);
+    await expect(page).toHaveURL(new RegExp(`from=${await from.inputValue()}`));
+
     const download = page.waitForEvent("download");
     await page.getByRole("link", { name: "Unduh CSV Per produk" }).click();
     const file = await download;
@@ -41,7 +52,8 @@ test.describe("dashboard and sales report (FR-DSH-01, FR-RPT)", () => {
     const page = await context.newPage();
     await page.goto("/id/login");
     await page.getByLabel("Username").fill("kasir");
-    await page.getByLabel("Password atau PIN").fill("123456");
+    await page.getByRole("button", { name: "Lanjut" }).click();
+    await page.getByLabel(/^(Password|PIN)$/).fill("123456");
     await page.getByRole("button", { name: "Masuk" }).click();
     await expect(page).toHaveURL(/\/id$/);
     await expect(page.getByRole("region", { name: "Ringkasan hari ini" })).toHaveCount(0);

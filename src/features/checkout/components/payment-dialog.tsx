@@ -6,6 +6,7 @@ import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { MoneyInput } from "@/components/ui/money-input";
 import { Select } from "@/components/ui/select";
 import { toneClasses } from "@/components/ui/tone";
 import type { Locale } from "@/config/locales";
@@ -239,13 +240,11 @@ export function PaymentDialog(props: PaymentDialogProps) {
                   <label htmlFor={`${id}-transfer`} className="text-sm font-medium text-ink">
                     {t("transferAmount")}
                   </label>
-                  <Input
+                  <MoneyInput
                     id={`${id}-transfer`}
                     value={transferText}
-                    onChange={(event) => {
-                      setTransferText(event.target.value);
-                    }}
-                    inputMode="numeric"
+                    onValueChange={setTransferText}
+
                     maxLength={20}
                   />
                 </div>
@@ -262,16 +261,12 @@ export function PaymentDialog(props: PaymentDialogProps) {
                   <Select
                     id={`${id}-bank`}
                     value={bankAccountId}
-                    onChange={(event) => {
-                      setBankAccountId(event.target.value);
-                    }}
-                  >
-                    {bankAccounts.map((account) => (
-                      <option key={account.id} value={account.id}>
-                        {account.label}
-                      </option>
-                    ))}
-                  </Select>
+                    onValueChange={setBankAccountId}
+                    options={bankAccounts.map((account) => ({
+                      value: account.id,
+                      label: account.label,
+                    }))}
+                  />
                 </div>
               )}
               <div className="flex flex-col gap-1.5">
@@ -298,13 +293,11 @@ export function PaymentDialog(props: PaymentDialogProps) {
               <label htmlFor={`${id}-cash`} className="text-sm font-medium text-ink">
                 {t("cashReceived")}
               </label>
-              <Input
+              <MoneyInput
                 id={`${id}-cash`}
                 value={cashText}
-                onChange={(event) => {
-                  setCashText(event.target.value);
-                }}
-                inputMode="numeric"
+                onValueChange={setCashText}
+
                 maxLength={20}
                 className="text-lg tabular-nums"
               />

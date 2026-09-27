@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, count, desc, eq, inArray, ne, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, inArray, ne, or, type SQL, sql } from "drizzle-orm";
 
 import { db } from "@/db/client";
 import { approvals, users } from "@/db/schema";
@@ -50,8 +50,29 @@ const columns = {
 
 export type ApprovalRow = Awaited<ReturnType<typeof getMyRequests>>[number];
 
+/** Narrows a list to one request type and/or a requester name or username. */
+export interface ApprovalFilters {
+  type?: ApprovalType | undefined;
+  requester?: string | undefined;
+}
+
+function filterConditions(filters: ApprovalFilters): SQL[] {
+  const conditions: SQL[] = [];
+  if (filters.type) conditions.push(eq(approvals.type, filters.type));
+  const term = filters.requester?.trim() ?? "";
+  if (term !== "") {
+    const pattern = `%${term.replace(/[\\%_]/g, "\\$&")}%`;
+    const match = or(ilike(users.name, pattern), ilike(users.username, pattern));
+    if (match) conditions.push(match);
+  }
+  return conditions;
+}
+
 /** Pending requests the viewer can decide, oldest first; own requests excluded (FR-APR-03). */
-export async function getInbox(session: Session): Promise<ApprovalRow[]> {
+export async function getInbox(
+  session: Session,
+  filters: ApprovalFilters = {},
+): Promise<ApprovalRow[]> {
   const types = decidableTypes(session);
   if (types.length === 0) return [];
   return db
@@ -63,19 +84,51 @@ export async function getInbox(session: Session): Promise<ApprovalRow[]> {
         eq(approvals.status, "PENDING"),
         inArray(approvals.type, types),
         ne(approvals.requestedBy, session.user.id),
+        ...filterConditions(filters),
       ),
     )
     .orderBy(asc(approvals.createdAt))
     .limit(200);
 }
 
-/** The viewer's own recent requests with their outcome. */
-export async function getMyRequests(session: Session) {
+/**
+ * Decided requests (approved, rejected, cancelled) of the types the viewer
+ * may decide, newest first, including the Owner's auto-approved ones
+ * (FR-APR-02, FR-APR-05).
+ */
+export async function getHistory(
+  session: Session,
+  filters: ApprovalFilters = {},
+): Promise<ApprovalRow[]> {
+  const types = decidableTypes(session);
+  if (types.length === 0) return [];
   return db
     .select(columns)
     .from(approvals)
     .innerJoin(users, eq(users.id, approvals.requestedBy))
-    .where(eq(approvals.requestedBy, session.user.id))
+    .where(
+      and(
+        ne(approvals.status, "PENDING"),
+        inArray(approvals.type, types),
+        ...filterConditions(filters),
+      ),
+    )
+    .orderBy(
+      desc(sql`coalesce(${approvals.decidedAt}, ${approvals.createdAt})`),
+      desc(approvals.id),
+    )
+    .limit(100);
+}
+
+/** The viewer's own recent requests with their outcome. */
+export async function getMyRequests(session: Session, filters: ApprovalFilters = {}) {
+  return db
+    .select(columns)
+    .from(approvals)
+    .innerJoin(users, eq(users.id, approvals.requestedBy))
+    .where(
+      and(eq(approvals.requestedBy, session.user.id), ...filterConditions({ type: filters.type })),
+    )
     .orderBy(desc(approvals.createdAt))
     .limit(50);
 }

@@ -12,10 +12,11 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function LoginPage() {
-  const [session, locale, t] = await Promise.all([
+  const [session, locale, t, tCommon] = await Promise.all([
     getSession(),
     getLocale(),
     getTranslations("Auth"),
+    getTranslations("Common"),
   ]);
   if (session) return redirect({ href: session.user.mustChangePin ? "/change-pin" : "/", locale });
 
@@ -29,10 +30,15 @@ export default async function LoginPage() {
         locale={locale}
         labels={{
           username: t("username"),
-          secret: t("secret"),
-          secretHint: t("secretHint"),
+          next: t("next"),
+          password: t("password"),
+          pin: t("pin"),
+          pinHint: t("pinHint"),
+          changeUser: t("changeUser"),
+          signingInAs: t("signingInAs", { username: "{username}" }),
           submit: t("submit"),
           submitting: t("submitting"),
+          reveal: { show: tCommon("showSecret"), hide: tCommon("hideSecret") },
         }}
       />
     </>

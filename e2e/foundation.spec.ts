@@ -91,27 +91,29 @@ test.describe("accessibility (FR-UX-06, WCAG 2.2 AA)", () => {
       "/id/ui",
       "/id/login",
       "/id/employees",
-      "/id/employees/roles/new",
+      "/id/employees/roles?new=1",
       "/id/settings",
       "/id/settings/tax",
       "/id/audit",
       "/id/products",
-      "/id/products/new",
+      "/id/products?new=1",
       "/id/products/categories",
       "/id/stock",
       "/id/approvals",
       "/id/vouchers",
-      "/id/vouchers/new",
+      "/id/vouchers?new=1",
       "/id/kasbon",
       "/id/online-orders",
-      "/id/online-orders/new",
+      "/id/online-orders?new=1",
       "/id/reports",
       "/id/housekeeping",
+      "/id/pos/sales",
     ]) {
       test(`${path} in ${theme} theme has no violations`, async ({ page, context, baseURL }) => {
         if (path.endsWith("/login")) await context.clearCookies();
         await context.addCookies([{ name: "theme", value: theme, url: baseURL ?? "" }]);
         await page.goto(path);
+        if (path.includes("?")) await expect(page.getByRole("dialog")).toBeVisible();
         const results = await new AxeBuilder({ page })
           .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
           .analyze();

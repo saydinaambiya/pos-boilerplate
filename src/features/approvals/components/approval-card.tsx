@@ -31,14 +31,15 @@ const statusChip = {
 
 /**
  * One approval request with its snapshot summary (FR-APR-01). `mode`
- * decides the actions: approvers decide, requesters may cancel.
+ * decides the actions: approvers decide, requesters may cancel, history is
+ * read-only.
  */
 export async function ApprovalCard({
   approval,
   mode,
 }: {
   approval: ApprovalRow;
-  mode: "decide" | "mine";
+  mode: "decide" | "history" | "mine";
 }) {
   const [t, tCommon, format, locale] = await Promise.all([
     getTranslations("Approvals"),
@@ -53,6 +54,22 @@ export async function ApprovalCard({
   const kasbon =
     approval.type === "KASBON_PAYMENT" ? kasbonPaymentPayload.safeParse(approval.payload) : null;
   const tKasbon = await getTranslations("Kasbon");
+  const kasbonMethodText = (payload: {
+    cashAmount?: number | undefined;
+    transferAmount?: number | undefined;
+    method?: "CASH" | "TRANSFER" | undefined;
+  }) => {
+    const parts = [
+      ...(payload.cashAmount
+        ? [`${tKasbon("methods.CASH")} ${formatCurrency(payload.cashAmount, locale)}`]
+        : []),
+      ...(payload.transferAmount
+        ? [`${tKasbon("methods.TRANSFER")} ${formatCurrency(payload.transferAmount, locale)}`]
+        : []),
+    ];
+    if (parts.length > 0) return parts.join(" + ");
+    return payload.method ? tKasbon(`methods.${payload.method}`) : "";
+  };
   const noteField = <FormField name="note" label={t("decisionNote")} maxLength={200} />;
 
   return (
@@ -81,7 +98,7 @@ export async function ApprovalCard({
                 customer: kasbon.data.customerName,
                 invoiceNo: kasbon.data.invoiceNo,
                 amount: formatCurrency(kasbon.data.amount, locale),
-                method: tKasbon(`methods.${kasbon.data.method}`),
+                method: kasbonMethodText(kasbon.data),
                 balance: formatCurrency(kasbon.data.balance, locale),
               })}
             </p>
@@ -140,7 +157,7 @@ export async function ApprovalCard({
         ) : null}
         {approval.type === "VOID" ? (
           <Link
-            href={`/pos/sales/${approval.targetId}`}
+            href={`/pos/sales?view=${approval.targetId}`}
             className="inline-flex min-h-11 items-center text-sm font-medium underline-offset-4 hover:underline"
           >
             {t("openTarget")}
@@ -178,7 +195,7 @@ export async function ApprovalCard({
               {noteField}
             </ConfirmAction>
           </>
-        ) : approval.status === "PENDING" ? (
+        ) : mode === "mine" && approval.status === "PENDING" ? (
           <ConfirmAction
             action={cancelApprovalAction.bind(null, approval.id, approval.version)}
             locale={locale}

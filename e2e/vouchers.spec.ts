@@ -1,5 +1,11 @@
 import { expect, test } from "./fixtures";
-import { cashierAtPos, createStockedProduct, grantEmployeePermission } from "./helpers";
+import {
+  cashierAtPos,
+  choose,
+  createStockedProduct,
+  expectResult,
+  grantEmployeePermission,
+} from "./helpers";
 
 /** Unique names per run: the E2E database is not truncated between runs. */
 const run = Date.now().toString(36).toUpperCase();
@@ -25,11 +31,12 @@ test.describe("vouchers with approval and POS use (FR-VCH, FR-POS-03)", () => {
 
   test("a cashier proposes a voucher that waits for approval", async ({ browser }) => {
     const page = await cashierAtPos(browser);
-    await page.goto("/id/vouchers/new");
+    await page.goto("/id/vouchers?new=1");
     await page.getByLabel("Kode").fill(code.toLowerCase());
     await page.getByLabel("Nama").fill("Diskon E2E");
     await page.getByLabel("Nilai").fill("120");
     await page.getByRole("button", { name: "Ajukan voucher" }).click();
+    await expectResult(page, /./, "error");
     await expect(page.getByText("Maksimal 100.")).toBeVisible();
 
     await page.getByLabel("Nilai").fill("10");
@@ -44,6 +51,11 @@ test.describe("vouchers with approval and POS use (FR-VCH, FR-POS-03)", () => {
   test("the owner approves it from the inbox", async ({ page }) => {
     await page.goto("/id/approvals");
     const card = page.getByRole("listitem").filter({ hasText: code });
+    await choose(page, "Jenis pengajuan", "Void transaksi");
+    await expect(page).toHaveURL(/type=VOID/);
+    await expect(card).toHaveCount(0);
+    await choose(page, "Jenis pengajuan", "Voucher");
+    await expect(page).toHaveURL(/type=VOUCHER/);
     await expect(card).toContainText("Voucher baru");
     await expect(card).toContainText("10%");
     await card.getByRole("button", { name: "Setujui" }).click();
@@ -51,7 +63,13 @@ test.describe("vouchers with approval and POS use (FR-VCH, FR-POS-03)", () => {
       .getByRole("dialog", { name: "Setujui pengajuan ini?" })
       .getByRole("button", { name: "Setujui" })
       .click();
+    await expectResult(page, "Pengajuan disetujui.");
     await expect(page.getByRole("listitem").filter({ hasText: code })).toHaveCount(0);
+
+    await page.getByRole("link", { name: "Riwayat" }).click();
+    const decided = page.getByRole("listitem").filter({ hasText: code });
+    await expect(decided).toContainText("Disetujui");
+    await expect(decided.getByRole("button", { name: "Setujui" })).toHaveCount(0);
   });
 
   test("the cashier applies it at the POS", async ({ browser }) => {
@@ -66,7 +84,8 @@ test.describe("vouchers with approval and POS use (FR-VCH, FR-POS-03)", () => {
 
     await cart.getByLabel("Kode voucher").fill(code);
     await cart.getByRole("button", { name: "Pakai" }).click();
-    await expect(cart).toContainText(new RegExp(`Voucher ${code}\\s*−Rp\\s3\\.000`));
+    await expect(cart).toContainText(new RegExp(`Voucher ${code} \\(10%\\)\\s*−Rp\\s3\\.000`));
+    await expect(cart).toContainText("Potongan maksimal Rp 3.000");
 
     await page.keyboard.press("F2");
     const payment = page.getByRole("dialog", { name: "Pembayaran" });

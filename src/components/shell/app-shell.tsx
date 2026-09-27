@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils/cn";
 
 import { BrandLogo } from "./brand-logo";
 import { MoreMenu } from "./more-menu";
-import { NavLink } from "./nav-link";
+import { NavLink, RailNavLink } from "./nav-link";
 import { Preferences } from "./preferences";
 
 const layout = layouts[appConfig.appearance.layout];
@@ -61,38 +61,39 @@ export async function AppShell({
     ) : null;
   };
 
-  const verticalLinks = (compact: boolean) => (
-    <ul className="flex flex-col gap-1">
-      {items.map((item) => (
-        <li key={item.href}>
-          <NavLink
-            href={item.href}
-            {...(compact ? { "aria-label": accessibleLabel(item) } : {})}
-            className={cn(
-              "group relative flex min-h-11 items-center gap-3 rounded-control px-3 text-sm font-medium text-ink-muted hover:bg-surface-muted hover:text-ink",
-              compact && "justify-center px-0",
-            )}
-            activeClassName="bg-primary text-primary-ink hover:bg-primary hover:text-primary-ink"
-          >
-            <item.icon className="size-5 shrink-0" aria-hidden="true" />
-            {compact ? (
-              <span
-                aria-hidden="true"
-                className="pointer-events-none absolute left-full z-10 ml-3 hidden rounded-md bg-primary px-2 py-1 text-xs whitespace-nowrap text-primary-ink group-hover:block group-focus-visible:block"
-              >
-                {label(item)}
-              </span>
-            ) : (
-              <>
-                <span>{label(item)}</span>
-                {badge(item)}
-              </>
-            )}
-          </NavLink>
-        </li>
-      ))}
-    </ul>
-  );
+  const verticalLinks = (compact: boolean) =>
+    compact ? (
+      <ul className="flex flex-col items-center gap-2">
+        {items.map((item) => (
+          <li key={item.href}>
+            <RailNavLink
+              href={item.href}
+              label={label(item)}
+              accessibleLabel={accessibleLabel(item)}
+              hasBadge={badgeCount(item) > 0}
+            >
+              <item.icon className="size-5 shrink-0" aria-hidden="true" />
+            </RailNavLink>
+          </li>
+        ))}
+      </ul>
+    ) : (
+      <ul className="flex flex-col gap-1">
+        {items.map((item) => (
+          <li key={item.href}>
+            <NavLink
+              href={item.href}
+              className="flex min-h-11 items-center gap-3 rounded-control px-3 text-sm font-medium text-ink-muted transition-colors hover:bg-surface-muted hover:text-ink"
+              activeClassName="bg-primary text-primary-ink hover:bg-primary hover:text-primary-ink"
+            >
+              <item.icon className="size-5 shrink-0" aria-hidden="true" />
+              <span>{label(item)}</span>
+              {badge(item)}
+            </NavLink>
+          </li>
+        ))}
+      </ul>
+    );
 
   const skipLink = (
     <a
@@ -113,7 +114,7 @@ export async function AppShell({
           triggerClassName="text-ink inline-flex min-h-11 items-center gap-2 rounded-control px-3 text-sm font-medium hover:bg-surface-muted"
         >
           {verticalLinks(false)}
-          <Preferences className="mt-6" />
+          <Preferences variant="stacked" className="mt-6" />
         </MoreMenu>
       ) : null}
     </header>
@@ -149,7 +150,7 @@ export async function AppShell({
               triggerClassName="text-ink-muted flex min-h-14 w-full flex-col items-center justify-center gap-1 text-[11px] font-medium [&_svg]:my-1"
             >
               {verticalLinks(false)}
-              <Preferences className="mt-6" />
+              <Preferences variant="stacked" className="mt-6" />
             </MoreMenu>
           </li>
         </ul>
@@ -213,10 +214,10 @@ export async function AppShell({
         )}
       >
         {compact ? <BrandLogo variant="mark" /> : <BrandLogo className="px-2" />}
-        <nav aria-label={t("label")} className="flex-1">
+        <nav aria-label={t("label")} className={cn("flex-1", compact && "w-full")}>
           {verticalLinks(compact)}
         </nav>
-        {compact ? null : <Preferences className="px-2" />}
+        {compact ? null : <Preferences variant="stacked" />}
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
         {mobileHeader}

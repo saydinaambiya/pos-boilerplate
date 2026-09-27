@@ -203,7 +203,8 @@ export async function setVariantStatusAction(
   );
   if (!result.ok) return failure(result, locale);
   revalidatePath("/", "layout");
-  return { status: "success" };
+  const tf = await getTranslations({ locale, namespace: "Feedback" });
+  return { status: "success", message: tf(isActive ? "activated" : "deactivated") };
 }
 
 /** Moves a variant up or down; a plain form, so it works without JavaScript (FR-VAR-08). */

@@ -10,6 +10,7 @@ import type { RequestContext } from "@/lib/http/request-context";
 import {
   closeShiftRow,
   findOpenShift,
+  findOtherOpenShifts,
   findShift,
   insertShift,
   lockOpenShift,
@@ -37,6 +38,15 @@ export async function getOpenShift(session: Session) {
   if (!shift) return null;
   const totals = await shiftTotals(db, shift.id);
   return { ...shift, totals, expectedCash: expectedCashOf(shift.openingCash, totals) };
+}
+
+/**
+ * Other cashiers' open shifts, so someone opening a shift is warned who
+ * already has one open and since when (FR-SHF-01).
+ */
+export async function getOtherOpenShifts(session: Session) {
+  assertPermission(session, "page:pos");
+  return findOtherOpenShifts(db, session.user.id);
 }
 
 /** Opens a shift with its cash float; one open shift per cashier (FR-SHF-02). */

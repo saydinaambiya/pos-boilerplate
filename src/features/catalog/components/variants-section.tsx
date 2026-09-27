@@ -141,7 +141,8 @@ export async function VariantsSection({ session, product }: VariantsSectionProps
                   <span className="flex items-center gap-3">
                     <ColorSwatch color={variant.color} />
                     <Link
-                      href={`/products/${product.id}/variants/${variant.id}`}
+                      href={{ pathname: `/products/${product.id}`, query: { variant: variant.id } }}
+                      scroll={false}
                       aria-label={t("edit", { name })}
                       className="font-medium underline-offset-4 hover:underline"
                     >

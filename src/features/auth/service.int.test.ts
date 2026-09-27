@@ -11,7 +11,7 @@ import { validateSessionToken } from "@/lib/auth/session";
 import type { RequestContext } from "@/lib/http/request-context";
 import { fixtures, resetDatabase } from "@/test/database";
 
-import { changePin, login, logout } from "./service";
+import { changePin, login, loginMethodFor, logout } from "./service";
 
 let ipCounter = 0;
 /** A fresh client address per test keeps the in-memory IP limiter isolated. */
@@ -109,6 +109,20 @@ describe("login (FR-AUTH-01..05)", () => {
       ok: false,
       reason: "rate-limited",
     });
+  });
+});
+
+describe("two-step login method (FR-AUTH-01/02)", () => {
+  it("asks the owner for a password and others, known or not, for a PIN", async () => {
+    expect(await loginMethodFor(fixtures.owner.username.toUpperCase())).toBe("password");
+    expect(await loginMethodFor("kasir")).toBe("pin");
+    expect(await loginMethodFor("tidak-ada")).toBe("pin");
+    expect(await loginMethodFor("x")).toBe("pin");
+    await db
+      .update(users)
+      .set({ isActive: false })
+      .where(eq(users.username, fixtures.owner.username));
+    expect(await loginMethodFor(fixtures.owner.username)).toBe("pin");
   });
 });
 

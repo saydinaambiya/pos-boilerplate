@@ -12,10 +12,11 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /** Reachable only while the account still has to replace its PIN (FR-AUTH-06). */
 export default async function ChangePinPage() {
-  const [session, locale, t] = await Promise.all([
+  const [session, locale, t, tCommon] = await Promise.all([
     getSession(),
     getLocale(),
     getTranslations("Auth"),
+    getTranslations("Common"),
   ]);
   if (!session) return redirect({ href: "/login", locale });
   if (!session.user.mustChangePin) return redirect({ href: "/", locale });
@@ -31,6 +32,7 @@ export default async function ChangePinPage() {
           newPinHint: t("newPinHint"),
           confirmPin: t("confirmPin"),
           submit: t("savePin"),
+          reveal: { show: tCommon("showSecret"), hide: tCommon("hideSecret") },
         }}
       />
     </>

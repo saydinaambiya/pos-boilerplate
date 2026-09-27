@@ -74,8 +74,6 @@
     "loginTitle": "Sign in",
     "loginSubtitle": "Sign in to {appName} to continue.",
     "username": "Username",
-    "secret": "Password or PIN",
-    "secretHint": "Owners use a password, employees use a 6-digit PIN.",
     "submit": "Sign in",
     "submitting": "Signing in…",
     "errorInvalid": "Incorrect username or password/PIN.",
@@ -91,14 +89,25 @@
     "errorPinSame": "The new PIN must differ from the current one.",
     "errorPinMismatch": "The PINs do not match.",
     "logout": "Sign out",
-    "account": "Account: {name} ({role})"
+    "account": "Account: {name} ({role})",
+    "next": "Continue",
+    "password": "Password",
+    "pin": "PIN",
+    "pinHint": "6 digits.",
+    "changeUser": "Change username",
+    "signingInAs": "Signing in as {username}",
+    "errorUsernameRequired": "Enter your username first.",
+    "errorInvalidPassword": "Wrong username or password.",
+    "errorInvalidPin": "Wrong username or PIN."
   },
   "Common": {
     "skipToContent": "Skip to content",
     "close": "Close",
     "cancel": "Cancel",
     "save": "Save",
-    "loading": "Loading…"
+    "loading": "Loading…",
+    "showSecret": "Show",
+    "hideSecret": "Hide"
   },
   "Showcase": {
     "title": "UI Components",
@@ -247,8 +256,6 @@
     "subtitle": "Set the permissions of each role.",
     "add": "Add role",
     "newTitle": "New role",
-    "editTitle": "Edit role",
-    "back": "Back to roles",
     "name": "Role name",
     "permissions": "Permissions",
     "permissionCount": "{count} permissions",
@@ -447,7 +454,6 @@
     "active": "Active",
     "inactive": "Inactive",
     "edit": "Edit {name}",
-    "back": "Back",
     "editBankAccount": "Edit bank account",
     "editMarketplace": "Edit marketplace",
     "statusSection": "Status",
@@ -657,8 +663,6 @@
     "active": "Active",
     "inactive": "Inactive",
     "variantCount": "{count} variants",
-    "editTitle": "Edit variant",
-    "back": "Back to product",
     "manageStock": "Manage stock",
     "statusSection": "Variant status",
     "statusActive": "The variant is active and can be sold.",
@@ -729,7 +733,10 @@
     "next": "Next",
     "pagination": "Pagination",
     "pageLabel": "Page {page}",
-    "kasbonCollected": "Store credit payments received"
+    "kasbonCollected": "Store credit payments received",
+    "othersOpenTitle": "{count, plural, one {Another shift is still open} other {# other shifts are still open}}",
+    "othersOpenItem": "{name} — since {time}",
+    "othersOpenHint": "You can still open your own shift. Keep the cash drawers separate."
   },
   "Pos": {
     "search": "Search products",
@@ -834,7 +841,10 @@
     "customerNote": "Note (optional)",
     "customerSuggestions": "Previous customers",
     "dueDate": "Due date (optional)",
-    "kasbonCreated": "Store credit: {amount}"
+    "kasbonCreated": "Store credit: {amount}",
+    "voucherAppliedPercent": "Voucher {code} ({percent}%)",
+    "voucherMaxDiscount": "Up to {amount} off",
+    "salesHistory": "Transaction history"
   },
   "Receipt": {
     "title": "Receipt {invoiceNo}",
@@ -856,7 +866,6 @@
     "total": "Total",
     "payments": "Payments",
     "transferTo": "Transfer · {bank} {account}",
-    "newSale": "New sale",
     "status": "Status",
     "statuses": {
       "COMPLETED": "Completed",
@@ -869,7 +878,6 @@
       "MARKETPLACE": "Marketplace",
       "KASBON": "Store credit"
     },
-    "pageTitle": "Receipt",
     "print": "Print / PDF",
     "void": "Void sale",
     "voidTitle": "Request a void of {invoiceNo}?",
@@ -882,7 +890,9 @@
     "errorNotVoidable": "This sale cannot be voided.",
     "errorNotFound": "Sale not found.",
     "kasbonBalance": "Store credit balance",
-    "openKasbon": "Open store credit of {name}"
+    "openKasbon": "Open store credit of {name}",
+    "voidRequested": "Void request sent and waiting for approval.",
+    "voidApplied": "Sale voided."
   },
   "Invoice": {
     "invoice": "Invoice",
@@ -984,8 +994,18 @@
     },
     "voucherSummary": "{code} · {name} · {value}",
     "openVoucher": "View voucher",
-    "kasbonSummary": "{customer} · {invoiceNo}: {amount} {method} (balance {balance})",
-    "openKasbon": "Open store credit"
+    "kasbonSummary": "{customer} · {invoiceNo}: {amount} ({method}), balance {balance}",
+    "openKasbon": "Open store credit",
+    "views": "Approval views",
+    "filterType": "Request type",
+    "allTypes": "All types",
+    "filterRequester": "Requested by",
+    "filterRequesterPlaceholder": "Search name or username",
+    "applyFilter": "Apply",
+    "resetFilter": "Reset",
+    "emptyFiltered": "No requests match the filter.",
+    "history": "History",
+    "emptyHistory": "No decided requests yet."
   },
   "Vouchers": {
     "title": "Vouchers",
@@ -1131,14 +1151,13 @@
     "actions": "Actions",
     "methods": {
       "CASH": "Cash",
-      "TRANSFER": "Transfer"
+      "TRANSFER": "Transfer",
+      "SPLIT": "Cash + transfer"
     },
     "recordPayment": "Record payment",
     "recordPaymentDescription": "Up to {amount}. The balance drops once approved.",
-    "amountHint": "Rupiah, e.g. 50.000.",
     "bankAccount": "Destination account",
     "reference": "Reference no.",
-    "transferOnly": "Transfers only.",
     "submitPayment": "Record payment",
     "paymentPending": "Payment recorded and waiting for approval.",
     "paymentApproved": "Payment recorded and approved.",
@@ -1146,7 +1165,19 @@
     "errorNoOpenShift": "Open a shift before taking cash.",
     "errorBankAccount": "Choose an active account.",
     "errorSettled": "This store credit is already settled.",
-    "errorNotFound": "Store credit not found."
+    "errorNotFound": "Store credit not found.",
+    "payOff": "Pay off {amount}",
+    "transferAmount": "Transfer amount",
+    "cashPortion": "Paid in cash: {amount}",
+    "cashReceived": "Cash received (optional)",
+    "change": "Change: {amount}",
+    "shortfall": "Short by {amount}",
+    "saving": "Saving…",
+    "errorAmount": "Invalid payment amount.",
+    "errorNetwork": "Connection failed. Check your connection and try again.",
+    "cashPart": "Cash",
+    "transferPart": "Transfer {bank}",
+    "noBankAccounts": "No active bank account yet. Add one in Settings → Bank accounts to accept transfers."
   },
   "OnlineOrders": {
     "title": "Online orders",
@@ -1377,7 +1408,7 @@
   "Capacity": {
     "title": "Database capacity",
     "usage": "{used} of {limit} used ({percent}%)",
-    "largestTables": "Largest tables",
+    "largestTables": "What uses the most space",
     "checkedAt": "Checked at {time}; refreshed hourly.",
     "levels": {
       "ok": "Healthy",
@@ -1390,6 +1421,81 @@
       "warning": "The database is {percent}% full. Archive old data before it fills up.",
       "critical": "The database is almost full ({percent}%). Archive old data now so sales keep working."
     },
-    "openHousekeeping": "Open housekeeping"
+    "openHousekeeping": "Open housekeeping",
+    "tables": {
+      "approvals": "Approvals",
+      "archive_batches": "Archive history",
+      "audit_logs": "Activity log",
+      "bank_accounts": "Bank accounts",
+      "categories": "Product categories",
+      "customers": "Customers",
+      "idempotency_keys": "Duplicate-sale protection",
+      "invoice_counters": "Invoice numbers",
+      "kasbons": "Store credit",
+      "marketplaces": "Marketplaces",
+      "online_order_events": "Online order history",
+      "online_order_items": "Online order items",
+      "online_orders": "Online orders",
+      "payments": "Payments",
+      "product_variants": "Product variants",
+      "products": "Products",
+      "role_permissions": "Role permissions",
+      "roles": "Roles",
+      "sale_items": "Sale items",
+      "sales": "POS sales",
+      "sessions": "Login sessions",
+      "settings": "Settings",
+      "shifts": "Cashier shifts",
+      "stock_movements": "Stock movements",
+      "users": "User accounts",
+      "voucher_revisions": "Voucher history",
+      "vouchers": "Vouchers",
+      "other": "Other data"
+    }
+  },
+  "Feedback": {
+    "successTitle": "Success",
+    "errorTitle": "Something went wrong",
+    "ok": "OK",
+    "close": "Close",
+    "checkFields": "Please check the highlighted fields.",
+    "activated": "Activated.",
+    "deactivated": "Deactivated.",
+    "approved": "Request approved.",
+    "rejected": "Request rejected.",
+    "cancelled": "Request withdrawn."
+  },
+  "Picker": {
+    "chooseDate": "Choose a date",
+    "clear": "Clear date"
+  },
+  "SalesHistory": {
+    "title": "Transaction history",
+    "subtitleOwn": "Sales you served.",
+    "subtitleAll": "All POS sales.",
+    "backToPos": "Back to POS",
+    "from": "From",
+    "to": "To",
+    "invoice": "Invoice no.",
+    "invoicePlaceholder": "Search invoice no.",
+    "cashier": "Cashier",
+    "allCashiers": "All cashiers",
+    "method": "Method",
+    "allMethods": "All methods",
+    "status": "Status",
+    "allStatuses": "All statuses",
+    "apply": "Apply",
+    "reset": "Reset",
+    "summary": "{count, plural, =0 {No sales} one {# sale} other {# sales}} · total {total}{voided, plural, =0 {} other { · # voided}}",
+    "emptyTitle": "No sales",
+    "emptyDescription": "Change the date range or filters to see other sales.",
+    "caption": "Transaction history, newest first",
+    "time": "Time",
+    "total": "Total",
+    "open": "Open sale {invoiceNo}",
+    "pagination": "Pagination",
+    "previous": "Previous",
+    "next": "Next",
+    "pageLabel": "Page {page}"
   }
 }
