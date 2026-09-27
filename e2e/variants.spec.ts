@@ -18,9 +18,9 @@ test.describe("colour variants (FR-VAR)", () => {
     await page.getByRole("button", { name: "Tambah kategori" }).click();
     await expectResult(page, "Kategori disimpan.");
 
-    await page.goto("/id/products/new");
+    await page.goto("/id/products?new=1");
     await page.getByLabel("Nama produk").fill(product);
-    await choose(page, "Kategori", `Pakaian ${run}`);
+    await choose(page.getByRole("dialog"), "Kategori", `Pakaian ${run}`);
     await page.getByLabel("Harga jual").fill("50000");
     await page.getByLabel("SKU").fill(sku);
     await page.getByRole("button", { name: "Simpan produk" }).click();
@@ -88,16 +88,23 @@ test.describe("colour variants (FR-VAR)", () => {
     await page.goto(`/id/products?q=${sku}`);
     await page.getByRole("link", { name: `Ubah ${product}` }).click();
     await page.getByRole("link", { name: "Ubah Merah" }).click();
+    const red = page.getByRole("dialog", { name: `${product} · Merah` });
     await expect(
-      page.getByText("Varian utama tidak dapat dinonaktifkan selama produk aktif."),
+      red.getByText("Varian utama tidak dapat dinonaktifkan selama produk aktif."),
     ).toBeVisible();
-    await expect(page.getByRole("button", { name: "Nonaktifkan" })).toHaveCount(0);
+    await expect(red.getByRole("button", { name: "Nonaktifkan" })).toHaveCount(0);
 
-    await page.getByRole("link", { name: "Kembali ke produk" }).click();
+    await red.getByRole("button", { name: "Tutup" }).click();
+    await expect(red).toBeHidden();
     await page.getByRole("link", { name: "Ubah Biru Laut" }).click();
-    await page.getByRole("button", { name: "Nonaktifkan" }).click();
-    await page.getByRole("dialog").getByRole("button", { name: "Nonaktifkan" }).click();
-    await expect(page.getByText("Varian nonaktif dan tidak dijual.")).toBeVisible();
+    const blue = page.getByRole("dialog", { name: `${product} · Biru Laut` });
+    await blue.getByRole("button", { name: "Nonaktifkan" }).click();
+    await page
+      .getByRole("dialog", { name: "Nonaktifkan varian Biru Laut?" })
+      .getByRole("button", { name: "Nonaktifkan" })
+      .click();
+    await expectResult(page, "Berhasil dinonaktifkan.");
+    await expect(blue.getByText("Varian nonaktif dan tidak dijual.")).toBeVisible();
 
     await page.goto(`/id/stock?q=${sku}`);
     await expect(page.getByRole("link", { name: `Buka stok ${product} · Merah` })).toBeVisible();

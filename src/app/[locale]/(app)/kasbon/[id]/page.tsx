@@ -96,7 +96,7 @@ export default async function KasbonDetailPage({ params }: PageProps<"/[locale]/
               {row(
                 t("invoice"),
                 <Link
-                  href={`/pos/sales/${kasbon.saleId}`}
+                  href={`/pos/sales?view=${kasbon.saleId}`}
                   className="underline-offset-4 hover:underline"
                 >
                   {kasbon.invoiceNo}

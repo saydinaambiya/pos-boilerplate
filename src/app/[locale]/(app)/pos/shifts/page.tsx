@@ -4,10 +4,11 @@ import { getFormatter, getLocale, getTranslations } from "next-intl/server";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Card, CardDescription } from "@/components/ui/card";
 import { Chip } from "@/components/ui/chip";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
+import { RouteDialog } from "@/components/ui/route-dialog";
 import {
   Table,
   TableBody,
@@ -17,11 +18,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { VarianceText } from "@/features/shifts/components/shift-figures";
-import { listShifts } from "@/features/shifts/service";
+import { ShiftFigures, VarianceText } from "@/features/shifts/components/shift-figures";
+import { getShiftReport, listShifts } from "@/features/shifts/service";
 import { Link } from "@/i18n/navigation";
 import { requirePermission } from "@/lib/auth/guard";
 import { formatCurrency } from "@/lib/format/currency";
+import { firstParam, keptQuery } from "@/lib/utils/search-params";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Shifts");
@@ -30,16 +32,23 @@ export async function generateMetadata(): Promise<Metadata> {
 
 const pageParam = z.coerce.number().int().min(1).max(1000).catch(1);
 
-/** Shift history: own shifts, or all for `report:view` (FR-SHF-04). */
+/**
+ * Shift history: own shifts, or all for `report:view` (FR-SHF-04). A row
+ * opens its report in a dialog (`?view=`, ADR-0018).
+ */
 export default async function ShiftsPage({ searchParams }: PageProps<"/[locale]/pos/shifts">) {
   const session = await requirePermission("page:pos");
-  const raw = (await searchParams).page;
-  const page = pageParam.parse(Array.isArray(raw) ? raw[0] : (raw ?? "1"));
-  const [t, format, locale, result] = await Promise.all([
+  const raw = await searchParams;
+  const page = pageParam.parse(firstParam(raw.page) ?? "1");
+  const viewing = firstParam(raw.view);
+  const kept = keptQuery(raw, ["view"]);
+  const [t, tCommon, format, locale, result, report] = await Promise.all([
     getTranslations("Shifts"),
+    getTranslations("Common"),
     getFormatter(),
     getLocale(),
     listShifts(session, page),
+    viewing && z.uuid().safeParse(viewing).success ? getShiftReport(session, viewing) : null,
   ]);
   const when = (date: Date) => format.dateTime(date, { dateStyle: "medium", timeStyle: "short" });
 
@@ -77,7 +86,8 @@ export default async function ShiftsPage({ searchParams }: PageProps<"/[locale]/
                 <TableRow key={shift.id}>
                   <TableCell>
                     <Link
-                      href={`/pos/shifts/${shift.id}`}
+                      href={{ pathname: "/pos/shifts", query: { ...kept, view: shift.id } }}
+                      scroll={false}
                       aria-label={t("view", { date: when(shift.openedAt) })}
                       className="underline-offset-4 hover:underline"
                     >
@@ -127,6 +137,18 @@ export default async function ShiftsPage({ searchParams }: PageProps<"/[locale]/
           </nav>
         ) : null}
       </Card>
+      {report ? (
+        <RouteDialog
+          key={report.id}
+          closeHref={{ pathname: "/pos/shifts", query: kept }}
+          closeLabel={tCommon("close")}
+          size="xl"
+          title={t("reportTitle")}
+        >
+          <ShiftFigures shift={report} />
+          {report.note ? <CardDescription>{report.note}</CardDescription> : null}
+        </RouteDialog>
+      ) : null}
     </>
   );
 }

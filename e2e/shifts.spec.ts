@@ -10,10 +10,10 @@ test.describe("cashier shifts (FR-SHF)", () => {
   test("opens a shift and closes it with a recorded variance", async ({ page }) => {
     await page.goto("/id/pos");
     if (await page.getByRole("link", { name: "Tutup shift" }).isVisible()) {
-      await page.goto("/id/pos/shift/close");
+      await page.goto("/id/pos?close=1");
       await page.getByLabel("Kas fisik").fill("0");
       await page.getByRole("button", { name: "Tutup shift" }).click();
-      await expect(page).toHaveURL(/\/id\/pos\/shifts\/[0-9a-f-]+$/);
+      await expect(page).toHaveURL(/\/id\/pos\/shifts\?view=[0-9a-f-]+$/);
       await page.goto("/id/pos");
     }
 
@@ -26,7 +26,8 @@ test.describe("cashier shifts (FR-SHF)", () => {
     await expect(page.getByText(/^Shift sejak/)).toBeVisible();
 
     await page.getByRole("link", { name: "Tutup shift" }).click();
-    await expect(page.getByText(/Rp\s200\.000/).first()).toBeVisible();
+    const dialog = page.getByRole("dialog", { name: "Tutup shift" });
+    await expect(dialog.getByText(/Rp\s200\.000/).first()).toBeVisible();
     const results = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
       .analyze();
@@ -35,10 +36,10 @@ test.describe("cashier shifts (FR-SHF)", () => {
     await page.getByLabel("Kas fisik").fill("190.000");
     await page.getByLabel("Catatan").fill("Selisih uji");
     await page.getByRole("button", { name: "Tutup shift" }).click();
-    await expect(page).toHaveURL(/\/id\/pos\/shifts\/[0-9a-f-]+$/);
-    await expect(page.getByRole("heading", { name: "Laporan shift" })).toBeVisible();
-    await expect(page.getByText(/Kurang Rp\s10\.000/)).toBeVisible();
-    await expect(page.getByText("Selisih uji")).toBeVisible();
+    await expect(page).toHaveURL(/\/id\/pos\/shifts\?view=[0-9a-f-]+$/);
+    const report = page.getByRole("dialog", { name: "Laporan shift" });
+    await expect(report.getByText(/Kurang Rp\s10\.000/)).toBeVisible();
+    await expect(report.getByText("Selisih uji")).toBeVisible();
   });
 
   test("lists the shift in the history", async ({ page }) => {

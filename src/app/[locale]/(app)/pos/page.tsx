@@ -9,10 +9,12 @@ import { SubmitButton } from "@/components/form/submit-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
+import { RouteDialog } from "@/components/ui/route-dialog";
 import { getPosCatalog, getPosCategories } from "@/features/catalog/pos-catalog";
 import { PosTerminal } from "@/features/checkout/components/pos-terminal";
 import { getCheckoutBankAccounts } from "@/features/settings/service";
-import { openShiftAction } from "@/features/shifts/actions";
+import { closeShiftAction, openShiftAction } from "@/features/shifts/actions";
+import { ShiftFigures } from "@/features/shifts/components/shift-figures";
 import { getOpenShift, getOtherOpenShifts } from "@/features/shifts/service";
 import { Link } from "@/i18n/navigation";
 import { requirePermission } from "@/lib/auth/guard";
@@ -20,6 +22,7 @@ import { readSetting } from "@/lib/settings/store";
 import { toneClasses } from "@/components/ui/tone";
 import { storeDate } from "@/lib/format/zoned-time";
 import { cn } from "@/lib/utils/cn";
+import { firstParam } from "@/lib/utils/search-params";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Navigation");
@@ -28,14 +31,17 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /**
  * Cashier screen. Without an open shift the only action is opening one
- * (FR-SHF-01); with a shift the terminal loads the sellable catalogue.
+ * (FR-SHF-01); with a shift the terminal loads the sellable catalogue and
+ * `?close=1` opens the close-shift dialog over it (FR-SHF-03, ADR-0018).
  */
-export default async function PosPage() {
+export default async function PosPage({ searchParams }: PageProps<"/[locale]/pos">) {
   const session = await requirePermission("page:pos");
-  const [t, tPos, tNav, format, locale, shift] = await Promise.all([
+  const closing = firstParam((await searchParams).close) === "1";
+  const [t, tPos, tNav, tCommon, format, locale, shift] = await Promise.all([
     getTranslations("Shifts"),
     getTranslations("Pos"),
     getTranslations("Navigation"),
+    getTranslations("Common"),
     getFormatter(),
     getLocale(),
     getOpenShift(session),
@@ -130,7 +136,9 @@ export default async function PosPage() {
             <Link href="/pos/shifts">{tPos("shiftHistory")}</Link>
           </Button>
           <Button asChild variant="secondary" size="sm">
-            <Link href="/pos/shift/close">{tPos("closeShift")}</Link>
+            <Link href="/pos?close=1" scroll={false}>
+              {tPos("closeShift")}
+            </Link>
           </Button>
         </span>
       </div>
@@ -151,6 +159,36 @@ export default async function PosPage() {
           bankAccounts={bankAccounts}
         />
       </NextIntlClientProvider>
+      {closing ? (
+        <RouteDialog
+          closeHref="/pos"
+          closeLabel={tCommon("close")}
+          size="lg"
+          title={t("closeTitle")}
+          description={t("closeDescription")}
+        >
+          <ShiftFigures shift={{ ...shift, countedCash: null, variance: null }} />
+          <ActionForm
+            action={closeShiftAction}
+            locale={locale}
+            className="border-t border-border pt-4"
+          >
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormField
+                name="countedCash"
+                money
+                label={t("countedCash")}
+                hint={t("moneyHint")}
+                maxLength={20}
+              />
+              <FormField name="note" label={t("note")} hint={t("noteHint")} maxLength={200} />
+            </div>
+            <SubmitButton variant="danger" className="self-start">
+              {t("close")}
+            </SubmitButton>
+          </ActionForm>
+        </RouteDialog>
+      ) : null}
     </>
   );
 }

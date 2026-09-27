@@ -20,9 +20,10 @@ test.describe("categories & products (FR-CAT-01, FR-PRD)", () => {
   });
 
   test("creates a product with inline validation", async ({ page }) => {
-    await page.goto("/id/products/new");
+    await page.goto("/id/products?new=1");
+    const dialog = page.getByRole("dialog", { name: "Produk baru" });
     await page.getByLabel("Nama produk").fill(`Kopi Susu ${run}`);
-    await choose(page, "Kategori", category);
+    await choose(dialog, "Kategori", category);
     await page.getByLabel("Harga jual").fill("abc");
     await page.getByLabel("Harga modal").fill("7.000");
     await page.getByLabel("SKU").fill(sku);
@@ -30,14 +31,14 @@ test.describe("categories & products (FR-CAT-01, FR-PRD)", () => {
     await expectResult(page, /./, "error");
     await expect(page.getByText("Format tidak valid.")).toBeVisible();
     await expect(page.getByLabel("Harga jual")).toBeFocused();
-    await expect(page.getByLabel("Kategori", { exact: true })).toHaveText(category);
+    await expect(dialog.getByLabel("Kategori", { exact: true })).toHaveText(category);
 
     await page.getByLabel("Harga jual").fill("18.000");
     await page.getByRole("button", { name: "Simpan produk" }).click();
     await expect(page).toHaveURL(/\/id\/products$/);
 
     await page.getByLabel("Cari").fill(sku.toLowerCase());
-    await page.getByRole("button", { name: "Terapkan" }).click();
+    await expect(page).toHaveURL(new RegExp(`q=${sku.toLowerCase()}`));
     const row = page.getByRole("row", { name: new RegExp(`Kopi Susu ${run}`) });
     await expect(row).toContainText(/Rp\s18\.000/);
     await expect(row).toContainText(/Rp\s11\.000/);
@@ -45,9 +46,9 @@ test.describe("categories & products (FR-CAT-01, FR-PRD)", () => {
   });
 
   test("rejects a duplicate SKU", async ({ page }) => {
-    await page.goto("/id/products/new");
+    await page.goto("/id/products?new=1");
     await page.getByLabel("Nama produk").fill("Duplikat");
-    await choose(page, "Kategori", category);
+    await choose(page.getByRole("dialog"), "Kategori", category);
     await page.getByLabel("Harga jual").fill("1000");
     await page.getByLabel("SKU").fill(sku.toLowerCase());
     await page.getByRole("button", { name: "Simpan produk" }).click();
@@ -57,6 +58,7 @@ test.describe("categories & products (FR-CAT-01, FR-PRD)", () => {
   test("keeps categories with products and hides cost from cashiers", async ({ page, browser }) => {
     await page.goto("/id/products/categories");
     await page.getByRole("link", { name: `Ubah ${category}` }).click();
+    await expect(page.getByRole("dialog", { name: "Ubah kategori" })).toBeVisible();
     await expect(page.getByText("berisi 1 produk sehingga tidak dapat dihapus")).toBeVisible();
     await expect(page.getByRole("button", { name: "Hapus kategori" })).toHaveCount(0);
 
@@ -72,7 +74,9 @@ test.describe("categories & products (FR-CAT-01, FR-PRD)", () => {
     await expect(cashier.getByRole("row", { name: new RegExp(`Kopi Susu ${run}`) })).toBeVisible();
     await expect(cashier.getByRole("columnheader", { name: "Harga modal" })).toHaveCount(0);
     await expect(cashier.getByRole("link", { name: "Tambah produk" })).toHaveCount(0);
-    expect((await cashier.goto("/id/products/new"))?.status()).toBe(403);
+    await cashier.goto("/id/products?new=1");
+    await expect(cashier.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(cashier.getByRole("dialog")).toHaveCount(0);
     await context.close();
   });
 

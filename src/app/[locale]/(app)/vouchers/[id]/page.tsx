@@ -220,7 +220,7 @@ export default async function VoucherPage({ params }: PageProps<"/[locale]/vouch
                 <TableRow key={sale.id}>
                   <TableCell>
                     <Link
-                      href={`/pos/sales/${sale.id}`}
+                      href={`/pos/sales?view=${sale.id}`}
                       className="underline-offset-4 hover:underline"
                     >
                       {sale.invoiceNo}

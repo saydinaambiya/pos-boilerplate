@@ -54,9 +54,9 @@ test.describe("POS terminal and checkout (FR-POS, FR-PAY)", () => {
     await page.getByRole("button", { name: "Tambah kategori" }).click();
     await expectResult(page, "Kategori disimpan.");
 
-    await page.goto("/id/products/new");
+    await page.goto("/id/products?new=1");
     await page.getByLabel("Nama produk").fill(product);
-    await choose(page, "Kategori", `Minuman POS ${run}`);
+    await choose(page.getByRole("dialog"), "Kategori", `Minuman POS ${run}`);
     await page.getByLabel("Harga jual").fill("8000");
     await page.getByLabel("SKU").fill(sku);
     await page.getByRole("button", { name: "Simpan produk" }).click();
@@ -117,8 +117,11 @@ test.describe("POS terminal and checkout (FR-POS, FR-PAY)", () => {
     await expect(page.getByTestId("invoice")).toContainText("Tunai diterima");
     const saleId = /invoices\/([0-9a-f-]+)/.exec(page.url())?.[1] ?? "";
     await page.goto(`/id/pos/sales/${saleId}`);
-    await expect(page).toHaveURL(/\/id\/pos\/sales\/[0-9a-f-]+$/);
-    await expect(page.getByRole("row", { name: new RegExp(product) })).toContainText(/Rp\s24\.000/);
+    await expect(page).toHaveURL(new RegExp(`/id/pos/sales\\?view=${saleId}$`));
+    const detail = page.getByRole("dialog", { name: `Struk ${invoiceNo}` });
+    await expect(detail.getByRole("row", { name: new RegExp(product) })).toContainText(
+      /Rp\s24\.000/,
+    );
 
     await page.goto("/id/pos");
     await expect(page.getByRole("complementary", { name: "Keranjang" })).toContainText(
@@ -128,12 +131,13 @@ test.describe("POS terminal and checkout (FR-POS, FR-PAY)", () => {
     await page.getByRole("link", { name: "Riwayat transaksi" }).click();
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Riwayat transaksi");
     await page.getByRole("searchbox", { name: "No. invoice" }).fill(invoiceNo.slice(-9));
-    await page.getByRole("button", { name: "Terapkan" }).click();
+    await expect(page).toHaveURL(/q=/);
     const history = page.getByRole("table", { name: "Riwayat transaksi, terbaru di atas" });
     await expect(history.getByRole("row")).toHaveCount(2);
     await expect(history).toContainText("Tunai");
     await history.getByRole("link", { name: `Buka transaksi ${invoiceNo}` }).click();
-    await expect(page).toHaveURL(new RegExp(`/id/pos/sales/${saleId}$`));
+    await expect(page).toHaveURL(new RegExp(`[?&]view=${saleId}$`));
+    await expect(page.getByRole("dialog", { name: `Struk ${invoiceNo}` })).toBeVisible();
     await page.context().close();
   });
 

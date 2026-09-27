@@ -256,8 +256,6 @@
     "subtitle": "Atur permission untuk setiap role.",
     "add": "Tambah role",
     "newTitle": "Role baru",
-    "editTitle": "Ubah role",
-    "back": "Kembali ke daftar role",
     "name": "Nama role",
     "permissions": "Permission",
     "permissionCount": "{count} permission",
@@ -456,7 +454,6 @@
     "active": "Aktif",
     "inactive": "Nonaktif",
     "edit": "Ubah {name}",
-    "back": "Kembali",
     "editBankAccount": "Ubah rekening",
     "editMarketplace": "Ubah marketplace",
     "statusSection": "Status",
@@ -666,8 +663,6 @@
     "active": "Aktif",
     "inactive": "Nonaktif",
     "variantCount": "{count} varian",
-    "editTitle": "Ubah varian",
-    "back": "Kembali ke produk",
     "manageStock": "Kelola stok",
     "statusSection": "Status varian",
     "statusActive": "Varian aktif dan dapat dijual.",
@@ -871,7 +866,6 @@
     "total": "Total",
     "payments": "Pembayaran",
     "transferTo": "Transfer · {bank} {account}",
-    "newSale": "Transaksi baru",
     "status": "Status",
     "statuses": {
       "COMPLETED": "Selesai",
@@ -884,7 +878,6 @@
       "MARKETPLACE": "Marketplace",
       "KASBON": "Kas bon"
     },
-    "pageTitle": "Struk",
     "print": "Cetak / PDF",
     "void": "Void transaksi",
     "voidTitle": "Ajukan void {invoiceNo}?",
@@ -899,8 +892,7 @@
     "kasbonBalance": "Sisa kas bon",
     "openKasbon": "Buka kas bon {name}",
     "voidRequested": "Pengajuan void dikirim dan menunggu persetujuan.",
-    "voidApplied": "Transaksi berhasil di-void.",
-    "history": "Riwayat transaksi"
+    "voidApplied": "Transaksi berhasil di-void."
   },
   "Invoice": {
     "invoice": "Invoice",

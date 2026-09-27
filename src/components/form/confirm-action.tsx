@@ -15,6 +15,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { RouteDialogBoundary } from "@/components/ui/route-dialog";
 import type { Locale } from "@/config/locales";
 import type { FormAction } from "@/lib/validation/form-state";
 
@@ -86,15 +87,17 @@ export function ConfirmAction({
         <DialogContent closeLabel={labels.close}>
           <DialogTitle>{labels.title}</DialogTitle>
           <DialogDescription>{labels.description}</DialogDescription>
-          <ActionForm action={action} locale={locale} onSuccess={succeeded} successDialog={false}>
-            {children}
-            <DialogFooter>
-              <DialogClose asChild>
-                <Button variant="secondary">{labels.cancel}</Button>
-              </DialogClose>
-              <SubmitButton variant={variant}>{labels.confirm}</SubmitButton>
-            </DialogFooter>
-          </ActionForm>
+          <RouteDialogBoundary>
+            <ActionForm action={action} locale={locale} onSuccess={succeeded} successDialog={false}>
+              {children}
+              <DialogFooter>
+                <DialogClose asChild>
+                  <Button variant="secondary">{labels.cancel}</Button>
+                </DialogClose>
+                <SubmitButton variant={variant}>{labels.confirm}</SubmitButton>
+              </DialogFooter>
+            </ActionForm>
+          </RouteDialogBoundary>
         </DialogContent>
       </Dialog>
       <ResultDialog

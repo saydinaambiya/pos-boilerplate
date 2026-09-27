@@ -2,6 +2,7 @@ import { CircleCheck, CircleX, NotebookPen, ReceiptText } from "lucide-react";
 import type { Metadata } from "next";
 import { getFormatter, getLocale, getTranslations } from "next-intl/server";
 
+import { FilterForm } from "@/components/form/filter-form";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Chip } from "@/components/ui/chip";
@@ -22,10 +23,12 @@ import {
 } from "@/components/ui/table";
 import { saleStatuses } from "@/db/schema";
 import { listSales, saleHistoryMethods, saleHistoryQuery } from "@/features/checkout/history";
+import { SaleDialog } from "@/features/checkout/components/sale-dialog";
 import { ShowArchivedField } from "@/features/housekeeping/components/show-archived-field";
 import { Link } from "@/i18n/navigation";
 import { requirePermission } from "@/lib/auth/guard";
 import { formatCurrency } from "@/lib/format/currency";
+import { firstParam as first, keptQuery } from "@/lib/utils/search-params";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("SalesHistory");
@@ -40,13 +43,13 @@ const statusChips = {
 
 /**
  * Transaction history (FR-POS-10, FR-HK-04): sales in a date range with
- * invoice search and cashier, method and status filters. Each row opens the
- * sale for reprint, PDF and void.
+ * invoice search and cashier, method and status filters that apply as they
+ * change. Each row opens the sale in a dialog (`?view=`) for reprint, PDF and
+ * void (ADR-0018).
  */
 export default async function SalesHistoryPage({ searchParams }: PageProps<"/[locale]/pos/sales">) {
   const session = await requirePermission("page:pos");
   const raw = await searchParams;
-  const first = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value);
   const query = saleHistoryQuery.parse({
     from: first(raw.from),
     to: first(raw.to),
@@ -78,6 +81,8 @@ export default async function SalesHistoryPage({ searchParams }: PageProps<"/[lo
       ...(page > 1 ? { page: String(page) } : {}),
     },
   });
+  const kept = keptQuery(raw, ["view"]);
+  const viewing = first(raw.view);
   const filtered =
     query.q !== "" ||
     query.cashier !== undefined ||
@@ -100,9 +105,8 @@ export default async function SalesHistoryPage({ searchParams }: PageProps<"/[lo
       />
 
       <Card className="mb-6">
-        <form
-          method="get"
-          role="search"
+        <FilterForm
+          applyLabel={t("apply")}
           className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:items-end"
         >
           <Field label={t("from")}>
@@ -178,15 +182,12 @@ export default async function SalesHistoryPage({ searchParams }: PageProps<"/[lo
             )}
           </Field>
           <ShowArchivedField checked={query.archived === "1"} />
-          <div className="flex gap-2">
-            <Button type="submit">{t("apply")}</Button>
-            {filtered ? (
-              <Button asChild variant="ghost">
-                <Link href="/pos/sales">{t("reset")}</Link>
-              </Button>
-            ) : null}
-          </div>
-        </form>
+          {filtered ? (
+            <Button asChild variant="ghost" className="self-end justify-self-start">
+              <Link href="/pos/sales">{t("reset")}</Link>
+            </Button>
+          ) : null}
+        </FilterForm>
       </Card>
 
       <p role="status" className="mb-3 text-sm text-ink-muted">
@@ -224,7 +225,8 @@ export default async function SalesHistoryPage({ searchParams }: PageProps<"/[lo
                   <TableRow key={sale.id}>
                     <TableCell className="font-medium tabular-nums">
                       <Link
-                        href={`/pos/sales/${sale.id}`}
+                        href={{ pathname: "/pos/sales", query: { ...kept, view: sale.id } }}
+                        scroll={false}
                         aria-label={t("open", { invoiceNo: sale.invoiceNo })}
                         className="underline-offset-4 hover:underline"
                       >
@@ -288,6 +290,14 @@ export default async function SalesHistoryPage({ searchParams }: PageProps<"/[lo
           </nav>
         ) : null}
       </Card>
+      {viewing ? (
+        <SaleDialog
+          key={viewing}
+          session={session}
+          saleId={viewing}
+          closeHref={{ pathname: "/pos/sales", query: kept }}
+        />
+      ) : null}
     </>
   );
 }

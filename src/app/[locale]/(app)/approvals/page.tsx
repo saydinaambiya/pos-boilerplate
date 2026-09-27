@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { z } from "zod";
 
 import { SectionTabs } from "@/components/shell/section-tabs";
+import { FilterForm } from "@/components/form/filter-form";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -94,9 +95,8 @@ export default async function ApprovalsPage({ searchParams }: PageProps<"/[local
         ) : null}
 
         <Card className="mb-4">
-          <form
-            method="get"
-            role="search"
+          <FilterForm
+            applyLabel={t("applyFilter")}
             className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end"
           >
             <input type="hidden" name="view" value={view} />
@@ -129,15 +129,12 @@ export default async function ApprovalsPage({ searchParams }: PageProps<"/[local
             ) : (
               <span className="hidden sm:block" />
             )}
-            <div className="flex gap-2">
-              <Button type="submit">{t("applyFilter")}</Button>
-              {filtered ? (
-                <Button asChild variant="ghost">
-                  <Link href={href(view)}>{t("resetFilter")}</Link>
-                </Button>
-              ) : null}
-            </div>
-          </form>
+            {filtered ? (
+              <Button asChild variant="ghost">
+                <Link href={href(view)}>{t("resetFilter")}</Link>
+              </Button>
+            ) : null}
+          </FilterForm>
         </Card>
 
         <h2 className="sr-only">{viewLabel}</h2>

@@ -2,7 +2,7 @@
 
 import { X } from "lucide-react";
 import { Dialog as DialogPrimitive } from "radix-ui";
-import type { ComponentProps } from "react";
+import type { ComponentProps, ReactNode } from "react";
 
 import { cn } from "@/lib/utils/cn";
 
@@ -79,5 +79,23 @@ export function DialogFooter({ className, ...props }: ComponentProps<"div">) {
       className={cn("mt-2 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end", className)}
       {...props}
     />
+  );
+}
+
+/** A titled block below a dialog's main content, e.g. a record's status. */
+export function DialogSection({
+  title,
+  description,
+  className,
+  children,
+}: Omit<ComponentProps<"section">, "title"> & { title: ReactNode; description?: ReactNode }) {
+  return (
+    <section className={cn("flex flex-col gap-3 border-t border-border pt-4", className)}>
+      <div className="flex flex-col gap-1">
+        <h3 className="font-semibold text-ink">{title}</h3>
+        {description ? <p className="text-sm text-ink-muted">{description}</p> : null}
+      </div>
+      {children}
+    </section>
   );
 }

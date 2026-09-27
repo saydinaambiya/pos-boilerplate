@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { getFormatter, getLocale, getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 
-import { Button } from "@/components/ui/button";
+import { FilterForm } from "@/components/form/filter-form";
 import { Card } from "@/components/ui/card";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Field } from "@/components/ui/field";
@@ -148,15 +148,14 @@ export default async function ReportsPage({ searchParams }: PageProps<"/[locale]
       <PageHeader title={t("title")} description={t("subtitle")} />
 
       <Card className="mb-6 flex flex-col gap-4">
-        <form method="get" className="flex flex-wrap items-end gap-3">
+        <FilterForm applyLabel={t("apply")} className="flex flex-wrap items-end gap-3">
           <Field label={t("from")} className="min-w-48">
             {(control) => <DatePicker {...control} name="from" defaultValue={from} max={today} />}
           </Field>
           <Field label={t("to")} className="min-w-48">
             {(control) => <DatePicker {...control} name="to" defaultValue={to} max={today} />}
           </Field>
-          <Button type="submit">{t("apply")}</Button>
-        </form>
+        </FilterForm>
         <nav aria-label={t("presets")} className="flex flex-wrap gap-2">
           {presets.map((preset) => {
             const active = preset.from === from && preset.to === to;

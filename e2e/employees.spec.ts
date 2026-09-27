@@ -21,7 +21,7 @@ test.describe("employees & roles (FR-EMP, FR-RBAC-01)", () => {
   test.skip(({ isMobile }) => isMobile, "stateful management flows run once, on desktop");
 
   test("validates the employee form inline and keeps typed values", async ({ page }) => {
-    await page.goto("/id/employees/new");
+    await page.goto("/id/employees?new=1");
     await page.getByRole("button", { name: "Buat karyawan" }).click();
     await expectResult(page, /./, "error");
     await expect(page.getByText("Wajib diisi.").first()).toBeVisible();
@@ -42,7 +42,7 @@ test.describe("employees & roles (FR-EMP, FR-RBAC-01)", () => {
     const roleName = `Gudang ${run}`;
     const username = `gudang-${run}`;
 
-    await page.goto("/id/employees/roles/new");
+    await page.goto("/id/employees/roles?new=1");
     await page.getByLabel("Nama role").fill(roleName);
     await page.getByLabel("Halaman dasbor").check();
     await page.getByLabel("Halaman stok").check();
@@ -50,7 +50,7 @@ test.describe("employees & roles (FR-EMP, FR-RBAC-01)", () => {
     await expect(page).toHaveURL(/\/id\/employees\/roles$/);
     await expect(page.getByRole("link", { name: `Ubah ${roleName}` })).toBeVisible();
 
-    await page.goto("/id/employees/new");
+    await page.goto("/id/employees?new=1");
     await page.getByLabel("Nama").fill(`Staf Gudang ${run}`);
     await page.getByLabel("Username").fill(username);
     await choose(page, "Role", roleName);
@@ -81,7 +81,7 @@ test.describe("employees & roles (FR-EMP, FR-RBAC-01)", () => {
     browser,
   }) => {
     const username = `sementara-${run}`;
-    await page.goto("/id/employees/new");
+    await page.goto("/id/employees?new=1");
     await page.getByLabel("Nama").fill(`Sementara ${run}`);
     await page.getByLabel("Username").fill(username);
     await page.getByLabel("PIN awal").fill("246802");

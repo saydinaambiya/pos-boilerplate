@@ -76,7 +76,6 @@ test.describe("settings (FR-SET) and audit log (FR-AUD-03)", () => {
   test("shows the changes in the audit log", async ({ page }) => {
     await page.goto("/id/audit");
     await choose(page, "Aksi", "Pengaturan diubah");
-    await page.getByRole("button", { name: "Terapkan" }).click();
     await expect(page).toHaveURL(/action=settings\.updated/);
 
     const rows = page.getByRole("row").filter({ hasText: "Pengaturan diubah" });

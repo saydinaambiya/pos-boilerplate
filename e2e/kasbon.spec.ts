@@ -63,7 +63,7 @@ test.describe("store credit with approved installments (FR-PAY-05, FR-KSB)", () 
     const page = await cashierAtPos(browser);
     await page.goto("/id/kasbon");
     await page.getByRole("searchbox", { name: "Cari" }).fill(customer);
-    await page.getByRole("button", { name: "Terapkan" }).click();
+    await expect(page).toHaveURL(/q=/);
     await page.getByRole("link", { name: `Buka kas bon ${customer} (${invoiceNo})` }).click();
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(customer);
 

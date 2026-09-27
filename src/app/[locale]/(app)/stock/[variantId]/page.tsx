@@ -7,6 +7,7 @@ import { z } from "zod";
 import { ActionForm } from "@/components/form/action-form";
 import { FormField } from "@/components/form/form-field";
 import { SubmitButton } from "@/components/form/submit-button";
+import { FilterForm } from "@/components/form/filter-form";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -166,7 +167,10 @@ export default async function VariantStockPage({
         <CardHeader>
           <CardTitle>{t("history")}</CardTitle>
         </CardHeader>
-        <form method="get" className="mb-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:items-end">
+        <FilterForm
+          applyLabel={t("filter")}
+          className="mb-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:items-end"
+        >
           <Field label={t("type")}>
             {(control) => (
               <Select
@@ -191,10 +195,7 @@ export default async function VariantStockPage({
             )}
           </Field>
           <ShowArchivedField checked={filters.archived === "1"} />
-          <Button type="submit" className="self-end">
-            {t("filter")}
-          </Button>
-        </form>
+        </FilterForm>
 
         {history.movements.length === 0 ? (
           <EmptyState

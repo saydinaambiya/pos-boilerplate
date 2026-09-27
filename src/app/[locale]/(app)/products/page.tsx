@@ -2,6 +2,7 @@ import { CircleCheck, CircleOff, PackagePlus, PackageSearch } from "lucide-react
 import type { Metadata } from "next";
 import { getLocale, getTranslations } from "next-intl/server";
 
+import { FilterForm } from "@/components/form/filter-form";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Chip } from "@/components/ui/chip";
@@ -20,23 +21,27 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { CatalogTabs } from "@/features/catalog/components/catalog-tabs";
+import { NewProductDialog } from "@/features/catalog/components/new-product-dialog";
 import { StockCell } from "@/features/catalog/components/stock-cell";
 import { productFilters } from "@/features/catalog/schemas";
 import { getCategories, listProducts } from "@/features/catalog/service";
 import { Link } from "@/i18n/navigation";
 import { requirePermission } from "@/lib/auth/guard";
 import { formatCurrency } from "@/lib/format/currency";
+import { firstParam as first, keptQuery } from "@/lib/utils/search-params";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Catalog");
   return { title: t("title") };
 }
 
-/** Product list with name/SKU search and filters (FR-PRD-01/02/04). */
+/**
+ * Product list with name/SKU search and filters (FR-PRD-01/02/04); `?new=1`
+ * opens the create dialog (ADR-0018).
+ */
 export default async function ProductsPage({ searchParams }: PageProps<"/[locale]/products">) {
   const session = await requirePermission("page:products");
   const raw = await searchParams;
-  const first = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value);
   const filters = productFilters.parse({
     q: first(raw.q) ?? "",
     category: first(raw.category),
@@ -53,6 +58,8 @@ export default async function ProductsPage({ searchParams }: PageProps<"/[locale
   ]);
   const canSeeCost = session.permissions.has("product:view-cost");
   const canUpdate = session.permissions.has("product:update");
+  const canCreate = session.permissions.has("product:create") && categories.length > 0;
+  const kept = keptQuery(raw, ["new"]);
   const filtered =
     filters.q !== "" || filters.category !== undefined || filters.status !== "active";
   const query = (pageNumber: number) => ({
@@ -68,9 +75,9 @@ export default async function ProductsPage({ searchParams }: PageProps<"/[locale
         title={t("title")}
         description={t("subtitle")}
         actions={
-          session.permissions.has("product:create") && categories.length > 0 ? (
+          canCreate ? (
             <Button asChild>
-              <Link href="/products/new">
+              <Link href={{ pathname: "/products", query: { ...kept, new: "1" } }} scroll={false}>
                 <PackagePlus aria-hidden="true" />
                 {t("add")}
               </Link>
@@ -81,9 +88,8 @@ export default async function ProductsPage({ searchParams }: PageProps<"/[locale
       <CatalogTabs current="products" session={session} />
 
       <Card className="mb-6">
-        <form
-          method="get"
-          role="search"
+        <FilterForm
+          applyLabel={t("filter")}
           className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:items-end"
         >
           <Field label={t("search")}>
@@ -125,15 +131,12 @@ export default async function ProductsPage({ searchParams }: PageProps<"/[locale
               />
             )}
           </Field>
-          <div className="flex gap-2">
-            <Button type="submit">{t("filter")}</Button>
-            {filtered ? (
-              <Button asChild variant="ghost">
-                <Link href="/products">{t("reset")}</Link>
-              </Button>
-            ) : null}
-          </div>
-        </form>
+          {filtered ? (
+            <Button asChild variant="ghost" className="self-end justify-self-start">
+              <Link href="/products">{t("reset")}</Link>
+            </Button>
+          ) : null}
+        </FilterForm>
       </Card>
 
       <Card>
@@ -261,6 +264,13 @@ export default async function ProductsPage({ searchParams }: PageProps<"/[locale
           </nav>
         ) : null}
       </Card>
+      {canCreate && first(raw.new) === "1" ? (
+        <NewProductDialog
+          categories={categories}
+          canSeeCost={canSeeCost}
+          closeHref={{ pathname: "/products", query: kept }}
+        />
+      ) : null}
     </>
   );
 }

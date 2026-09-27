@@ -15,20 +15,27 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { NewVoucherDialog } from "@/features/vouchers/components/new-voucher-dialog";
 import { VoucherStatusChip } from "@/features/vouchers/components/voucher-status-chip";
 import { voucherValueText } from "@/features/vouchers/format";
 import { getVouchers } from "@/features/vouchers/service";
 import { Link } from "@/i18n/navigation";
 import { requirePermission } from "@/lib/auth/guard";
+import { firstParam } from "@/lib/utils/search-params";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Vouchers");
   return { title: t("title") };
 }
 
-/** Voucher list with derived status (expired, scheduled) and usage (PRD §3.9, §4.4). */
-export default async function VouchersPage() {
+/**
+ * Voucher list with derived status (expired, scheduled) and usage (PRD §3.9,
+ * §4.4); `?new=1` opens the proposal dialog (ADR-0018).
+ */
+export default async function VouchersPage({ searchParams }: PageProps<"/[locale]/vouchers">) {
   const session = await requirePermission("page:vouchers");
+  const canRequest = session.permissions.has("voucher:request");
+  const creating = canRequest && firstParam((await searchParams).new) === "1";
   const [t, format, locale, vouchers] = await Promise.all([
     getTranslations("Vouchers"),
     getFormatter(),
@@ -43,9 +50,9 @@ export default async function VouchersPage() {
         title={t("title")}
         description={t("subtitle")}
         actions={
-          session.permissions.has("voucher:request") ? (
+          canRequest ? (
             <Button asChild>
-              <Link href="/vouchers/new">
+              <Link href="/vouchers?new=1" scroll={false}>
                 <TicketPlus aria-hidden="true" />
                 {t("add")}
               </Link>
@@ -125,6 +132,7 @@ export default async function VouchersPage() {
           </Table>
         )}
       </Card>
+      {creating ? <NewVoucherDialog closeHref="/vouchers" /> : null}
     </>
   );
 }

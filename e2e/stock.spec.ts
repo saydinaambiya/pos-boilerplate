@@ -16,9 +16,9 @@ test.describe("stock ledger (FR-STK)", () => {
     await page.getByRole("button", { name: "Tambah kategori" }).click();
     await expectResult(page, "Kategori disimpan.");
 
-    await page.goto("/id/products/new");
+    await page.goto("/id/products?new=1");
     await page.getByLabel("Nama produk").fill(product);
-    await choose(page, "Kategori", `Sembako ${run}`);
+    await choose(page.getByRole("dialog"), "Kategori", `Sembako ${run}`);
     await page.getByLabel("Harga jual").fill("15000");
     await page.getByLabel("SKU").fill(sku);
     await page.getByLabel("Stok minimum").fill("5");
@@ -68,7 +68,7 @@ test.describe("stock ledger (FR-STK)", () => {
     await expect(history.getByRole("row").nth(3)).toContainText("Faktur 77");
 
     await choose(page, "Tipe", "Penyesuaian");
-    await page.getByRole("button", { name: "Terapkan" }).click();
+    await expect(page).toHaveURL(/type=ADJUSTMENT/);
     await expect(history.getByRole("row")).toHaveCount(2);
     await expect(history).toContainText("Opname mingguan");
   });

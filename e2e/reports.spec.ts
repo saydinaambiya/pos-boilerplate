@@ -33,7 +33,6 @@ test.describe("dashboard and sales report (FR-DSH-01, FR-RPT)", () => {
     await expect(page.getByRole("grid")).toBeHidden();
     await expect(from).not.toHaveValue(before);
     await expect(from).toHaveValue(/^\d{4}-\d{2}-\d{2}$/);
-    await page.getByRole("button", { name: "Tampilkan" }).click();
     await expect(page).toHaveURL(new RegExp(`from=${await from.inputValue()}`));
 
     const download = page.waitForEvent("download");

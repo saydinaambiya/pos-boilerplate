@@ -256,8 +256,6 @@
     "subtitle": "Set the permissions of each role.",
     "add": "Add role",
     "newTitle": "New role",
-    "editTitle": "Edit role",
-    "back": "Back to roles",
     "name": "Role name",
     "permissions": "Permissions",
     "permissionCount": "{count} permissions",
@@ -456,7 +454,6 @@
     "active": "Active",
     "inactive": "Inactive",
     "edit": "Edit {name}",
-    "back": "Back",
     "editBankAccount": "Edit bank account",
     "editMarketplace": "Edit marketplace",
     "statusSection": "Status",
@@ -666,8 +663,6 @@
     "active": "Active",
     "inactive": "Inactive",
     "variantCount": "{count} variants",
-    "editTitle": "Edit variant",
-    "back": "Back to product",
     "manageStock": "Manage stock",
     "statusSection": "Variant status",
     "statusActive": "The variant is active and can be sold.",
@@ -871,7 +866,6 @@
     "total": "Total",
     "payments": "Payments",
     "transferTo": "Transfer · {bank} {account}",
-    "newSale": "New sale",
     "status": "Status",
     "statuses": {
       "COMPLETED": "Completed",
@@ -884,7 +878,6 @@
       "MARKETPLACE": "Marketplace",
       "KASBON": "Store credit"
     },
-    "pageTitle": "Receipt",
     "print": "Print / PDF",
     "void": "Void sale",
     "voidTitle": "Request a void of {invoiceNo}?",
@@ -899,8 +892,7 @@
     "kasbonBalance": "Store credit balance",
     "openKasbon": "Open store credit of {name}",
     "voidRequested": "Void request sent and waiting for approval.",
-    "voidApplied": "Sale voided.",
-    "history": "Transaction history"
+    "voidApplied": "Sale voided."
   },
   "Invoice": {
     "invoice": "Invoice",

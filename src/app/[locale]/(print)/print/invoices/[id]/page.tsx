@@ -74,7 +74,7 @@ export default async function PrintInvoicePage({
         lang={lang}
         size={size}
         pdfHref={`/api/v1/sales/${id}/invoice?${new URLSearchParams({ size, lang }).toString()}`}
-        backHref={`/pos/sales/${id}`}
+        backHref={`/pos/sales?view=${id}`}
         autoPrint={first(query.print) === "1"}
         sizes={invoiceSizes.map((option) => ({
           label: t(`sizes.${option}`),

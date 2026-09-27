@@ -16,21 +16,24 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { EmployeeStatusChips } from "@/features/employees/components/employee-status-chips";
+import { NewEmployeeDialog } from "@/features/employees/components/new-employee-dialog";
 import { EmployeeTabs } from "@/features/employees/components/employee-tabs";
 import { getEmployees } from "@/features/employees/service";
 import { Link } from "@/i18n/navigation";
 import { requirePermission } from "@/lib/auth/guard";
+import { firstParam } from "@/lib/utils/search-params";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Employees");
   return { title: t("title") };
 }
 
-/** Employee list (FR-EMP-01/02). */
-export default async function EmployeesPage() {
+/** Employee list (FR-EMP-01/02); `?new=1` opens the create dialog (ADR-0018). */
+export default async function EmployeesPage({ searchParams }: PageProps<"/[locale]/employees">) {
   const session = await requirePermission("page:employees");
   const [t, employees] = await Promise.all([getTranslations("Employees"), getEmployees(session)]);
   const canManage = session.permissions.has("employee:manage");
+  const creating = canManage && firstParam((await searchParams).new) === "1";
   const now = new Date();
 
   return (
@@ -41,7 +44,7 @@ export default async function EmployeesPage() {
         actions={
           canManage ? (
             <Button asChild>
-              <Link href="/employees/new">
+              <Link href="/employees?new=1" scroll={false}>
                 <UserPlus aria-hidden="true" />
                 {t("add")}
               </Link>
@@ -95,6 +98,7 @@ export default async function EmployeesPage() {
           </Table>
         )}
       </Card>
+      {creating ? <NewEmployeeDialog session={session} closeHref="/employees" /> : null}
     </>
   );
 }

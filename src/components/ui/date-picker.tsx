@@ -45,7 +45,9 @@ function toIso(date: Date): string {
 /**
  * Date field in the design system's style (FR-UI-01): a button showing the
  * date in the user's language that opens a keyboard-navigable calendar grid.
- * The value is a plain `YYYY-MM-DD`, so servers parse it as before.
+ * The value is a plain `YYYY-MM-DD`, so servers parse it as before; a pick
+ * fires a bubbling `input` event on the hidden input like a native control
+ * (ADR-0018).
  */
 export function DatePicker({
   id,
@@ -67,9 +69,16 @@ export function DatePicker({
   const current = value ?? inner;
   const selected = parseIso(current);
   const hiddenRef = useRef<HTMLInputElement>(null);
+  const picked = useRef(false);
   const minDate = parseIso(min);
   const maxDate = parseIso(max);
   const initialMonth = selected ?? maxDate;
+
+  useEffect(() => {
+    if (!picked.current) return;
+    picked.current = false;
+    hiddenRef.current?.dispatchEvent(new Event("input", { bubbles: true }));
+  }, [current]);
 
   useEffect(() => {
     const form = hiddenRef.current?.form;
@@ -84,6 +93,7 @@ export function DatePicker({
   }, [defaultValue, value]);
 
   const change = (next: string) => {
+    if (next !== current) picked.current = true;
     if (value === undefined) setInner(next);
     onValueChange?.(next);
   };

@@ -59,5 +59,5 @@ export async function closeShiftAction(
 
   const result = await closeShift(session, parsed.data, await currentRequestContext());
   if (!result.ok) return { status: "error", message: t("errorNoOpenShift") };
-  return redirect({ href: `/pos/shifts/${result.id}`, locale });
+  return redirect({ href: `/pos/shifts?view=${result.id}`, locale });
 }

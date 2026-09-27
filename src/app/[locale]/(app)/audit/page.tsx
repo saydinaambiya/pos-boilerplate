@@ -2,6 +2,7 @@ import { ScrollText } from "lucide-react";
 import type { Metadata } from "next";
 import { getFormatter, getTranslations } from "next-intl/server";
 
+import { FilterForm } from "@/components/form/filter-form";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -59,7 +60,10 @@ export default async function AuditPage({ searchParams }: PageProps<"/[locale]/a
       <PageHeader title={t("title")} description={t("subtitle")} />
 
       <Card className="mb-6">
-        <form method="get" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5 lg:items-end">
+        <FilterForm
+          applyLabel={t("apply")}
+          className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5 lg:items-end"
+        >
           <Field label={t("actor")}>
             {(control) => (
               <Select
@@ -99,13 +103,10 @@ export default async function AuditPage({ searchParams }: PageProps<"/[locale]/a
               <DatePicker {...control} name="to" defaultValue={filters.to ?? ""} clearable />
             )}
           </Field>
-          <div className="flex gap-2">
-            <Button type="submit">{t("apply")}</Button>
-            <Button asChild variant="ghost">
-              <Link href="/audit">{t("reset")}</Link>
-            </Button>
-          </div>
-        </form>
+          <Button asChild variant="ghost" className="self-end justify-self-start">
+            <Link href="/audit">{t("reset")}</Link>
+          </Button>
+        </FilterForm>
       </Card>
 
       <Card>

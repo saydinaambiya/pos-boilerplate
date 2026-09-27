@@ -40,8 +40,9 @@ test.describe("void through approvals (FR-POS-09, FR-APR)", () => {
     const success = page.getByRole("dialog", { name: "Transaksi berhasil" });
     invoiceNo = (/INV-\d{8}-\d{4}/.exec(await success.innerText()) ?? [""])[0];
     await success.getByRole("link", { name: "Lihat struk" }).click();
-    await expect(page).toHaveURL(/\/id\/pos\/sales\/[0-9a-f-]+$/);
-    saleUrl = new URL(page.url()).pathname;
+    await expect(page).toHaveURL(/\/id\/pos\/sales\?view=[0-9a-f-]+$/);
+    const url = new URL(page.url());
+    saleUrl = `${url.pathname}${url.search}`;
 
     await page.getByRole("button", { name: "Void transaksi" }).click();
     const dialog = page.getByRole("dialog", { name: `Ajukan void ${invoiceNo}?` });

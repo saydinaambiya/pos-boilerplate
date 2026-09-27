@@ -157,7 +157,7 @@ export async function ApprovalCard({
         ) : null}
         {approval.type === "VOID" ? (
           <Link
-            href={`/pos/sales/${approval.targetId}`}
+            href={`/pos/sales?view=${approval.targetId}`}
             className="inline-flex min-h-11 items-center text-sm font-medium underline-offset-4 hover:underline"
           >
             {t("openTarget")}

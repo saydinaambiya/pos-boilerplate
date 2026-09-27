@@ -49,7 +49,8 @@ const fromItem = (value: string) => (value === EMPTY ? "" : value);
  * value posted through a hidden input. Until hydration a static button with
  * the same look is rendered: Radix emits inline `style` attributes during
  * server rendering, which the nonce CSP blocks (ADR-0003). A form reset
- * restores the default.
+ * restores the default; a pick fires a bubbling `input` event on the hidden
+ * input so forms can react like to a native control (ADR-0018).
  */
 export function Select({
   options,
@@ -68,6 +69,7 @@ export function Select({
   const current = value ?? inner;
   const selected = options.find((option) => option.value === current);
   const hiddenRef = useRef<HTMLInputElement>(null);
+  const picked = useRef(false);
   const hydrated = useSyncExternalStore(
     subscribeNever,
     () => true,
@@ -86,6 +88,12 @@ export function Select({
       <ChevronDown className="size-4 shrink-0 text-ink-muted" aria-hidden="true" />
     </>
   );
+
+  useEffect(() => {
+    if (!picked.current) return;
+    picked.current = false;
+    hiddenRef.current?.dispatchEvent(new Event("input", { bubbles: true }));
+  }, [current]);
 
   useEffect(() => {
     const form = hiddenRef.current?.form;
@@ -118,6 +126,7 @@ export function Select({
         value={toItem(current)}
         onValueChange={(next) => {
           const real = fromItem(next);
+          if (real !== current) picked.current = true;
           if (value === undefined) setInner(real);
           onValueChange?.(real);
         }}

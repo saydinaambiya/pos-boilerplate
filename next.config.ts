@@ -18,6 +18,26 @@ function assertBrandAssets(): void {
   }
 }
 
+/**
+ * Former single-form and detail pages, now dialogs on their list pages
+ * (ADR-0018). More specific sources come first.
+ */
+const dialogRedirects: [source: string, destination: string][] = [
+  ["/pos/sales/:id", "/pos/sales?view=:id"],
+  ["/pos/shifts/:id", "/pos/shifts?view=:id"],
+  ["/pos/shift/close", "/pos?close=1"],
+  ["/vouchers/new", "/vouchers?new=1"],
+  ["/products/new", "/products?new=1"],
+  ["/products/categories/:id", "/products/categories?edit=:id"],
+  ["/products/:id/variants/:variantId", "/products/:id?variant=:variantId"],
+  ["/employees/new", "/employees?new=1"],
+  ["/employees/roles/new", "/employees/roles?new=1"],
+  ["/employees/roles/:id", "/employees/roles?edit=:id"],
+  ["/online-orders/new", "/online-orders?new=1"],
+  ["/settings/bank-accounts/:id", "/settings/bank-accounts?edit=:id"],
+  ["/settings/marketplaces/:id", "/settings/marketplaces?edit=:id"],
+];
+
 assertAppConfig(appConfig);
 assertBrandAssets();
 
@@ -28,6 +48,15 @@ const nextConfig: NextConfig = {
   experimental: { authInterrupts: true },
   /** Native bindings and the PDF engine stay runtime requires instead of being bundled. */
   serverExternalPackages: ["@node-rs/argon2", "@react-pdf/renderer"],
+  redirects() {
+    return Promise.resolve(
+      dialogRedirects.map(([source, destination]) => ({
+        source: `/:locale${source}`,
+        destination: `/:locale${destination}`,
+        permanent: false,
+      })),
+    );
+  },
   headers() {
     return Promise.resolve([{ source: "/:path*", headers: [...staticSecurityHeaders] }]);
   },

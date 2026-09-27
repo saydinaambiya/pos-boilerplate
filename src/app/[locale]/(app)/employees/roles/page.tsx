@@ -17,18 +17,23 @@ import {
 } from "@/components/ui/table";
 import { permissions } from "@/config/permissions";
 import { EmployeeTabs } from "@/features/employees/components/employee-tabs";
+import { RoleDialog } from "@/features/roles/components/role-dialog";
 import { getRoles } from "@/features/roles/service";
 import { Link } from "@/i18n/navigation";
 import { requirePermission } from "@/lib/auth/guard";
+import { firstParam } from "@/lib/utils/search-params";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Roles");
   return { title: t("title") };
 }
 
-/** Role list (FR-RBAC-01). */
-export default async function RolesPage() {
+/** Role list (FR-RBAC-01); `?new=1` and `?edit=` open the role dialog (ADR-0018). */
+export default async function RolesPage({ searchParams }: PageProps<"/[locale]/employees/roles">) {
   const session = await requirePermission("role:manage");
+  const raw = await searchParams;
+  const editing = firstParam(raw.edit);
+  const dialogRole = editing ?? (firstParam(raw.new) === "1" ? null : undefined);
   const [t, tEmployees, roles] = await Promise.all([
     getTranslations("Roles"),
     getTranslations("Employees"),
@@ -42,7 +47,7 @@ export default async function RolesPage() {
         description={t("subtitle")}
         actions={
           <Button asChild>
-            <Link href="/employees/roles/new">
+            <Link href="/employees/roles?new=1" scroll={false}>
               <ShieldPlus aria-hidden="true" />
               {t("add")}
             </Link>
@@ -66,7 +71,8 @@ export default async function RolesPage() {
               <TableRow key={role.id}>
                 <TableCell className="font-medium">
                   <Link
-                    href={`/employees/roles/${role.id}`}
+                    href={{ pathname: "/employees/roles", query: { edit: role.id } }}
+                    scroll={false}
                     aria-label={t("edit", { name: role.name })}
                     className="underline-offset-4 hover:underline"
                   >
@@ -102,6 +108,14 @@ export default async function RolesPage() {
           </TableBody>
         </Table>
       </Card>
+      {dialogRole === undefined ? null : (
+        <RoleDialog
+          key={dialogRole ?? "new"}
+          session={session}
+          roleId={dialogRole}
+          closeHref="/employees/roles"
+        />
+      )}
     </>
   );
 }

@@ -33,9 +33,9 @@ export async function createStockedProduct(
   await page.getByRole("button", { name: "Tambah kategori" }).click();
   await expectResult(page, "Kategori disimpan.");
 
-  await page.goto("/id/products/new");
+  await page.goto("/id/products?new=1");
   await page.getByLabel("Nama produk").fill(options.name);
-  await choose(page, "Kategori", options.category);
+  await choose(page.getByRole("dialog"), "Kategori", options.category);
   await page.getByLabel("Harga jual").fill(options.price);
   await page.getByLabel("SKU").fill(options.sku);
   await page.getByRole("button", { name: "Simpan produk" }).click();

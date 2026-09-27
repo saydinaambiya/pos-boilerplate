@@ -31,7 +31,7 @@ test.describe("vouchers with approval and POS use (FR-VCH, FR-POS-03)", () => {
 
   test("a cashier proposes a voucher that waits for approval", async ({ browser }) => {
     const page = await cashierAtPos(browser);
-    await page.goto("/id/vouchers/new");
+    await page.goto("/id/vouchers?new=1");
     await page.getByLabel("Kode").fill(code.toLowerCase());
     await page.getByLabel("Nama").fill("Diskon E2E");
     await page.getByLabel("Nilai").fill("120");
@@ -52,11 +52,9 @@ test.describe("vouchers with approval and POS use (FR-VCH, FR-POS-03)", () => {
     await page.goto("/id/approvals");
     const card = page.getByRole("listitem").filter({ hasText: code });
     await choose(page, "Jenis pengajuan", "Void transaksi");
-    await page.getByRole("button", { name: "Terapkan" }).click();
     await expect(page).toHaveURL(/type=VOID/);
     await expect(card).toHaveCount(0);
     await choose(page, "Jenis pengajuan", "Voucher");
-    await page.getByRole("button", { name: "Terapkan" }).click();
     await expect(page).toHaveURL(/type=VOUCHER/);
     await expect(card).toContainText("Voucher baru");
     await expect(card).toContainText("10%");

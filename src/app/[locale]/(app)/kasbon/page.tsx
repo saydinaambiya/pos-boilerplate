@@ -2,6 +2,7 @@ import { NotebookPen } from "lucide-react";
 import type { Metadata } from "next";
 import { getLocale, getTranslations } from "next-intl/server";
 
+import { FilterForm } from "@/components/form/filter-form";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -96,9 +97,8 @@ export default async function KasbonPage({ searchParams }: PageProps<"/[locale]/
       </section>
 
       <Card className="mb-6">
-        <form
-          method="get"
-          role="search"
+        <FilterForm
+          applyLabel={t("apply")}
           className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:items-end"
         >
           <Field label={t("search")}>
@@ -127,15 +127,12 @@ export default async function KasbonPage({ searchParams }: PageProps<"/[locale]/
             )}
           </Field>
           <ShowArchivedField checked={query.archived === "1"} />
-          <div className="flex gap-2">
-            <Button type="submit">{t("apply")}</Button>
-            {filtered ? (
-              <Button asChild variant="ghost">
-                <Link href="/kasbon">{t("reset")}</Link>
-              </Button>
-            ) : null}
-          </div>
-        </form>
+          {filtered ? (
+            <Button asChild variant="ghost" className="self-end justify-self-start">
+              <Link href="/kasbon">{t("reset")}</Link>
+            </Button>
+          ) : null}
+        </FilterForm>
       </Card>
 
       <Card>
