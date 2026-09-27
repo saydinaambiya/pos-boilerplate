@@ -102,7 +102,7 @@ test.describe("store credit with approved installments (FR-PAY-05, FR-KSB)", () 
       .click();
     await expect(page.getByRole("listitem").filter({ hasText: customer })).toHaveCount(0);
 
-    await page.goto("/id/kasbon?filter=all");
+    await page.goto(`/id/kasbon?filter=all&q=${encodeURIComponent(customer)}`);
     await page.getByRole("link", { name: `Buka kas bon ${customer} (${invoiceNo})` }).click();
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(customer);
     await expect(page.getByText("Dicicil")).toBeVisible();

@@ -4,7 +4,7 @@ pre-commit:
   jobs:
     - name: eslint
       glob: "*.{ts,tsx,js,mjs}"
-      run: pnpm exec eslint --max-warnings=0 {staged_files}
+      run: pnpm exec next typegen && pnpm exec eslint --max-warnings=0 {staged_files}
     - name: prettier
       glob: "*.{ts,tsx,js,mjs,json,md,css,yml,yaml}"
       run: pnpm exec prettier --check {staged_files}
