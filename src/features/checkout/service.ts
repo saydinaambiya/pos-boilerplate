@@ -86,8 +86,12 @@ function storeDay(timeZone: string, now: Date): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone }).format(now).replaceAll("-", "");
 }
 
-async function replay(userId: string, input: CheckoutInput): Promise<CheckoutResult | null> {
-  const record = await findIdempotencyRecord(db, userId, input.idempotencyKey);
+async function replay(
+  userId: string,
+  input: CheckoutInput,
+  now: Date,
+): Promise<CheckoutResult | null> {
+  const record = await findIdempotencyRecord(db, userId, input.idempotencyKey, now);
   if (!record) return null;
   if (record.requestHash !== requestHash(input))
     return { ok: false, reason: "idempotency-conflict" };
@@ -118,7 +122,7 @@ export async function checkout(
   now = new Date(),
 ): Promise<CheckoutResult> {
   assertPermission(session, "page:pos");
-  const replayed = await replay(session.user.id, input);
+  const replayed = await replay(session.user.id, input, now);
   if (replayed) return replayed;
 
   if (input.lines.some((line) => line.discount) && !session.permissions.has("pos:item-discount")) {
@@ -302,7 +306,7 @@ export async function checkout(
       constraint === "sales_cashier_idempotency_key" ||
       constraint === "idempotency_keys_user_key"
     ) {
-      const concurrent = await replay(session.user.id, input);
+      const concurrent = await replay(session.user.id, input, now);
       if (concurrent) return concurrent;
     }
     throw error;
