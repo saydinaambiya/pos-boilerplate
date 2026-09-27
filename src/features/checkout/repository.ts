@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, eq, gte, inArray, isNull, lt, sql } from "drizzle-orm";
+import { and, asc, eq, gt, gte, inArray, isNull, lt, sql } from "drizzle-orm";
 
 import { db, type Executor } from "@/db/client";
 import {
@@ -98,7 +98,16 @@ export async function insertPayments(
     await executor.insert(payments).values(prepared.map((payment) => ({ saleId, ...payment })));
 }
 
-export async function findIdempotencyRecord(executor: Executor, userId: string, key: string) {
+/**
+ * Stored checkout result for a key that is still valid at `now`, the same
+ * clock that set its expiry (FR-POS-08).
+ */
+export async function findIdempotencyRecord(
+  executor: Executor,
+  userId: string,
+  key: string,
+  now: Date,
+) {
   const [row] = await executor
     .select({ requestHash: idempotencyKeys.requestHash, response: idempotencyKeys.response })
     .from(idempotencyKeys)
@@ -106,7 +115,7 @@ export async function findIdempotencyRecord(executor: Executor, userId: string, 
       and(
         eq(idempotencyKeys.userId, userId),
         eq(idempotencyKeys.key, key),
-        sql`${idempotencyKeys.expiresAt} > now()`,
+        gt(idempotencyKeys.expiresAt, now),
       ),
     )
     .limit(1);
