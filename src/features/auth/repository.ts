@@ -51,6 +51,11 @@ export async function registerFailedAttempt(
   return row?.lockedUntil?.getTime() === lockUntil.getTime() ? lockUntil : null;
 }
 
+/** Serialises concurrent logins of one account, e.g. for the device limit (FR-AUTH-09). */
+export async function lockUser(executor: Executor, userId: string): Promise<void> {
+  await executor.select({ id: users.id }).from(users).where(eq(users.id, userId)).for("update");
+}
+
 export async function clearFailedAttempts(executor: Executor, userId: string): Promise<void> {
   await executor
     .update(users)

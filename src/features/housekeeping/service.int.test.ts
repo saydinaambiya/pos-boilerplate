@@ -15,7 +15,7 @@ import {
   sales,
   stockMovements,
 } from "@/db/schema";
-import { createCategory, createProduct } from "@/features/catalog/service";
+import { createProduct } from "@/features/catalog/service";
 import { checkout } from "@/features/checkout/service";
 import { createOnlineOrder, listOnlineOrders } from "@/features/online-orders/service";
 import { getSalesReport } from "@/features/reports/service";
@@ -42,13 +42,10 @@ async function setup() {
     testContext(),
   );
   await openShift(session, { openingCash: 0 }, testContext());
-  const category = await createCategory(session, { name: "Kaos", sortOrder: 0 }, testContext());
-  if (!category.ok) throw new Error(category.reason);
   const product = await createProduct(
     session,
     {
       name: "Kaos",
-      categoryId: category.id,
       price: 50_000,
       cost: 20_000,
       unit: "pcs",
@@ -73,16 +70,12 @@ async function sell(session: Session, variantId: string, paid: number, credit = 
     session,
     {
       idempotencyKey: crypto.randomUUID(),
+      customer: credit
+        ? { name: "Bu Sari", phone: "+6281234567890" }
+        : { name: "Pembeli", phone: null },
       lines: [{ variantId, qty: 1 }],
       payments: paid > 0 ? [{ method: "CASH", amount: paid }] : [],
-      ...(credit
-        ? {
-            kasbon: {
-              customer: { name: "Bu Sari", phone: "+6281234567890", note: "" },
-              dueDate: null,
-            },
-          }
-        : {}),
+      ...(credit ? { kasbon: { note: "", dueDate: null } } : {}),
     },
     testContext(),
     MAY,

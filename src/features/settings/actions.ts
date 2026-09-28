@@ -11,7 +11,12 @@ import { requirePermission } from "@/lib/auth/guard";
 import { formText } from "@/lib/http/form-data";
 import { currentRequestContext } from "@/lib/http/request-context";
 import { percentToBasisPoints } from "@/lib/settings/rates";
-import { type SettingKey, settingDefinitions } from "@/lib/settings/schemas";
+import {
+  type SettingKey,
+  settingDefinitions,
+  storeHoursSchema,
+  weekdays,
+} from "@/lib/settings/schemas";
 import { fieldErrors, type FormState, submittedValues } from "@/lib/validation/form-state";
 
 import { bankAccountInput, marketplaceInput } from "./schemas";
@@ -120,7 +125,45 @@ export async function updateOperationsAction(
     heldOrderHours: integer(formData, "heldOrderHours"),
     housekeepingRetentionMonths: integer(formData, "housekeepingRetentionMonths"),
     sessionIdleMinutes: integer(formData, "sessionIdleMinutes"),
+    maxDevicesPerUser: integer(formData, "maxDevicesPerUser"),
   });
+}
+
+/**
+ * Opening hours per weekday (FR-SET-09). Fields are named per day
+ * (`mon-open`, `mon-close`, `mon-closed`); a closing time that is not after
+ * the opening time is reported on that day's closing field.
+ */
+export async function updateStoreHoursAction(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const locale = localeFromForm(formData);
+  const session = await requirePermission("settings:manage", locale);
+  const [t] = await translations(locale);
+  const values = submittedValues(formData, [...formData.keys()]);
+  const parsed = storeHoursSchema.safeParse({
+    enabled: checkbox(formData, "enabled"),
+    days: weekdays.map((day) => ({
+      closed: checkbox(formData, `${day}-closed`),
+      open: formText(formData, `${day}-open`).trim(),
+      close: formText(formData, `${day}-close`).trim(),
+    })),
+  });
+  if (!parsed.success) {
+    const errors: Record<string, string> = {};
+    for (const issue of parsed.error.issues) {
+      const [, index, field] = issue.path;
+      const day = typeof index === "number" ? weekdays[index] : undefined;
+      if (!day) continue;
+      errors[`${day}-${field === "open" ? "open" : "close"}`] ??=
+        issue.code === "custom" ? t("hoursCloseAfterOpen") : t("hoursInvalidTime");
+    }
+    return { status: "error", errors, values };
+  }
+  await updateSettings(session, "store.hours", parsed.data, await currentRequestContext());
+  revalidatePath("/", "layout");
+  return { status: "success", message: t("saved") };
 }
 
 async function masterDataFailure(

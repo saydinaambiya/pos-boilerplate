@@ -32,10 +32,14 @@ export type VoidResult =
  * Applies an approved void: the sale becomes `VOIDED` and sold stock returns
  * through `VOID` movements, in the approval's transaction (FR-POS-09,
  * FR-STK-01). Raises `ApprovalConflict` if the sale is no longer completed.
+ * Sales that settle a salesperson's goods are never voided: their stock left
+ * at pickup, so a `VOID` movement would count it twice (FR-CSG-06).
  */
 export const applyVoid: ApplyApproval = async (tx, approval, actor, context) => {
   const sale = await lockSale(tx, approval.targetId);
-  if (sale?.status !== "COMPLETED") throw new ApprovalConflict("not-voidable");
+  if (sale?.status !== "COMPLETED" || sale.consignmentId) {
+    throw new ApprovalConflict("not-voidable");
+  }
   await setSaleStatus(tx, sale.id, "VOIDED");
   if (sale.voucherId) await releaseVoucher(tx, sale.voucherId);
   for (const line of await soldTrackedQuantities(tx, sale.id)) {
@@ -88,7 +92,9 @@ export async function requestVoid(
   assertPermission(session, "sale:void");
   const sale = await getSale(session, saleId);
   if (!sale) return { ok: false, reason: "not-found" };
-  if (sale.status !== "COMPLETED") return { ok: false, reason: "not-voidable" };
+  if (sale.status !== "COMPLETED" || sale.consignmentId) {
+    return { ok: false, reason: "not-voidable" };
+  }
   try {
     const result = await db.transaction((tx) =>
       submitApproval(

@@ -14,7 +14,7 @@ import {
   sales,
 } from "@/db/schema";
 import { cancelApproval, decideApproval } from "@/features/approvals/service";
-import { createCategory, createProduct } from "@/features/catalog/service";
+import { createProduct } from "@/features/catalog/service";
 import { checkout } from "@/features/checkout/service";
 import { requestVoid } from "@/features/checkout/void-service";
 import { createBankAccount } from "@/features/settings/service";
@@ -41,17 +41,10 @@ async function grant(...permissions: Permission[]) {
 /** A 100.000 rupiah untracked product. */
 async function sellable() {
   const session = await owner();
-  const category = await createCategory(
-    session,
-    { name: `K-${crypto.randomUUID()}`, sortOrder: 0 },
-    testContext(),
-  );
-  if (!category.ok) throw new Error(category.reason);
   const product = await createProduct(
     session,
     {
       name: "Paket",
-      categoryId: category.id,
       price: 100_000,
       cost: 0,
       unit: "pcs",
@@ -69,7 +62,12 @@ async function sellable() {
   return variant?.id ?? "";
 }
 
-const credit = (overrides: Partial<KasbonCheckoutInput> = {}): KasbonCheckoutInput => ({
+interface Credit {
+  customer: { name: string; phone: string; note: string };
+  dueDate: KasbonCheckoutInput["dueDate"];
+}
+
+const credit = (overrides: Partial<Credit> = {}): Credit => ({
   customer: { name: "Bu Sari", phone: "+6281234567890", note: "" },
   dueDate: null,
   ...overrides,
@@ -79,16 +77,19 @@ function sellOnCredit(
   session: Session,
   variantId: string,
   downPayment: number,
-  kasbon: KasbonCheckoutInput | null = credit(),
+  kasbon: Credit | null = credit(),
   now = NOW,
 ) {
   return checkout(
     session,
     {
       idempotencyKey: crypto.randomUUID(),
+      customer: kasbon
+        ? { name: kasbon.customer.name, phone: kasbon.customer.phone }
+        : { name: "Pembeli", phone: null },
       lines: [{ variantId, qty: 1 }],
       payments: downPayment > 0 ? [{ method: "CASH", amount: downPayment }] : [],
-      ...(kasbon ? { kasbon } : {}),
+      ...(kasbon ? { kasbon: { note: kasbon.customer.note, dueDate: kasbon.dueDate } } : {}),
     },
     testContext(),
     now,

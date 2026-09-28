@@ -47,6 +47,9 @@ export async function loginAction(_previous: LoginState, formData: FormData): Pr
   const result = await login(parsed.data, await currentRequestContext());
   if (!result.ok) {
     if (result.reason === "invalid") return { error: invalid, username, method };
+    if (result.reason === "device-limit") {
+      return { error: t("errorDeviceLimit", { count: result.maxDevices }), username, method };
+    }
     const minutes = toMinutes(result.retryAfterSeconds);
     return {
       error: t(result.reason === "locked" ? "errorLocked" : "errorRateLimited", { minutes }),

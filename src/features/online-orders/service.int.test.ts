@@ -12,7 +12,7 @@ import {
   roles,
   stockMovements,
 } from "@/db/schema";
-import { createCategory, createProduct } from "@/features/catalog/service";
+import { createProduct } from "@/features/catalog/service";
 import { createMarketplace } from "@/features/settings/service";
 import { receiveStock } from "@/features/stock/service";
 import type { Session } from "@/lib/auth/session";
@@ -51,17 +51,10 @@ async function marketplace(name = "Shopee") {
 async function stocked(stock: number) {
   seq += 1;
   const session = await owner();
-  const category = await createCategory(
-    session,
-    { name: `Kat ${String(seq)}`, sortOrder: 0 },
-    testContext(),
-  );
-  if (!category.ok) throw new Error(category.reason);
   const product = await createProduct(
     session,
     {
       name: `Kaos ${String(seq)}`,
-      categoryId: category.id,
       price: 25_000,
       cost: 10_000,
       unit: "pcs",

@@ -21,7 +21,6 @@ test.describe("vouchers with approval and POS use (FR-VCH, FR-POS-03)", () => {
     await grantEmployeePermission(page, "Halaman voucher");
     await grantEmployeePermission(page, "Ajukan voucher");
     await createStockedProduct(page, {
-      category: `Pastry ${run}`,
       name: product,
       sku,
       price: "50000",
@@ -89,6 +88,7 @@ test.describe("vouchers with approval and POS use (FR-VCH, FR-POS-03)", () => {
 
     await page.keyboard.press("F2");
     const payment = page.getByRole("dialog", { name: "Pembayaran" });
+    await payment.getByLabel("Nama pelanggan").fill("Pembeli E2E");
     await payment.getByRole("button", { name: "Uang pas" }).click();
     await payment.getByRole("button", { name: "Selesaikan transaksi" }).click();
     const success = page.getByRole("dialog", { name: "Transaksi berhasil" });

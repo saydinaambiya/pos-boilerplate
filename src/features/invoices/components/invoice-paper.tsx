@@ -55,11 +55,13 @@ function Thermal({ document: doc, labels, tendered }: Omit<InvoicePaperProps, "s
       <Row label={labels.number} value={doc.invoiceNo} />
       <Row label={labels.date} value={doc.issuedAtText} />
       <Row label={labels.cashier} value={doc.cashierName} />
+      {doc.customerName ? <Row label={labels.customer} value={doc.customerName} /> : null}
       <div className="rule" />
       <ul>
         {doc.items.map((item, index) => (
           <li key={index} className="mb-1">
             <p>{item.name}</p>
+            {item.details ? <p>{item.details}</p> : null}
             <Row
               label={`${String(item.qty)} × ${money(item.unitPrice)}`}
               value={money(item.qty * item.unitPrice)}
@@ -95,10 +97,7 @@ function Thermal({ document: doc, labels, tendered }: Omit<InvoicePaperProps, "s
         <Row key={index} label={payment.label} value={money(payment.amount)} />
       ))}
       {doc.kasbon ? (
-        <>
-          <Row label={labels.kasbonBalance} value={money(doc.kasbon.balance)} strong />
-          <Row label={labels.customer} value={doc.kasbon.customerName} />
-        </>
+        <Row label={labels.kasbonBalance} value={money(doc.kasbon.balance)} strong />
       ) : null}
       {tendered ? (
         <>
@@ -138,6 +137,7 @@ function A4({ document: doc, labels, tendered }: Omit<InvoicePaperProps, "size">
           <p>{`${labels.number} ${doc.invoiceNo}`}</p>
           <p>{`${labels.date} ${doc.issuedAtText}`}</p>
           <p>{`${labels.cashier} ${doc.cashierName}`}</p>
+          {doc.customerName ? <p>{`${labels.customer} ${doc.customerName}`}</p> : null}
         </div>
       </header>
       <table className="w-full border-collapse">
@@ -153,7 +153,10 @@ function A4({ document: doc, labels, tendered }: Omit<InvoicePaperProps, "size">
         <tbody>
           {doc.items.map((item, index) => (
             <tr key={index} className="border-b border-black/20 align-top">
-              <td className="py-1 pr-2">{item.name}</td>
+              <td className="py-1 pr-2">
+                {item.name}
+                {item.details ? <span className="block text-xs">{item.details}</span> : null}
+              </td>
               <td className="amount py-1 pr-2 text-right">{item.qty}</td>
               <td className="amount py-1 pr-2 text-right">{money(item.unitPrice)}</td>
               <td className="amount py-1 pr-2 text-right">
@@ -186,10 +189,7 @@ function A4({ document: doc, labels, tendered }: Omit<InvoicePaperProps, "size">
           <Row key={index} label={payment.label} value={money(payment.amount)} />
         ))}
         {doc.kasbon ? (
-          <>
-            <Row label={labels.kasbonBalance} value={money(doc.kasbon.balance)} strong />
-            <Row label={labels.customer} value={doc.kasbon.customerName} />
-          </>
+          <Row label={labels.kasbonBalance} value={money(doc.kasbon.balance)} strong />
         ) : null}
         {tendered ? (
           <>

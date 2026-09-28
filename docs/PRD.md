@@ -2,25 +2,28 @@
 
 | Atribut         | Nilai              |
 | --------------- | ------------------ |
-| Versi dokumen   | 0.9.0 (draft)      |
-| Tanggal         | 2026-09-26         |
+| Versi dokumen   | 0.12.0 (draft)     |
+| Tanggal         | 2026-09-28         |
 | Pemilik         | Owner              |
 | Status          | Menunggu review    |
 | Dokumen terkait | [BRD.md](./BRD.md) |
 
 ## Riwayat Perubahan
 
-| Versi | Tanggal    | Perubahan                                                                                                             |
-| ----- | ---------- | --------------------------------------------------------------------------------------------------------------------- |
-| 0.1.0 | 2026-09-25 | Draft pertama                                                                                                         |
-| 0.2.0 | 2026-09-25 | Delegasi approval per jenis via permission; total tanpa pembulatan; uang diterima & kembalian tidak disimpan          |
-| 0.3.0 | 2026-09-25 | Varian warna produk: model varian, stok per varian, pemilih varian di POS, perubahan model data                       |
-| 0.4.0 | 2026-09-25 | Pengaturan tampilan hanya lewat src/config/appearance.ts; daftar nilai yang tersedia                                  |
-| 0.5.0 | 2026-09-25 | Identitas toko & logo dipindah ke config; appearance.ts digabung menjadi src/config/app.config.ts                     |
-| 0.6.0 | 2026-09-25 | Alamat, telepon, email, NPWP, dan footer invoice kembali ke menu Pengaturan owner                                     |
-| 0.7.0 | 2026-09-25 | Budget JS disesuaikan dengan baseline Next.js 16 yang terukur (NFR-PERF-02); contoh config memakai tipe `AppConfig`   |
-| 0.8.0 | 2026-09-26 | Keputusan auth (ADR-0006) dan akses database (ADR-0005); tabel `roles` punya `is_active` untuk FR-RBAC-01             |
-| 0.9.0 | 2026-09-26 | Kas bon (ADR-0012): permission `kasbon:pay` untuk FR-KSB-03, pelanggan unik per no. HP, cicilan tunai masuk kas shift |
+| Versi  | Tanggal    | Perubahan                                                                                                                                                                                                    |
+| ------ | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 0.1.0  | 2026-09-25 | Draft pertama                                                                                                                                                                                                |
+| 0.2.0  | 2026-09-25 | Delegasi approval per jenis via permission; total tanpa pembulatan; uang diterima & kembalian tidak disimpan                                                                                                 |
+| 0.3.0  | 2026-09-25 | Varian warna produk: model varian, stok per varian, pemilih varian di POS, perubahan model data                                                                                                              |
+| 0.4.0  | 2026-09-25 | Pengaturan tampilan hanya lewat src/config/appearance.ts; daftar nilai yang tersedia                                                                                                                         |
+| 0.5.0  | 2026-09-25 | Identitas toko & logo dipindah ke config; appearance.ts digabung menjadi src/config/app.config.ts                                                                                                            |
+| 0.6.0  | 2026-09-25 | Alamat, telepon, email, NPWP, dan footer invoice kembali ke menu Pengaturan owner                                                                                                                            |
+| 0.7.0  | 2026-09-25 | Budget JS disesuaikan dengan baseline Next.js 16 yang terukur (NFR-PERF-02); contoh config memakai tipe `AppConfig`                                                                                          |
+| 0.8.0  | 2026-09-26 | Keputusan auth (ADR-0006) dan akses database (ADR-0005); tabel `roles` punya `is_active` untuk FR-RBAC-01                                                                                                    |
+| 0.9.0  | 2026-09-26 | Kas bon (ADR-0012): permission `kasbon:pay` untuk FR-KSB-03, pelanggan unik per no. HP, cicilan tunai masuk kas shift                                                                                        |
+| 0.10.0 | 2026-09-28 | Masukan user v1.0: FR-POS-11 (nama pembeli), FR-AUTH-09/10 (batas & daftar perangkat), FR-SET-09 (jam buka), FR-UX-08 (loading global), akun di atas sidebar, §3.16 barang bawaan sales (ADR-0019, ADR-0020) |
+| 0.11.0 | 2026-09-28 | Detail produk: merk (FR-CAT-02), motif & ukuran (FR-PRD-06), filter merk & ukuran; istilah "laku" di menu Sales menjadi "terjual" (ADR-0021)                                                                 |
+| 0.12.0 | 2026-09-28 | Kategori dihapus: filter kasir, daftar produk dan rekap memakai merk; izin `category:manage` menjadi `brand:manage` (ADR-0022)                                                                               |
 
 Konvensi: **MUST** = wajib v1, **SHOULD** = diusahakan v1, **MAY** = opsional. ID requirement dirujuk dari issue, commit, dan test.
 
@@ -53,16 +56,18 @@ POS web single-tenant berbasis Next.js (monolith) untuk toko retail/F&B, dengan 
 
 ### 2.1 Autentikasi
 
-| ID         | Requirement                                                                                                           | Prioritas |
-| ---------- | --------------------------------------------------------------------------------------------------------------------- | --------- |
-| FR-AUTH-01 | Owner login dengan username + password (min. 12 karakter).                                                            | MUST      |
-| FR-AUTH-02 | Karyawan login dengan username + PIN 6 digit.                                                                         | MUST      |
-| FR-AUTH-03 | PIN/password di-hash dengan Argon2id; tidak pernah dicatat di log.                                                    | MUST      |
-| FR-AUTH-04 | 5 kali gagal login → akun terkunci 15 menit; rate limit juga per IP. Percobaan tercatat di audit log.                 | MUST      |
-| FR-AUTH-05 | Session di cookie `HttpOnly`, `Secure`, `SameSite=Lax`; idle timeout dapat diatur (default 8 jam).                    | MUST      |
-| FR-AUTH-06 | Owner dapat mereset PIN karyawan; karyawan wajib mengganti PIN saat login pertama/setelah reset.                      | MUST      |
-| FR-AUTH-07 | Re-autentikasi (password Owner / PIN approver) sebelum memutus approval dan housekeeping (step-up, berlaku 10 menit). | SHOULD    |
-| FR-AUTH-08 | Tombol "ganti kasir" untuk logout cepat tanpa menutup shift.                                                          | SHOULD    |
+| ID         | Requirement                                                                                                                                                                                                                                                                                                      | Prioritas |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
+| FR-AUTH-01 | Owner login dengan username + password (min. 12 karakter).                                                                                                                                                                                                                                                       | MUST      |
+| FR-AUTH-02 | Karyawan login dengan username + PIN 6 digit.                                                                                                                                                                                                                                                                    | MUST      |
+| FR-AUTH-03 | PIN/password di-hash dengan Argon2id; tidak pernah dicatat di log.                                                                                                                                                                                                                                               | MUST      |
+| FR-AUTH-04 | 5 kali gagal login → akun terkunci 15 menit; rate limit juga per IP. Percobaan tercatat di audit log.                                                                                                                                                                                                            | MUST      |
+| FR-AUTH-05 | Session di cookie `HttpOnly`, `Secure`, `SameSite=Lax`; idle timeout dapat diatur (default 8 jam).                                                                                                                                                                                                               | MUST      |
+| FR-AUTH-06 | Owner dapat mereset PIN karyawan; karyawan wajib mengganti PIN saat login pertama/setelah reset.                                                                                                                                                                                                                 | MUST      |
+| FR-AUTH-07 | Re-autentikasi (password Owner / PIN approver) sebelum memutus approval dan housekeeping (step-up, berlaku 10 menit).                                                                                                                                                                                            | SHOULD    |
+| FR-AUTH-08 | Tombol "ganti kasir" untuk logout cepat tanpa menutup shift.                                                                                                                                                                                                                                                     | SHOULD    |
+| FR-AUTH-09 | Satu akun login di maksimal `operations.maxDevicesPerUser` perangkat (default 3, 1–10). Login berikutnya ditolak dengan pesan jelas dan tercatat di audit log (BRD BR-25, ADR-0019).                                                                                                                             | MUST      |
+| FR-AUTH-10 | Halaman **Perangkat login** (dari kartu akun): daftar sesi aktif (browser, OS, IP, waktu login, terakhir aktif, penanda perangkat ini) dan tombol keluarkan per perangkat. Pemegang `employee:manage` melakukan hal yang sama untuk karyawan di halaman karyawan; perangkat Owner hanya dapat dikeluarkan Owner. | MUST      |
 
 ### 2.2 Otorisasi (RBAC dinamis)
 
@@ -72,6 +77,8 @@ POS web single-tenant berbasis Next.js (monolith) untuk toko retail/F&B, dengan 
 - Owner adalah role sistem dengan semua permission; tidak dapat diubah atau dihapus.
 - Role default `Karyawan` disediakan (seed) dan dapat diubah owner.
 - Permission approval dipisah per jenis: `approval.kasbon:decide`, `approval.voucher:decide`, `approval.void:decide`. Default hanya Owner; Owner dapat memberikannya ke role lain (BRD BR-21).
+- Master merk: `brand:manage` (tab Merk di Produk, FR-CAT-02).
+- Barang bawaan sales (§3.16): `page:consignments` (menu), `consignment:take` (ambil & setor barang sendiri), `consignment:manage` (semua sales).
 
 | ID         | Requirement                                                                                          | Prioritas |
 | ---------- | ---------------------------------------------------------------------------------------------------- | --------- |
@@ -82,16 +89,17 @@ POS web single-tenant berbasis Next.js (monolith) untuk toko retail/F&B, dengan 
 
 ## 3. Kebutuhan Fungsional
 
-### 3.1 Produk & Kategori
+### 3.1 Produk & Merk
 
-| ID        | Requirement                                                                                                                                                     | Prioritas |
-| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
-| FR-PRD-01 | CRUD produk: nama, kategori, harga jual, harga modal, satuan, lacak stok (ya/tidak), status aktif. SKU, stok, dan stok minimum berada di level varian (§3.1.1). | MUST      |
-| FR-PRD-02 | Harga modal dan margin hanya terlihat oleh role dengan `product:view-cost`.                                                                                     | MUST      |
-| FR-PRD-03 | Produk tidak dihapus bila sudah pernah bertransaksi; hanya dinonaktifkan.                                                                                       | MUST      |
-| FR-PRD-04 | Pencarian produk (nama/SKU) dan filter kategori, respons < 200 ms untuk ≤ 5.000 produk.                                                                         | MUST      |
-| FR-PRD-05 | Import/ekspor produk via CSV (satu baris per varian) dengan validasi per baris dan laporan error.                                                               | SHOULD    |
-| FR-CAT-01 | CRUD kategori dengan urutan tampil; kategori berisi produk tidak bisa dihapus.                                                                                  | MUST      |
+| ID        | Requirement                                                                                                                                                                                                                                                                                                                                                                                   | Prioritas |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
+| FR-PRD-01 | CRUD produk: nama, merk, motif, ukuran, harga jual, harga modal, satuan, lacak stok (ya/tidak), status aktif. SKU, stok, dan stok minimum berada di level varian (§3.1.1).                                                                                                                                                                                                                    | MUST      |
+| FR-PRD-02 | Harga modal dan margin hanya terlihat oleh role dengan `product:view-cost`.                                                                                                                                                                                                                                                                                                                   | MUST      |
+| FR-PRD-03 | Produk tidak dihapus bila sudah pernah bertransaksi; hanya dinonaktifkan.                                                                                                                                                                                                                                                                                                                     | MUST      |
+| FR-PRD-04 | Pencarian produk (nama, merk, motif, warna, SKU) dan filter merk serta ukuran, respons < 200 ms untuk ≤ 5.000 produk.                                                                                                                                                                                                                                                                         | MUST      |
+| FR-PRD-05 | Import/ekspor produk via CSV (satu baris per varian) dengan validasi per baris dan laporan error.                                                                                                                                                                                                                                                                                             | SHOULD    |
+| FR-PRD-06 | Detail produk: **merk** (dari daftar merk), **motif** (teks bebas), dan **ukuran** P × L cm dari daftar tetap 93×47, 100×70, 50×140, 100×140. Ketiganya wajib untuk produk baru; produk lama boleh kosong. Warna dan SKU tetap di varian (§3.1.1). Detail tampil di daftar produk, kasir, pencarian barang, dan dibekukan di baris struk/invoice ([ADR-0021](./adr/0021-product-details.md)). | MUST      |
+| FR-CAT-02 | CRUD merk (nama unik) oleh pemegang `brand:manage`; merk yang dipakai produk tidak bisa dihapus.                                                                                                                                                                                                                                                                                              | MUST      |
 
 #### 3.1.1 Varian warna
 
@@ -110,15 +118,15 @@ Setiap produk memiliki minimal satu varian. Produk tanpa varian memakai satu **v
 
 ### 3.2 Stok
 
-| ID        | Requirement                                                                                                                                                                        | Prioritas |
-| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
-| FR-STK-01 | Stok dikelola per **varian**. Semua perubahan stok melalui tabel pergerakan (`stock_movements`) bertipe: `IN`, `SALE`, `ONLINE_SALE`, `RETURN`, `WRITE_OFF`, `ADJUSTMENT`, `VOID`. | MUST      |
-| FR-STK-02 | Stok saat ini = hasil agregasi pergerakan, disimpan juga sebagai kolom terdenormalisasi yang diperbarui dalam transaksi DB yang sama.                                              | MUST      |
-| FR-STK-03 | Pengurangan stok memakai update bersyarat (`stock >= qty`) agar aman dari race condition; gagal → transaksi dibatalkan dengan pesan jelas.                                         | MUST      |
-| FR-STK-04 | Pengaturan `allowNegativeStock` (default `false`).                                                                                                                                 | MUST      |
-| FR-STK-05 | Penyesuaian stok (stock opname) wajib alasan.                                                                                                                                      | MUST      |
-| FR-STK-06 | Riwayat pergerakan per varian (dan agregat per produk) dengan filter tanggal dan tipe.                                                                                             | MUST      |
-| FR-STK-07 | Indikator stok menipis per varian di dashboard.                                                                                                                                    | MUST      |
+| ID        | Requirement                                                                                                                                                                                                                         | Prioritas |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
+| FR-STK-01 | Stok dikelola per **varian**. Semua perubahan stok melalui tabel pergerakan (`stock_movements`) bertipe: `IN`, `SALE`, `ONLINE_SALE`, `RETURN`, `WRITE_OFF`, `ADJUSTMENT`, `VOID`, `CONSIGNMENT_OUT`, `CONSIGNMENT_RETURN` (§3.16). | MUST      |
+| FR-STK-02 | Stok saat ini = hasil agregasi pergerakan, disimpan juga sebagai kolom terdenormalisasi yang diperbarui dalam transaksi DB yang sama.                                                                                               | MUST      |
+| FR-STK-03 | Pengurangan stok memakai update bersyarat (`stock >= qty`) agar aman dari race condition; gagal → transaksi dibatalkan dengan pesan jelas.                                                                                          | MUST      |
+| FR-STK-04 | Pengaturan `allowNegativeStock` (default `false`).                                                                                                                                                                                  | MUST      |
+| FR-STK-05 | Penyesuaian stok (stock opname) wajib alasan.                                                                                                                                                                                       | MUST      |
+| FR-STK-06 | Riwayat pergerakan per varian (dan agregat per produk) dengan filter tanggal dan tipe.                                                                                                                                              | MUST      |
+| FR-STK-07 | Indikator stok menipis per varian di dashboard.                                                                                                                                                                                     | MUST      |
 
 ### 3.3 Karyawan
 
@@ -140,18 +148,19 @@ Setiap produk memiliki minimal satu varian. Produk tanpa varian memakai satu **v
 
 ### 3.5 Transaksi POS
 
-| ID        | Requirement                                                                                                                                                                                                          | Prioritas |
-| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
-| FR-POS-01 | Layar POS: grid produk (filter kategori + pencarian) dan panel keranjang. Di mobile, keranjang menjadi bottom sheet. Produk bervarian membuka pemilih varian (§3.1.1); produk tanpa varian langsung masuk keranjang. | MUST      |
-| FR-POS-02 | Ubah qty, hapus item, diskon manual per item (persentase atau nominal) dengan permission `pos:item-discount`.                                                                                                        | MUST      |
-| FR-POS-03 | Terapkan satu voucher per transaksi; sistem memvalidasi status, periode, minimum belanja, kuota.                                                                                                                     | MUST      |
-| FR-POS-04 | Ringkasan total real-time sesuai [§5](#5-aturan-perhitungan).                                                                                                                                                        | MUST      |
-| FR-POS-05 | Keranjang tersimpan di sisi klien (per perangkat) agar tidak hilang saat refresh; dikosongkan setelah transaksi selesai.                                                                                             | SHOULD    |
-| FR-POS-06 | Tahan transaksi (hold) dan lanjutkan kemudian, maksimal 10 per shift.                                                                                                                                                | SHOULD    |
-| FR-POS-07 | Nomor invoice unik dan berurutan tanpa celah per hari: `INV/{YYYYMMDD}/{seq:4}` (format dapat diatur).                                                                                                               | MUST      |
-| FR-POS-08 | Submit transaksi idempoten (`Idempotency-Key`), sehingga double-click atau retry tidak membuat transaksi ganda.                                                                                                      | MUST      |
-| FR-POS-09 | Void transaksi: wajib alasan dan approval (`approval.void:decide`); stok dikembalikan lewat pergerakan `VOID`.                                                                                                       | MUST      |
-| FR-POS-10 | Shortcut keyboard di desktop: fokus pencarian (`/`), bayar (`F2`), kosongkan keranjang (`Esc` + konfirmasi).                                                                                                         | SHOULD    |
+| ID        | Requirement                                                                                                                                                                                                                                  | Prioritas |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
+| FR-POS-01 | Layar POS: grid produk (chip filter merk + pencarian) dan panel keranjang. Di mobile, keranjang menjadi bottom sheet. Produk bervarian membuka pemilih varian (§3.1.1); produk tanpa varian langsung masuk keranjang.                        | MUST      |
+| FR-POS-02 | Ubah qty, hapus item, diskon manual per item (persentase atau nominal) dengan permission `pos:item-discount`.                                                                                                                                | MUST      |
+| FR-POS-03 | Terapkan satu voucher per transaksi; sistem memvalidasi status, periode, minimum belanja, kuota.                                                                                                                                             | MUST      |
+| FR-POS-04 | Ringkasan total real-time sesuai [§5](#5-aturan-perhitungan).                                                                                                                                                                                | MUST      |
+| FR-POS-05 | Keranjang tersimpan di sisi klien (per perangkat) agar tidak hilang saat refresh; dikosongkan setelah transaksi selesai.                                                                                                                     | SHOULD    |
+| FR-POS-06 | Tahan transaksi (hold) dan lanjutkan kemudian, maksimal 10 per shift.                                                                                                                                                                        | SHOULD    |
+| FR-POS-07 | Nomor invoice unik dan berurutan tanpa celah per hari: `INV/{YYYYMMDD}/{seq:4}` (format dapat diatur).                                                                                                                                       | MUST      |
+| FR-POS-08 | Submit transaksi idempoten (`Idempotency-Key`), sehingga double-click atau retry tidak membuat transaksi ganda.                                                                                                                              | MUST      |
+| FR-POS-09 | Void transaksi: wajib alasan dan approval (`approval.void:decide`); stok dikembalikan lewat pergerakan `VOID`.                                                                                                                               | MUST      |
+| FR-POS-10 | Shortcut keyboard di desktop: fokus pencarian (`/`), bayar (`F2`), kosongkan keranjang (`Esc` + konfirmasi).                                                                                                                                 | SHOULD    |
+| FR-POS-11 | Setiap transaksi mencatat **nama pembeli** (wajib, ≤ 80 karakter) dan **no. HP** (opsional, format Indonesia; wajib bila kas bon). Disimpan sebagai snapshot di `sales`, tampil di invoice, detail struk, dan riwayat transaksi (BRD BR-26). | MUST      |
 
 ### 3.6 Pembayaran
 
@@ -213,14 +222,14 @@ Satu mekanisme approval dipakai bersama oleh kas bon, voucher, dan void untuk me
 
 ### 3.11 Dashboard & Rekap
 
-| ID        | Requirement                                                                                                                                                                     | Prioritas |
-| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
-| FR-DSH-01 | Dashboard: penjualan hari ini, jumlah transaksi, rata-rata nilai transaksi, chip status pesanan online, stok menipis, approval pending, saldo kas bon, peringatan kapasitas DB. | MUST      |
-| FR-RPT-01 | Rekap penjualan dengan filter rentang tanggal: per hari, per metode pembayaran, per produk, per varian, per kategori, per karyawan.                                             | MUST      |
-| FR-RPT-02 | Laba kotor (penjualan − modal) hanya untuk `report:view-profit`.                                                                                                                | MUST      |
-| FR-RPT-03 | Rekap voucher (pemakaian dan total potongan) dan diskon manual.                                                                                                                 | MUST      |
-| FR-RPT-04 | Rekap PPN dan service charge.                                                                                                                                                   | MUST      |
-| FR-RPT-05 | Ekspor rekap ke CSV (langsung diunduh).                                                                                                                                         | MUST      |
+| ID        | Requirement                                                                                                                                                                       | Prioritas |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
+| FR-DSH-01 | Dashboard: penjualan hari ini, jumlah transaksi, rata-rata nilai transaksi, chip status pesanan online, stok menipis, approval pending, saldo kas bon, peringatan kapasitas DB.   | MUST      |
+| FR-RPT-01 | Rekap penjualan dengan filter rentang tanggal: per hari, per metode pembayaran, per produk, per varian, per merk (produk tanpa merk digabung sebagai "Tanpa merk"), per karyawan. | MUST      |
+| FR-RPT-02 | Laba kotor (penjualan − modal) hanya untuk `report:view-profit`.                                                                                                                  | MUST      |
+| FR-RPT-03 | Rekap voucher (pemakaian dan total potongan) dan diskon manual.                                                                                                                   | MUST      |
+| FR-RPT-04 | Rekap PPN dan service charge.                                                                                                                                                     | MUST      |
+| FR-RPT-05 | Ekspor rekap ke CSV (langsung diunduh).                                                                                                                                           | MUST      |
 
 ### 3.12 Housekeeping
 
@@ -245,18 +254,19 @@ Satu mekanisme approval dipakai bersama oleh kas bon, voucher, dan void untuk me
 
 ### 3.14 Pengaturan
 
-| ID         | Requirement                                                                                                                                                                                                                                                                                                             | Prioritas |
-| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
-| FR-SET-01  | Owner mengelola profil toko di menu Pengaturan: alamat (≤ 200 karakter), telepon (E.164, mis. `+6281234567890`), email (opsional), NPWP (opsional, 16 digit; tampil di invoice bila PPN aktif), footer invoice per bahasa (`id` & `en`, ≤ 120 karakter, teks polos). Disimpan di DB settings dan tercatat di audit log. | MUST      |
-| FR-SET-01a | Nama aplikasi, nama toko, dan logo diatur developer di `src/config/app.config.ts` (§10.3); tidak dapat diubah dari aplikasi.                                                                                                                                                                                            | MUST      |
-| FR-SET-01b | Selama profil toko belum lengkap (alamat/telepon kosong), dashboard owner menampilkan pengingat; invoice tetap bisa dicetak tanpa field tersebut.                                                                                                                                                                       | MUST      |
-| FR-SET-02  | Logo berupa file di `public/brand/` yang dirujuk config; tidak ada upload logo dari aplikasi.                                                                                                                                                                                                                           | MUST      |
-| FR-SET-03  | Tampilan (palette, layout, bahasa default, tema default) diatur di file yang sama (§10.3); tidak ada UI untuk mengubahnya.                                                                                                                                                                                              | MUST      |
-| FR-SET-04  | Pajak: PPN on/off + tarif; service charge on/off + tarif; harga inclusive/exclusive PPN.                                                                                                                                                                                                                                | MUST      |
-| FR-SET-05  | Rekening bank untuk transfer (CRUD).                                                                                                                                                                                                                                                                                    | MUST      |
-| FR-SET-06  | Daftar marketplace (CRUD).                                                                                                                                                                                                                                                                                              | MUST      |
-| FR-SET-07  | Format nomor invoice, ukuran kertas default, stok minus, ambang order tertahan, retensi housekeeping.                                                                                                                                                                                                                   | MUST      |
-| FR-SET-08  | Tiga sumber konfigurasi yang tidak saling tumpang tindih: **file config** (nama, logo & tampilan, oleh developer), **DB settings** (profil toko, pajak, rekening, marketplace, operasional, oleh owner), **environment variable** (secret & koneksi).                                                                   | MUST      |
+| ID         | Requirement                                                                                                                                                                                                                                                                                                                                   | Prioritas |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
+| FR-SET-01  | Owner mengelola profil toko di menu Pengaturan: alamat (≤ 200 karakter), telepon (E.164, mis. `+6281234567890`), email (opsional), NPWP (opsional, 16 digit; tampil di invoice bila PPN aktif), footer invoice per bahasa (`id` & `en`, ≤ 120 karakter, teks polos). Disimpan di DB settings dan tercatat di audit log.                       | MUST      |
+| FR-SET-01a | Nama aplikasi, nama toko, dan logo diatur developer di `src/config/app.config.ts` (§10.3); tidak dapat diubah dari aplikasi.                                                                                                                                                                                                                  | MUST      |
+| FR-SET-01b | Selama profil toko belum lengkap (alamat/telepon kosong), dashboard owner menampilkan pengingat; invoice tetap bisa dicetak tanpa field tersebut.                                                                                                                                                                                             | MUST      |
+| FR-SET-02  | Logo berupa file di `public/brand/` yang dirujuk config; tidak ada upload logo dari aplikasi.                                                                                                                                                                                                                                                 | MUST      |
+| FR-SET-03  | Tampilan (palette, layout, bahasa default, tema default) diatur di file yang sama (§10.3); tidak ada UI untuk mengubahnya.                                                                                                                                                                                                                    | MUST      |
+| FR-SET-04  | Pajak: PPN on/off + tarif; service charge on/off + tarif; harga inclusive/exclusive PPN.                                                                                                                                                                                                                                                      | MUST      |
+| FR-SET-05  | Rekening bank untuk transfer (CRUD).                                                                                                                                                                                                                                                                                                          | MUST      |
+| FR-SET-06  | Daftar marketplace (CRUD).                                                                                                                                                                                                                                                                                                                    | MUST      |
+| FR-SET-07  | Format nomor invoice, ukuran kertas default, stok minus, ambang order tertahan, retensi housekeeping, batas perangkat per akun (FR-AUTH-09).                                                                                                                                                                                                  | MUST      |
+| FR-SET-09  | Jam buka toko per hari (Senin–Minggu: jam buka, jam tutup, atau libur), dapat diaktifkan/dinonaktifkan (default nonaktif). Di luar jam buka menurut zona waktu toko, karyawan tidak dapat membuka kasir, membuka shift, mencatat transaksi, atau mencatat barang sales; menutup shift tetap bisa. Owner tidak dibatasi (BRD BR-24, ADR-0019). | MUST      |
+| FR-SET-08  | Tiga sumber konfigurasi yang tidak saling tumpang tindih: **file config** (nama, logo & tampilan, oleh developer), **DB settings** (profil toko, pajak, rekening, marketplace, operasional, oleh owner), **environment variable** (secret & koneksi).                                                                                         | MUST      |
 
 ### 3.15 Audit Log
 
@@ -266,6 +276,19 @@ Satu mekanisme approval dipakai bersama oleh kas bon, voucher, dan void untuk me
 | FR-AUD-02 | Dicatat untuk: login (sukses/gagal), CRUD master data, transaksi, void, approval, perubahan role/permission, pengaturan, housekeeping. | MUST      |
 | FR-AUD-03 | Owner dapat melihat dan memfilter audit log (aktor, aksi, tanggal).                                                                    | MUST      |
 | FR-AUD-04 | Tidak ada endpoint untuk mengubah atau menghapus audit log.                                                                            | MUST      |
+
+### 3.16 Barang Bawaan Sales
+
+Sales membawa barang keluar toko untuk dijual, lalu menyetor yang terjual dan mengembalikan yang tidak terjual ([ADR-0020](./adr/0020-field-sales-consignments.md), BRD BR-27).
+
+| ID        | Requirement                                                                                                                                                                                                                                                                                                                                                                                                              | Prioritas |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------- |
+| FR-CSG-01 | Sales adalah akun aktif dengan role yang memegang `consignment:take` (atau Owner). Pemegang `consignment:manage` mencatat untuk semua sales; tanpanya, user hanya melihat dan mencatat bawaannya sendiri.                                                                                                                                                                                                                | MUST      |
+| FR-CSG-02 | **Ambil barang**: pilih varian dan jumlah; stok langsung berkurang lewat `CONSIGNMENT_OUT` dengan aturan stok yang sama seperti penjualan (FR-STK-03/04). Pengambilan berikutnya (mis. besok) masuk ke bawaan yang sama sebagai catatan baru; catatan lama tidak berubah. Idempoten.                                                                                                                                     | MUST      |
+| FR-CSG-03 | Per barang tampil: diambil, terjual, dikembalikan, dan **masih dibawa** = diambil − terjual − dikembalikan. Riwayat pengambilan dan setoran dikelompokkan per tanggal.                                                                                                                                                                                                                                                   | MUST      |
+| FR-CSG-04 | **Setor**: isi jumlah terjual dan dikembalikan per barang (total ≤ masih dibawa). Barang terjual menjadi satu transaksi POS (nama pembeli wajib, FR-POS-11) dengan pembayaran penuh **tunai**, **transfer**, atau **kas bon**, di shift terbuka pencatat; transaksi tidak memotong stok lagi. Barang yang dikembalikan menambah stok lewat `CONSIGNMENT_RETURN`. Sisa tetap dibawa sales. Semua dalam satu transaksi DB. | MUST      |
+| FR-CSG-05 | Halaman **Sales**: daftar bawaan yang sedang dibawa (sales, sejak, aktivitas terakhir, jumlah & nilai barang) dan yang sudah selesai. Bawaan selesai otomatis saat semua barang terjual atau dikembalikan; pengambilan berikutnya membuka bawaan baru.                                                                                                                                                                   | MUST      |
+| FR-CSG-06 | Transaksi hasil setoran tidak dapat di-void, karena stoknya sudah keluar saat pengambilan; koreksi dilakukan lewat penyesuaian stok.                                                                                                                                                                                                                                                                                     | MUST      |
 
 ---
 
@@ -308,6 +331,15 @@ PENDING_APPROVAL ─▶ ACTIVE ⇄ INACTIVE
 ```
 
 Voucher `ACTIVE` yang melewati periode berlaku dianggap `EXPIRED` saat dibaca (tanpa cron).
+
+### 4.5 Barang bawaan sales
+
+```
+(ambil barang) ─▶ OPEN ──ambil lagi / setor sebagian──▶ OPEN
+                    └──setor sampai masih dibawa = 0──▶ CLOSED
+```
+
+Satu bawaan `OPEN` per sales; pengambilan setelah `CLOSED` membuka bawaan baru.
 
 ---
 
@@ -382,16 +414,16 @@ Referensi: gaya dashboard "Kitchen" (kartu lembut, sudut membulat, chip status b
 | `--color-card`    | `#ffffff`                                               | Kartu                        |
 | Font              | **Outfit** (via `next/font`, self-hosted, subset latin) |                              |
 
-| ID       | Requirement                                                                                                                                                                           | Prioritas |
-| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
-| FR-UI-01 | Semua warna melalui semantic token (CSS variables); komponen dilarang memakai hex langsung (dijaga lint).                                                                             | MUST      |
-| FR-UI-02 | Preset palette: `sage` (referensi), `sand`, `ocean`, `slate`; masing-masing light & dark.                                                                                             | MUST      |
-| FR-UI-03 | Dark mode memakai latar abu gelap netral (bukan hitam pekat) dan aksen pastel yang di-desaturasi agar nyaman dilihat lama.                                                            | MUST      |
-| FR-UI-04 | Kontras teks memenuhi WCAG 2.2 AA (4.5:1 teks normal, 3:1 teks besar/komponen); diverifikasi otomatis di CI.                                                                          | MUST      |
-| FR-UI-05 | Status tidak hanya dibedakan warna, tapi juga ikon/label.                                                                                                                             | MUST      |
-| FR-UI-06 | Preset layout: `sidebar` (referensi), `topbar`, `compact` (sidebar ikon saja).                                                                                                        | MUST      |
-| FR-UI-07 | Preset aktif dipilih di `src/config/app.config.ts`; menambah preset cukup satu objek di `palettes.ts` / `layouts.ts` (§10.3).                                                         | MUST      |
-| FR-UI-08 | Komponen primitif reusable di `src/components/ui` (Button, Input, Card, Chip, Dialog, Sheet, Table, EmptyState, Skeleton); komponen fitur menyusun primitif, tidak menduplikasi gaya. | MUST      |
+| ID       | Requirement                                                                                                                                                                                                 | Prioritas |
+| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
+| FR-UI-01 | Semua warna melalui semantic token (CSS variables); komponen dilarang memakai hex langsung (dijaga lint).                                                                                                   | MUST      |
+| FR-UI-02 | Preset palette: `sage` (referensi), `sand`, `ocean`, `slate`; masing-masing light & dark.                                                                                                                   | MUST      |
+| FR-UI-03 | Dark mode memakai latar abu gelap netral (bukan hitam pekat) dan aksen pastel yang di-desaturasi agar nyaman dilihat lama.                                                                                  | MUST      |
+| FR-UI-04 | Kontras teks memenuhi WCAG 2.2 AA (4.5:1 teks normal, 3:1 teks besar/komponen); diverifikasi otomatis di CI.                                                                                                | MUST      |
+| FR-UI-05 | Status tidak hanya dibedakan warna, tapi juga ikon/label.                                                                                                                                                   | MUST      |
+| FR-UI-06 | Preset layout: `sidebar` (referensi), `topbar`, `compact` (sidebar ikon saja). Pada `sidebar`, kartu akun (nama, role, perangkat, keluar) berada tepat di bawah logo toko; tema dan bahasa di bagian bawah. | MUST      |
+| FR-UI-07 | Preset aktif dipilih di `src/config/app.config.ts`; menambah preset cukup satu objek di `palettes.ts` / `layouts.ts` (§10.3).                                                                               | MUST      |
+| FR-UI-08 | Komponen primitif reusable di `src/components/ui` (Button, Input, Card, Chip, Dialog, Sheet, Table, EmptyState, Skeleton); komponen fitur menyusun primitif, tidak menduplikasi gaya.                       | MUST      |
 
 ### 7.2 Tema & bahasa
 
@@ -403,15 +435,16 @@ Referensi: gaya dashboard "Kitchen" (kartu lembut, sudut membulat, chip status b
 
 ### 7.3 Responsif & UX
 
-| ID       | Requirement                                                                                                          | Prioritas |
-| -------- | -------------------------------------------------------------------------------------------------------------------- | --------- |
-| FR-UX-01 | Breakpoint: mobile < 768 px (bottom navigation, kartu), tablet 768–1279 px (sidebar collapsible), desktop ≥ 1280 px. | MUST      |
-| FR-UX-02 | Target sentuh minimal 44 × 44 px.                                                                                    | MUST      |
-| FR-UX-03 | Setiap daftar memiliki state loading (skeleton), kosong, dan error.                                                  | MUST      |
-| FR-UX-04 | Aksi destruktif memakai konfirmasi; aksi yang bisa dibatalkan memakai toast + undo.                                  | MUST      |
-| FR-UX-05 | Form: validasi inline, pesan error dalam bahasa aktif, fokus otomatis ke field error pertama.                        | MUST      |
-| FR-UX-06 | Navigasi keyboard penuh dan dukungan screen reader (label, landmark, fokus terlihat).                                | MUST      |
-| FR-UX-07 | Menghormati `prefers-reduced-motion`.                                                                                | MUST      |
+| ID       | Requirement                                                                                                                                             | Prioritas |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
+| FR-UX-01 | Breakpoint: mobile < 768 px (bottom navigation, kartu), tablet 768–1279 px (sidebar collapsible), desktop ≥ 1280 px.                                    | MUST      |
+| FR-UX-02 | Target sentuh minimal 44 × 44 px.                                                                                                                       | MUST      |
+| FR-UX-03 | Setiap daftar memiliki state loading (skeleton), kosong, dan error.                                                                                     | MUST      |
+| FR-UX-04 | Aksi destruktif memakai konfirmasi; aksi yang bisa dibatalkan memakai toast + undo.                                                                     | MUST      |
+| FR-UX-05 | Form: validasi inline, pesan error dalam bahasa aktif, fokus otomatis ke field error pertama.                                                           | MUST      |
+| FR-UX-06 | Navigasi keyboard penuh dan dukungan screen reader (label, landmark, fokus terlihat).                                                                   | MUST      |
+| FR-UX-07 | Menghormati `prefers-reduced-motion`.                                                                                                                   | MUST      |
+| FR-UX-08 | Indikator loading global: bar tipis di atas layar selama navigasi halaman, filter, dan aksi server berlangsung; diumumkan ke screen reader ("Memuat…"). | MUST      |
 
 ---
 
@@ -530,9 +563,9 @@ src/
 ├── app/
 │   ├── [locale]/
 │   │   ├── (auth)/login/
-│   │   └── (app)/                 # dashboard, pos, orders, products, stock,
-│   │                              # employees, vouchers, kasbon, approvals,
-│   │                              # reports, housekeeping, audit, settings
+│   │   └── (app)/                 # dashboard, pos, orders, consignments, products,
+│   │                              # stock, employees, vouchers, kasbon, approvals,
+│   │                              # reports, housekeeping, audit, settings, devices
 │   └── api/v1/                    # REST route handlers (tipis, delegasi ke service)
 ├── features/<module>/
 │   ├── components/                # UI spesifik modul
@@ -632,35 +665,38 @@ export const appConfig: AppConfig = {
 
 Semua tabel memiliki `id` (UUIDv7), `created_at`, `updated_at`; tabel transaksional memiliki `archived_at`, `archive_batch_id`.
 
-| Entitas               | Field utama                                                                                                                                                                                                                          |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `users`               | username, name, role_id, password_hash / pin_hash, is_active, locale, theme, failed_attempts, locked_until, must_change_pin                                                                                                          |
-| `roles`               | name, is_system, is_active                                                                                                                                                                                                           |
-| `role_permissions`    | role_id, permission                                                                                                                                                                                                                  |
-| `sessions`            | user_id, token_hash, expires_at, ip, user_agent                                                                                                                                                                                      |
-| `categories`          | name, sort_order                                                                                                                                                                                                                     |
-| `products`            | name, category_id, price, cost, unit, track_stock, has_variants, is_active                                                                                                                                                           |
-| `product_variants`    | product_id, sku (unik), attributes (jsonb, divalidasi Zod: `{ color: { name, hex? } }`), price_override, cost_override, stock_qty, min_stock, sort_order, is_default, is_active                                                      |
-| `stock_movements`     | variant_id, type, qty_delta, stock_after, reference_type, reference_id, reason, actor_id                                                                                                                                             |
-| `shifts`              | user_id, opened_at, opening_cash, closed_at, expected_cash, counted_cash, variance                                                                                                                                                   |
-| `sales`               | invoice_no, shift_id, cashier_id, customer_id, status, subtotal, item_discount_total, voucher_id, voucher_discount, service_rate, service_amount, ppn_rate, ppn_amount, price_includes_tax, grand_total, paid_total, idempotency_key |
-| `sale_items`          | sale_id, variant_id, name_snapshot, variant_snapshot, unit_price, qty, discount_type, discount_value, line_total                                                                                                                     |
-| `payments`            | sale_id / kasbon_id, method, amount, bank_account_id, reference, status, provider_payload                                                                                                                                            |
-| `customers`           | name, phone, note                                                                                                                                                                                                                    |
-| `kasbons`             | sale_id, customer_id, total, paid_total, balance, due_date, status                                                                                                                                                                   |
-| `online_orders`       | marketplace_id, order_code, status, shipping_fee, note, status_changed_at                                                                                                                                                            |
-| `online_order_items`  | order_id, variant_id, qty, unit_price, return_condition                                                                                                                                                                              |
-| `online_order_events` | order_id, from_status, to_status, note, actor_id                                                                                                                                                                                     |
-| `vouchers`            | code, status, active_revision_id, usage_count                                                                                                                                                                                        |
-| `voucher_revisions`   | voucher_id, name, type, value, min_purchase, max_discount, starts_at, ends_at, quota, status                                                                                                                                         |
-| `approvals`           | type, target_type, target_id, payload, requested_by, status, decided_by, decided_at, note, version                                                                                                                                   |
-| `bank_accounts`       | bank_name, account_no, account_name, is_active                                                                                                                                                                                       |
-| `marketplaces`        | name, is_active                                                                                                                                                                                                                      |
-| `settings`            | key, value (jsonb, divalidasi skema per key)                                                                                                                                                                                         |
-| `invoice_counters`    | date, last_seq                                                                                                                                                                                                                       |
-| `idempotency_keys`    | key, user_id, request_hash, response, expires_at                                                                                                                                                                                     |
-| `archive_batches`     | period_start, period_end, entity_counts, checksums, actor_id                                                                                                                                                                         |
-| `audit_logs`          | actor_id, action, entity, entity_id, diff, ip, user_agent, request_id                                                                                                                                                                |
+| Entitas               | Field utama                                                                                                                                                                                                                                                                         |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `users`               | username, name, role_id, password_hash / pin_hash, is_active, locale, theme, failed_attempts, locked_until, must_change_pin                                                                                                                                                         |
+| `roles`               | name, is_system, is_active                                                                                                                                                                                                                                                          |
+| `role_permissions`    | role_id, permission                                                                                                                                                                                                                                                                 |
+| `sessions`            | user_id, token_hash, expires_at, last_seen_at, ip, user_agent                                                                                                                                                                                                                       |
+| `brands`              | name (unik, tanpa beda huruf besar/kecil)                                                                                                                                                                                                                                           |
+| `products`            | name, brand_id, motif, size, price, cost, unit, track_stock, has_variants, is_active                                                                                                                                                                                                |
+| `product_variants`    | product_id, sku (unik), attributes (jsonb, divalidasi Zod: `{ color: { name, hex? } }`), price_override, cost_override, stock_qty, min_stock, sort_order, is_default, is_active                                                                                                     |
+| `stock_movements`     | variant_id, type, qty_delta, stock_after, reference_type, reference_id, reason, actor_id                                                                                                                                                                                            |
+| `shifts`              | user_id, opened_at, opening_cash, closed_at, expected_cash, counted_cash, variance                                                                                                                                                                                                  |
+| `sales`               | invoice_no, shift_id, cashier_id, customer_id, customer_name, customer_phone, consignment_id, status, subtotal, item_discount_total, voucher_id, voucher_discount, service_rate, service_amount, ppn_rate, ppn_amount, price_includes_tax, grand_total, paid_total, idempotency_key |
+| `sale_items`          | sale_id, variant_id, name_snapshot, variant_snapshot, details_snapshot, unit_price, qty, discount_type, discount_value, line_total                                                                                                                                                  |
+| `payments`            | sale_id / kasbon_id, method, amount, bank_account_id, reference, status, provider_payload                                                                                                                                                                                           |
+| `customers`           | name, phone, note                                                                                                                                                                                                                                                                   |
+| `kasbons`             | sale_id, customer_id, total, paid_total, balance, due_date, status                                                                                                                                                                                                                  |
+| `online_orders`       | marketplace_id, order_code, status, shipping_fee, note, status_changed_at                                                                                                                                                                                                           |
+| `online_order_items`  | order_id, variant_id, qty, unit_price, return_condition                                                                                                                                                                                                                             |
+| `online_order_events` | order_id, from_status, to_status, note, actor_id                                                                                                                                                                                                                                    |
+| `vouchers`            | code, status, active_revision_id, usage_count                                                                                                                                                                                                                                       |
+| `voucher_revisions`   | voucher_id, name, type, value, min_purchase, max_discount, starts_at, ends_at, quota, status                                                                                                                                                                                        |
+| `approvals`           | type, target_type, target_id, payload, requested_by, status, decided_by, decided_at, note, version                                                                                                                                                                                  |
+| `bank_accounts`       | bank_name, account_no, account_name, is_active                                                                                                                                                                                                                                      |
+| `marketplaces`        | name, is_active                                                                                                                                                                                                                                                                     |
+| `settings`            | key, value (jsonb, divalidasi skema per key)                                                                                                                                                                                                                                        |
+| `invoice_counters`    | date, last_seq                                                                                                                                                                                                                                                                      |
+| `idempotency_keys`    | key, user_id, request_hash, response, expires_at                                                                                                                                                                                                                                    |
+| `consignments`        | salesperson_id, status (`OPEN`/`CLOSED`), closed_at                                                                                                                                                                                                                                 |
+| `consignment_batches` | consignment_id, kind (`TAKE`/`SETTLE`), actor_id, sale_id, idempotency_key, note                                                                                                                                                                                                    |
+| `consignment_items`   | batch_id, consignment_id, variant_id, kind (`TAKE`/`SOLD`/`RETURN`), qty, name_snapshot, variant_snapshot, unit_price                                                                                                                                                               |
+| `archive_batches`     | period_start, period_end, entity_counts, checksums, actor_id                                                                                                                                                                                                                        |
+| `audit_logs`          | actor_id, action, entity, entity_id, diff, ip, user_agent, request_id                                                                                                                                                                                                               |
 
 ERD detail dan index disusun di ADR tersendiri saat implementasi Milestone 1.
 
@@ -716,7 +752,7 @@ tag vX.Y.Z-rc.N  ─▶ deploy ke environment preview/staging
 | Milestone                    | Isi                                                                                                                                                                                      |
 | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **M0 — Fondasi**             | Scaffold, lint/typecheck strict, CI, tag-based deploy, security headers, env validation, i18n, tema, design tokens + preset, komponen UI primitif, spike method `QUERY`. Rilis `v0.1.0`. |
-| **M1 — Akses & master data** | Auth (password & PIN), RBAC dinamis, audit log, pengaturan, kategori, produk + varian warna, karyawan, stok ledger.                                                                      |
+| **M1 — Akses & master data** | Auth (password & PIN), RBAC dinamis, audit log, pengaturan, kategori (dihapus di v0.12, diganti merk), produk + varian warna, karyawan, stok ledger.                                     |
 | **M2 — Transaksi**           | Shift, POS, perhitungan, pembayaran cash/transfer/split, invoice cetak 3 format, PDF + share + tautan unduh.                                                                             |
 | **M3 — Approval & kontrol**  | Approval generik, kas bon + cicilan, voucher + revisi, void.                                                                                                                             |
 | **M4 — Online & insight**    | Pesanan marketplace + dashboard status, retur/komplain, dashboard, rekap, housekeeping, monitoring kapasitas DB. Rilis `v1.0.0`.                                                         |

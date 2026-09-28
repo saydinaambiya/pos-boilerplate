@@ -19,7 +19,6 @@ test.describe("online orders from entry to return (FR-ONL)", () => {
     await expect(page.getByRole("link", { name: `Ubah ${market}` })).toBeVisible();
     await grantEmployeePermission(page, "Ubah status pesanan online");
     await createStockedProduct(page, {
-      category: `Alas kaki ${run}`,
       name: product,
       sku,
       price: "45000",

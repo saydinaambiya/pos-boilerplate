@@ -8,7 +8,7 @@ export const reportSections = [
   "methods",
   "products",
   "variants",
-  "categories",
+  "brands",
   "employees",
   "vouchers",
   "tax",

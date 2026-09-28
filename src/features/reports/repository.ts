@@ -4,7 +4,7 @@ import { and, asc, desc, eq, gte, isNotNull, lt, ne, notInArray, sql } from "dri
 
 import { db } from "@/db/client";
 import {
-  categories,
+  brands,
   kasbons,
   onlineOrderItems,
   onlineOrders,
@@ -200,18 +200,18 @@ export async function salesByVariant(window: ReportWindow) {
     .orderBy(desc(sql`sum(${saleItems.lineTotal})`), asc(productVariants.sku));
 }
 
-/** Lines per category. */
-export async function salesByCategory(window: ReportWindow) {
+/** Lines per current product brand; products without one share a `null` row. */
+export async function salesByBrand(window: ReportWindow) {
   return db
-    .select({ id: categories.id, name: categories.name, ...lineColumns })
+    .select({ id: brands.id, name: brands.name, ...lineColumns })
     .from(saleItems)
     .innerJoin(sales, eq(sales.id, saleItems.saleId))
     .innerJoin(productVariants, eq(productVariants.id, saleItems.variantId))
     .innerJoin(products, eq(products.id, productVariants.productId))
-    .innerJoin(categories, eq(categories.id, products.categoryId))
+    .leftJoin(brands, eq(brands.id, products.brandId))
     .where(counted(window))
-    .groupBy(categories.id, categories.name)
-    .orderBy(desc(sql`sum(${saleItems.lineTotal})`), asc(categories.name));
+    .groupBy(brands.id, brands.name)
+    .orderBy(desc(sql`sum(${saleItems.lineTotal})`), asc(brands.name));
 }
 
 /** Sales per cashier. */

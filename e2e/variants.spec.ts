@@ -1,26 +1,23 @@
 import AxeBuilder from "@axe-core/playwright";
 
 import { expect, test } from "./fixtures";
-import { choose, expectResult } from "./helpers";
+import { expectResult, fillProductDetails } from "./helpers";
 
 /** Unique names per run: the E2E database is not truncated between runs. */
 const run = Date.now().toString(36);
 const product = `Kaos ${run}`;
 const sku = `KAOS-${run}`.toUpperCase();
+/** Unique too, so the colour search finds only this run's product among earlier runs'. */
+const blue = `Biru Laut ${run}`;
 
 test.describe("colour variants (FR-VAR)", () => {
   test.skip(({ isMobile }) => isMobile, "stateful variant flows run once, on desktop");
   test.describe.configure({ mode: "serial" });
 
   test("prepares a product with stock", async ({ page }) => {
-    await page.goto("/id/products/categories");
-    await page.getByLabel("Nama kategori").fill(`Pakaian ${run}`);
-    await page.getByRole("button", { name: "Tambah kategori" }).click();
-    await expectResult(page, "Kategori disimpan.");
-
     await page.goto("/id/products?new=1");
     await page.getByLabel("Nama produk").fill(product);
-    await choose(page.getByRole("dialog"), "Kategori", `Pakaian ${run}`);
+    await fillProductDetails(page.getByRole("dialog"));
     await page.getByLabel("Harga jual").fill("50000");
     await page.getByLabel("SKU").fill(sku);
     await page.getByRole("button", { name: "Simpan produk" }).click();
@@ -63,7 +60,7 @@ test.describe("colour variants (FR-VAR)", () => {
       page.getByText("Nama warna sudah dipakai varian lain di produk ini."),
     ).toBeVisible();
 
-    await page.getByLabel("Nama warna").fill("Biru Laut");
+    await page.getByLabel("Nama warna").fill(blue);
     await page.getByLabel("Kode warna (hex)").fill("");
     await page.getByLabel("SKU", { exact: true }).last().fill(`${sku}-B`);
     await page.getByLabel("Harga jual khusus").fill("55.000");
@@ -72,14 +69,14 @@ test.describe("colour variants (FR-VAR)", () => {
     await expectResult(page, "Varian ditambahkan.");
 
     const table = page.getByRole("table", { name: "Daftar varian warna" });
-    const blue = table.getByRole("row", { name: /Biru Laut/ });
-    await expect(blue).toContainText(/Rp\s55\.000/);
-    await expect(blue.locator("svg text")).toHaveText("BL");
+    const blueRow = table.getByRole("row", { name: new RegExp(blue) });
+    await expect(blueRow).toContainText(/Rp\s55\.000/);
+    await expect(blueRow.locator("svg text")).toHaveText("BL");
 
-    await page.getByRole("button", { name: "Naikkan Biru Laut" }).click();
-    await expect(table.getByRole("row").nth(1)).toContainText("Biru Laut");
+    await page.getByRole("button", { name: `Naikkan ${blue}` }).click();
+    await expect(table.getByRole("row").nth(1)).toContainText(blue);
 
-    await page.goto("/id/products?q=biru laut");
+    await page.goto(`/id/products?q=${encodeURIComponent(blue.toLowerCase())}`);
     await expect(page.getByRole("row", { name: new RegExp(product) })).toContainText("2 varian");
     await expect(page.getByRole("row", { name: new RegExp(product) })).toContainText("10");
   });
@@ -96,21 +93,19 @@ test.describe("colour variants (FR-VAR)", () => {
 
     await red.getByRole("button", { name: "Tutup" }).click();
     await expect(red).toBeHidden();
-    await page.getByRole("link", { name: "Ubah Biru Laut" }).click();
-    const blue = page.getByRole("dialog", { name: `${product} · Biru Laut` });
-    await blue.getByRole("button", { name: "Nonaktifkan" }).click();
+    await page.getByRole("link", { name: `Ubah ${blue}` }).click();
+    const blueDialog = page.getByRole("dialog", { name: `${product} · ${blue}` });
+    await blueDialog.getByRole("button", { name: "Nonaktifkan" }).click();
     await page
-      .getByRole("dialog", { name: "Nonaktifkan varian Biru Laut?" })
+      .getByRole("dialog", { name: `Nonaktifkan varian ${blue}?` })
       .getByRole("button", { name: "Nonaktifkan" })
       .click();
     await expectResult(page, "Berhasil dinonaktifkan.");
-    await expect(blue.getByText("Varian nonaktif dan tidak dijual.")).toBeVisible();
+    await expect(blueDialog.getByText("Varian nonaktif dan tidak dijual.")).toBeVisible();
 
     await page.goto(`/id/stock?q=${sku}`);
     await expect(page.getByRole("link", { name: `Buka stok ${product} · Merah` })).toBeVisible();
-    await expect(page.getByRole("link", { name: `Buka stok ${product} · Biru Laut` })).toHaveCount(
-      0,
-    );
+    await expect(page.getByRole("link", { name: `Buka stok ${product} · ${blue}` })).toHaveCount(0);
     await page.getByRole("link", { name: `Buka stok ${product} · Merah` }).click();
     await expect(
       page.getByRole("table", { name: "Pergerakan stok, terbaru di atas" }),

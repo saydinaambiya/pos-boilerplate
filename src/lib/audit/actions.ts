@@ -5,6 +5,7 @@ export const auditActions = [
   "auth.login.locked",
   "auth.logout",
   "auth.pin.changed",
+  "auth.session.ended",
   "role.created",
   "role.updated",
   "role.activated",
@@ -26,6 +27,9 @@ export const auditActions = [
   "category.created",
   "category.updated",
   "category.deleted",
+  "brand.created",
+  "brand.updated",
+  "brand.deleted",
   "product.created",
   "product.updated",
   "product.activated",
@@ -56,6 +60,8 @@ export const auditActions = [
   "online-order.status-changed",
   "housekeeping.exported",
   "housekeeping.archived",
+  "consignment.taken",
+  "consignment.settled",
 ] as const;
 
 export type AuditAction = (typeof auditActions)[number];

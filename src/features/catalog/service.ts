@@ -9,25 +9,28 @@ import type { Session } from "@/lib/auth/session";
 import type { RequestContext } from "@/lib/http/request-context";
 
 import {
-  countProductsInCategory,
-  deleteCategoryRow,
-  findCategory,
+  countProductsOfBrand,
+  deleteBrandRow,
+  findBrand,
   findProduct,
-  insertCategory,
+  insertBrand,
   insertProductWithDefaultVariant,
-  listCategories,
+  listBrands,
   queryProducts,
   setProductActive,
-  updateCategoryRow,
+  updateBrandRow,
   updateProductWithDefaultVariant,
 } from "./repository";
-import type { CategoryInput, ProductDetailsInput, ProductFilters, ProductInput } from "./schemas";
+import type { BrandInput, ProductDetailsInput, ProductFilters, ProductInput } from "./schemas";
 
 export const PRODUCT_PAGE_SIZE = 50;
 
 export type CatalogResult =
   | { ok: true; id: string }
-  | { ok: false; reason: "not-found" | "name-taken" | "sku-taken" | "invalid-category" | "in-use" };
+  | {
+      ok: false;
+      reason: "not-found" | "name-taken" | "sku-taken" | "invalid-brand" | "in-use";
+    };
 
 /** Blanks cost data for viewers without `product:view-cost` (FR-PRD-02). */
 function withCostVisibility<T extends { cost: number }>(
@@ -37,31 +40,27 @@ function withCostVisibility<T extends { cost: number }>(
   return session.permissions.has("product:view-cost") ? row : { ...row, cost: null };
 }
 
-export async function getCategories(session: Session) {
+export async function getBrands(session: Session) {
   assertPermission(session, "page:products");
-  return listCategories();
+  return listBrands();
 }
 
-export async function getCategory(session: Session, id: string) {
-  assertPermission(session, "category:manage");
-  return findCategory(id);
-}
-
-export async function createCategory(
+/** Brand list management (FR-CAT-02, ADR-0022). */
+export async function createBrand(
   session: Session,
-  input: CategoryInput,
+  input: BrandInput,
   context: RequestContext,
 ): Promise<CatalogResult> {
-  assertPermission(session, "category:manage");
+  assertPermission(session, "brand:manage");
   try {
     const id = await db.transaction(async (tx) => {
-      const created = await insertCategory(tx, input);
+      const created = await insertBrand(tx, input);
       await recordAudit(
         tx,
         {
           actorId: session.user.id,
-          action: "category.created",
-          entity: "category",
+          action: "brand.created",
+          entity: "brand",
           entityId: created,
           diff: input,
         },
@@ -76,24 +75,24 @@ export async function createCategory(
   }
 }
 
-export async function updateCategory(
+export async function updateBrand(
   session: Session,
   id: string,
-  input: CategoryInput,
+  input: BrandInput,
   context: RequestContext,
 ): Promise<CatalogResult> {
-  assertPermission(session, "category:manage");
-  const current = await findCategory(id);
+  assertPermission(session, "brand:manage");
+  const current = await findBrand(id);
   if (!current) return { ok: false, reason: "not-found" };
   try {
     await db.transaction(async (tx) => {
-      await updateCategoryRow(tx, id, input);
+      await updateBrandRow(tx, id, input);
       await recordAudit(
         tx,
         {
           actorId: session.user.id,
-          action: "category.updated",
-          entity: "category",
+          action: "brand.updated",
+          entity: "brand",
           entityId: id,
           diff: changedFields(current, input),
         },
@@ -107,24 +106,24 @@ export async function updateCategory(
   }
 }
 
-/** Deletes an empty category; categories with products cannot be deleted (FR-CAT-01). */
-export async function deleteCategory(
+/** Deletes a brand no product uses (FR-CAT-02). */
+export async function deleteBrand(
   session: Session,
   id: string,
   context: RequestContext,
 ): Promise<CatalogResult> {
-  assertPermission(session, "category:manage");
-  const current = await findCategory(id);
+  assertPermission(session, "brand:manage");
+  const current = await findBrand(id);
   if (!current) return { ok: false, reason: "not-found" };
-  if ((await countProductsInCategory(id)) > 0) return { ok: false, reason: "in-use" };
+  if ((await countProductsOfBrand(id)) > 0) return { ok: false, reason: "in-use" };
   await db.transaction(async (tx) => {
-    await deleteCategoryRow(tx, id);
+    await deleteBrandRow(tx, id);
     await recordAudit(
       tx,
       {
         actorId: session.user.id,
-        action: "category.deleted",
-        entity: "category",
+        action: "brand.deleted",
+        entity: "brand",
         entityId: id,
         diff: { name: current.name },
       },
@@ -150,17 +149,23 @@ export async function getProduct(session: Session, id: string) {
   return row ? withCostVisibility(session, row) : undefined;
 }
 
-/** Creates a product with its hidden default variant in one transaction (FR-PRD-01, §3.1.1). */
+/**
+ * Creates a product with its hidden default variant in one transaction
+ * (FR-PRD-01, §3.1.1). The create form requires brand, motif and size
+ * (`newProductInput`, FR-PRD-06).
+ */
 export async function createProduct(
   session: Session,
   input: ProductInput,
   context: RequestContext,
 ): Promise<CatalogResult> {
   assertPermission(session, "product:create");
-  if (!(await findCategory(input.categoryId))) return { ok: false, reason: "invalid-category" };
+  if (input.brandId && !(await findBrand(input.brandId))) {
+    return { ok: false, reason: "invalid-brand" };
+  }
   const canSeeCost = session.permissions.has("product:view-cost");
-  const { sku, minStock, cost, ...product } = input;
-  const values = { ...product, cost: canSeeCost ? (cost ?? 0) : 0 };
+  const { sku, minStock, cost, brandId = null, motif = null, size = null, ...product } = input;
+  const values = { ...product, brandId, motif, size, cost: canSeeCost ? (cost ?? 0) : 0 };
 
   try {
     const id = await db.transaction(async (tx) => {
@@ -199,12 +204,26 @@ export async function updateProduct(
   assertPermission(session, "product:update");
   const current = await findProduct(id);
   if (!current) return { ok: false, reason: "not-found" };
-  if (input.categoryId !== current.categoryId && !(await findCategory(input.categoryId))) {
-    return { ok: false, reason: "invalid-category" };
+  if (input.brandId && input.brandId !== current.brandId && !(await findBrand(input.brandId))) {
+    return { ok: false, reason: "invalid-brand" };
   }
   const canSeeCost = session.permissions.has("product:view-cost");
-  const { sku = current.sku, minStock = current.minStock, cost, ...product } = input;
-  const values = { ...product, cost: canSeeCost ? (cost ?? current.cost) : current.cost };
+  const {
+    sku = current.sku,
+    minStock = current.minStock,
+    cost,
+    brandId = current.brandId,
+    motif = current.motif,
+    size = current.size,
+    ...product
+  } = input;
+  const values = {
+    ...product,
+    brandId,
+    motif,
+    size,
+    cost: canSeeCost ? (cost ?? current.cost) : current.cost,
+  };
   const defaultVariant = current.hasVariants ? null : { sku, minStock };
 
   try {

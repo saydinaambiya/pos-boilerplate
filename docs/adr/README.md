@@ -24,3 +24,7 @@ Records are immutable once accepted; a new record supersedes an old one.
 | [0016](./0016-database-capacity.md)           | Database capacity monitoring                       | Accepted |
 | [0017](./0017-custom-form-controls.md)        | Custom form controls after the v1.0 review         | Accepted |
 | [0018](./0018-dialogs-and-auto-filters.md)    | Dialogs instead of single-form pages; auto filters | Accepted |
+| [0019](./0019-devices-hours-and-loading.md)   | Device limit, store hours, buyer name and loading  | Accepted |
+| [0020](./0020-field-sales-consignments.md)    | Field sales consignments                           | Accepted |
+| [0021](./0021-product-details.md)             | Product brand, motif and size                      | Accepted |
+| [0022](./0022-remove-categories.md)           | Remove product categories in favour of brands      | Accepted |

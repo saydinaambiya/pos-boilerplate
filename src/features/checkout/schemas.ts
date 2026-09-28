@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { kasbonCheckoutInput } from "@/features/kasbon/schemas";
+import { kasbonCheckoutInput, saleCustomerInput } from "@/features/kasbon/schemas";
 import { MAX_RUPIAH, rupiah } from "@/lib/validation/money";
 import { plainText } from "@/lib/validation/text";
 
@@ -45,12 +45,18 @@ export const checkoutInput = z
           .strict(),
       )
       .max(4),
+    /** Buyer of the sale (FR-POS-11). */
+    customer: saleCustomerInput,
     /** One voucher per sale, validated again on the server (FR-POS-03). */
     voucherCode: z.string().trim().max(20).optional(),
     /** Puts the unpaid remainder on store credit for this customer (FR-PAY-05). */
     kasbon: kasbonCheckoutInput.optional(),
   })
-  .strict();
+  .strict()
+  .refine((value) => !value.kasbon || value.customer.phone !== null, {
+    path: ["customer", "phone"],
+    error: "required",
+  });
 
 export type CheckoutInput = z.infer<typeof checkoutInput>;
 export type CheckoutPayment = CheckoutInput["payments"][number];

@@ -20,7 +20,7 @@ export const appConfig: AppConfig = {
     },
   },
   appearance: {
-    palette: "sage",
+    palette: "sand",
     layout: "sidebar",
     defaultLocale: "id",
     defaultTheme: "system",

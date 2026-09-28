@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { useEffect, useId, useRef, useState, useTransition } from "react";
 
+import { useGlobalPending } from "@/components/feedback/loading-indicator";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -16,6 +17,12 @@ import type { ItemDiscount } from "@/lib/money/calculate";
 import { cn } from "@/lib/utils/cn";
 
 import { checkoutAction } from "../actions";
+import {
+  CustomerFields,
+  customerDraftErrors,
+  emptyCustomerDraft,
+  type CustomerDraft,
+} from "./customer-fields";
 import {
   emptyKasbonDraft,
   KasbonFields,
@@ -55,7 +62,8 @@ interface PaymentDialogProps {
 const QUICK_CASH = [50_000, 100_000] as const;
 
 /**
- * Cash, transfer, split or store-credit payment (FR-PAY-01..05). Cash tendered and change
+ * Buyer (FR-POS-11) and cash, transfer, split or store-credit payment
+ * (FR-PAY-01..05). Cash tendered and change
  * are only shown here; the server receives the amount allocated to the bill
  * (BR-22). The idempotency key is minted when the dialog opens and reused on
  * retry, so a double submit or a lost response never creates two sales
@@ -70,10 +78,12 @@ export function PaymentDialog(props: PaymentDialogProps) {
   const [transferText, setTransferText] = useState("");
   const [bankAccountId, setBankAccountId] = useState(bankAccounts[0]?.id ?? "");
   const [reference, setReference] = useState("");
+  const [customer, setCustomer] = useState<CustomerDraft>(emptyCustomerDraft);
   const [kasbon, setKasbon] = useState<KasbonDraft>(emptyKasbonDraft);
-  const [showKasbonErrors, setShowKasbonErrors] = useState(false);
+  const [showErrors, setShowErrors] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  useGlobalPending(pending);
   const idempotencyKey = useRef<string | null>(null);
 
   useEffect(() => {
@@ -92,7 +102,8 @@ export function PaymentDialog(props: PaymentDialogProps) {
   const change = cashDue > 0 && received !== null ? received - cashDue : null;
   const needsBank = transfer > 0;
   const downPayment = kasbon.downPayment.trim() === "" ? 0 : parseRupiah(kasbon.downPayment);
-  const kasbonErrors = kasbonDraftErrors(kasbon, downPayment, grandTotal);
+  const kasbonErrors = kasbonDraftErrors(downPayment, grandTotal);
+  const customerErrors = customerDraftErrors(customer, mode === "kasbon");
   const valid =
     mode === "kasbon"
       ? true
@@ -101,8 +112,11 @@ export function PaymentDialog(props: PaymentDialogProps) {
 
   const submit = () => {
     if (!valid || pending) return;
-    if (mode === "kasbon" && Object.values(kasbonErrors).some(Boolean)) {
-      setShowKasbonErrors(true);
+    if (
+      Object.values(customerErrors).some(Boolean) ||
+      (mode === "kasbon" && Object.values(kasbonErrors).some(Boolean))
+    ) {
+      setShowErrors(true);
       return;
     }
     setError(null);
@@ -130,11 +144,12 @@ export function PaymentDialog(props: PaymentDialogProps) {
           idempotencyKey: idempotencyKey.current ?? crypto.randomUUID(),
           lines: props.lines(),
           payments,
+          customer: { name: customer.name, phone: customer.phone },
           ...(props.voucherCode ? { voucherCode: props.voucherCode } : {}),
           ...(mode === "kasbon"
             ? {
                 kasbon: {
-                  customer: { name: kasbon.name, phone: kasbon.phone, note: kasbon.note },
+                  note: kasbon.note,
                   dueDate: kasbon.dueDate === "" ? null : kasbon.dueDate,
                 },
               }
@@ -147,8 +162,9 @@ export function PaymentDialog(props: PaymentDialogProps) {
         setCashText("");
         setTransferText("");
         setReference("");
+        setCustomer(emptyCustomerDraft);
         setKasbon(emptyKasbonDraft);
-        setShowKasbonErrors(false);
+        setShowErrors(false);
         setMode("cash");
         const paidCash = mode !== "kasbon" && cashDue > 0;
         props.onSuccess({
@@ -187,6 +203,15 @@ export function PaymentDialog(props: PaymentDialogProps) {
             submit();
           }}
         >
+          <CustomerFields
+            locale={locale}
+            draft={customer}
+            onChange={setCustomer}
+            phoneRequired={mode === "kasbon"}
+            showErrors={showErrors}
+            errors={customerErrors}
+          />
+
           {grandTotal > 0 ? (
             <fieldset className="flex flex-col gap-2">
               <legend className="mb-2 text-sm font-medium text-ink">{t("methodLabel")}</legend>
@@ -228,7 +253,7 @@ export function PaymentDialog(props: PaymentDialogProps) {
               onChange={setKasbon}
               remainder={grandTotal - (downPayment ?? 0)}
               today={props.today}
-              showErrors={showKasbonErrors}
+              showErrors={showErrors}
               errors={kasbonErrors}
             />
           ) : null}

@@ -5,6 +5,7 @@ import { and, asc, eq, gt, gte, inArray, isNull, lt, sql } from "drizzle-orm";
 import { db, type Executor } from "@/db/client";
 import {
   bankAccounts,
+  brands,
   customers,
   idempotencyKeys,
   invoiceCounters,
@@ -40,6 +41,9 @@ export async function findSellableVariants(executor: Executor, variantIds: reado
     .select({
       id: productVariants.id,
       productName: products.name,
+      brandName: brands.name,
+      motif: products.motif,
+      size: products.size,
       trackStock: products.trackStock,
       attributes: productVariants.attributes,
       price: sql<number>`coalesce(${productVariants.priceOverride}, ${products.price})`.mapWith(
@@ -52,6 +56,7 @@ export async function findSellableVariants(executor: Executor, variantIds: reado
     })
     .from(productVariants)
     .innerJoin(products, eq(products.id, productVariants.productId))
+    .leftJoin(brands, eq(brands.id, products.brandId))
     .where(inArray(productVariants.id, [...variantIds]));
 }
 
@@ -151,7 +156,9 @@ export async function findSaleDetail(saleId: string) {
       priceIncludesTax: sales.priceIncludesTax,
       grandTotal: sales.grandTotal,
       paidTotal: sales.paidTotal,
-      customerName: customers.name,
+      customerName: sql<string | null>`coalesce(${sales.customerName}, ${customers.name})`,
+      customerPhone: sql<string | null>`coalesce(${sales.customerPhone}, ${customers.phone})`,
+      consignmentId: sales.consignmentId,
       kasbonId: kasbons.id,
       kasbonTotal: kasbons.total,
       kasbonBalance: kasbons.balance,
@@ -171,6 +178,7 @@ export async function findSaleDetail(saleId: string) {
         id: saleItems.id,
         nameSnapshot: saleItems.nameSnapshot,
         variantSnapshot: saleItems.variantSnapshot,
+        detailsSnapshot: saleItems.detailsSnapshot,
         unitPrice: saleItems.unitPrice,
         qty: saleItems.qty,
         discountAmount: saleItems.discountAmount,
@@ -204,6 +212,7 @@ export async function lockSale(executor: Executor, saleId: string) {
       status: sales.status,
       invoiceNo: sales.invoiceNo,
       voucherId: sales.voucherId,
+      consignmentId: sales.consignmentId,
     })
     .from(sales)
     .where(eq(sales.id, saleId))
@@ -274,7 +283,7 @@ export async function querySales(query: SaleListQuery, page: number, pageSize: n
       status: sales.status,
       grandTotal: sales.grandTotal,
       cashierName: users.name,
-      customerName: customers.name,
+      customerName: sql<string | null>`coalesce(${sales.customerName}, ${customers.name})`,
       methods: sql<string[]>`array(
         select distinct ${payments.method}::text from ${payments} where ${payments.saleId} = ${sales.id}
         union select 'KASBON' from ${kasbons} where ${kasbons.saleId} = ${sales.id}

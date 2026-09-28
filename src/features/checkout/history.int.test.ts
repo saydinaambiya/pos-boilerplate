@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { DEFAULT_EMPLOYEE_ROLE, type Permission } from "@/config/permissions";
 import { db } from "@/db/client";
 import { productVariants, rolePermissions, roles, sales } from "@/db/schema";
-import { createCategory, createProduct } from "@/features/catalog/service";
+import { createProduct } from "@/features/catalog/service";
 import { openShift } from "@/features/shifts/service";
 import type { Session } from "@/lib/auth/session";
 import { fixtures, resetDatabase } from "@/test/database";
@@ -28,13 +28,10 @@ async function grant(...permissions: Permission[]) {
 
 async function variant() {
   const session = await owner();
-  const category = await createCategory(session, { name: "Kopi", sortOrder: 0 }, testContext());
-  if (!category.ok) throw new Error(category.reason);
   const product = await createProduct(
     session,
     {
       name: "Kopi",
-      categoryId: category.id,
       price: 20_000,
       cost: 5000,
       unit: "cup",
@@ -57,6 +54,7 @@ async function sell(session: Session, variantId: string) {
     session,
     {
       idempotencyKey: crypto.randomUUID(),
+      customer: { name: "Pembeli", phone: null },
       lines: [{ variantId, qty: 1 }],
       payments: [{ method: "CASH", amount: 20_000 }],
     },

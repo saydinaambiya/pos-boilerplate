@@ -11,7 +11,8 @@ import { setProductStatusAction, updateProductAction } from "@/features/catalog/
 import { ProductForm } from "@/features/catalog/components/product-form";
 import { VariantDialog } from "@/features/catalog/components/variant-dialog";
 import { VariantsSection } from "@/features/catalog/components/variants-section";
-import { getCategories, getProduct } from "@/features/catalog/service";
+import { getBrands, getProduct } from "@/features/catalog/service";
+import { formatSize } from "@/features/catalog/sizes";
 import { Link } from "@/i18n/navigation";
 import { requirePermission } from "@/lib/auth/guard";
 import { firstParam } from "@/lib/utils/search-params";
@@ -34,11 +35,11 @@ export default async function EditProductPage({
   const session = await requirePermission("product:update");
   if (!z.uuid().safeParse(id).success) notFound();
 
-  const [t, tCommon, locale, categories, product] = await Promise.all([
+  const [t, tCommon, locale, brands, product] = await Promise.all([
     getTranslations("Catalog"),
     getTranslations("Common"),
     getLocale(),
-    getCategories(session),
+    getBrands(session),
     getProduct(session, id),
   ]);
   if (!product) notFound();
@@ -47,7 +48,14 @@ export default async function EditProductPage({
     <>
       <PageHeader
         title={product.name}
-        description={product.sku}
+        description={[
+          product.brandName,
+          product.motif,
+          product.size ? formatSize(product.size) : null,
+          product.hasVariants ? null : product.sku,
+        ]
+          .filter(Boolean)
+          .join(" · ")}
         actions={
           <Button asChild variant="secondary">
             <Link href="/products">{t("back")}</Link>
@@ -66,9 +74,12 @@ export default async function EditProductPage({
               ) : null}
             </div>
           ) : null}
+          {product.brandId && product.motif && product.size ? null : (
+            <CardDescription className="mb-4">{t("detailsMissing")}</CardDescription>
+          )}
           <ProductForm
             action={updateProductAction.bind(null, product.id)}
-            categories={categories}
+            brands={brands}
             canSeeCost={session.permissions.has("product:view-cost")}
             submitLabel={t("save")}
             product={product}

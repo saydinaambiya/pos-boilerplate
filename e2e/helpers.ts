@@ -1,19 +1,37 @@
+import { existsSync } from "node:fs";
+
 import type { Browser, Locator, Page } from "@playwright/test";
 
-import { accounts } from "./accounts";
+import { accounts, E2E_BRAND } from "./accounts";
 import { expect } from "./fixtures";
 
-/** Signs the dedicated POS cashier in a fresh context and makes sure a shift is open. */
+const POS_CASHIER_STATE = "playwright/.auth/pos-cashier.json";
+
+/**
+ * Opens the dedicated POS cashier in a fresh context and makes sure a shift
+ * is open. The session is saved and reused across specs, so parallel specs
+ * stay under the device limit (FR-AUTH-09); it signs in again only when the
+ * saved session is missing or expired.
+ */
 export async function cashierAtPos(browser: Browser): Promise<Page> {
-  const context = await browser.newContext({ storageState: { cookies: [], origins: [] } });
-  const page = await context.newPage();
-  await page.goto("/id/login");
-  await page.getByLabel("Username").fill(accounts.posCashier.username);
-  await page.getByRole("button", { name: "Lanjut" }).click();
-  await page.getByLabel(/^(Password|PIN)$/).fill(accounts.posCashier.pin);
-  await page.getByRole("button", { name: "Masuk" }).click();
-  await expect(page).toHaveURL(/\/id$/);
+  let context = await browser.newContext({
+    storageState: existsSync(POS_CASHIER_STATE) ? POS_CASHIER_STATE : { cookies: [], origins: [] },
+  });
+  let page = await context.newPage();
   await page.goto("/id/pos");
+  if (new URL(page.url()).pathname.endsWith("/login")) {
+    await context.close();
+    context = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    page = await context.newPage();
+    await page.goto("/id/login");
+    await page.getByLabel("Username").fill(accounts.posCashier.username);
+    await page.getByRole("button", { name: "Lanjut" }).click();
+    await page.getByLabel(/^(Password|PIN)$/).fill(accounts.posCashier.pin);
+    await page.getByRole("button", { name: "Masuk" }).click();
+    await expect(page).toHaveURL(/\/id$/);
+    await context.storageState({ path: POS_CASHIER_STATE });
+    await page.goto("/id/pos");
+  }
   const openShift = page.getByRole("button", { name: "Buka shift" });
   if (await openShift.isVisible()) {
     await page.getByLabel("Modal awal kas").fill("100000");
@@ -23,19 +41,21 @@ export async function cashierAtPos(browser: Browser): Promise<Page> {
   return page;
 }
 
-/** Creates a category and a stock-tracked product through the owner UI. */
+/** Fills the brand, motif and size every new product needs (FR-PRD-06). */
+export async function fillProductDetails(dialog: Locator, motif = "Polos") {
+  await choose(dialog, "Merk", E2E_BRAND);
+  await dialog.getByLabel("Motif").fill(motif);
+  await choose(dialog, "Ukuran", "93 × 47 cm");
+}
+
+/** Creates a stock-tracked product through the owner UI. */
 export async function createStockedProduct(
   page: Page,
-  options: { category: string; name: string; sku: string; price: string; stock: string },
+  options: { name: string; sku: string; price: string; stock: string },
 ) {
-  await page.goto("/id/products/categories");
-  await page.getByLabel("Nama kategori").fill(options.category);
-  await page.getByRole("button", { name: "Tambah kategori" }).click();
-  await expectResult(page, "Kategori disimpan.");
-
   await page.goto("/id/products?new=1");
   await page.getByLabel("Nama produk").fill(options.name);
-  await choose(page.getByRole("dialog"), "Kategori", options.category);
+  await fillProductDetails(page.getByRole("dialog"));
   await page.getByLabel("Harga jual").fill(options.price);
   await page.getByLabel("SKU").fill(options.sku);
   await page.getByRole("button", { name: "Simpan produk" }).click();

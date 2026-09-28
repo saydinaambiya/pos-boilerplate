@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { paletteNames } from "@/config/palettes";
 
-import { renderPaletteCss } from "./palette-css";
+import { paletteFileName, renderPaletteCss } from "./palette-css";
 
 describe("renderPaletteCss", () => {
   it.each(paletteNames)("%s emits light, system-dark and dark blocks", (name) => {
@@ -14,5 +14,13 @@ describe("renderPaletteCss", () => {
 
   it("contains only token declarations, never markup", () => {
     for (const name of paletteNames) expect(renderPaletteCss(name)).not.toMatch(/[<>&"']/);
+  });
+
+  it("gives every palette its own fingerprinted file name", () => {
+    const names = paletteNames.map((name) => paletteFileName(name, renderPaletteCss(name)));
+    for (const [index, file] of names.entries()) {
+      expect(file).toMatch(new RegExp(`^${paletteNames[index] ?? ""}\\.[0-9a-z]+\\.css$`));
+    }
+    expect(new Set(names).size).toBe(paletteNames.length);
   });
 });

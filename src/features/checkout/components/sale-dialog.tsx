@@ -18,6 +18,7 @@ import {
 import { Link } from "@/i18n/navigation";
 import type { Session } from "@/lib/auth/session";
 import { formatCurrency } from "@/lib/format/currency";
+import { formatIndonesianPhone } from "@/lib/format/phone";
 import { variantLabel } from "@/lib/format/variant-label";
 import { basisPointsToPercent } from "@/lib/settings/rates";
 
@@ -48,7 +49,10 @@ export async function SaleDialog({ session, saleId, closeHref }: SaleDialogProps
   ]);
   if (!sale) return null;
   const canRequestVoid =
-    sale.status === "COMPLETED" && !pendingVoid && session.permissions.has("sale:void");
+    sale.status === "COMPLETED" &&
+    !sale.consignmentId &&
+    !pendingVoid &&
+    session.permissions.has("sale:void");
 
   const money = (amount: number) => formatCurrency(amount, locale);
   const rate = (bps: number) => `${basisPointsToPercent(bps)}%`;
@@ -70,7 +74,15 @@ export async function SaleDialog({ session, saleId, closeHref }: SaleDialogProps
       closeLabel={tCommon("close")}
       size="xl"
       title={t("title", { invoiceNo: sale.invoiceNo })}
-      description={`${format.dateTime(sale.createdAt, { dateStyle: "medium", timeStyle: "short" })} · ${sale.cashierName} · ${t(`statuses.${sale.status}`)}`}
+      description={[
+        format.dateTime(sale.createdAt, { dateStyle: "medium", timeStyle: "short" }),
+        sale.cashierName,
+        sale.customerName ? t("customer", { name: sale.customerName }) : null,
+        sale.customerPhone ? formatIndonesianPhone(sale.customerPhone) : null,
+        t(`statuses.${sale.status}`),
+      ]
+        .filter(Boolean)
+        .join(" · ")}
     >
       <div className="flex flex-wrap gap-2">
         <Button asChild variant="secondary" size="sm">
@@ -99,6 +111,9 @@ export async function SaleDialog({ session, saleId, closeHref }: SaleDialogProps
             <TableRow key={item.id}>
               <TableCell className="[overflow-wrap:anywhere]">
                 {variantLabel(item.nameSnapshot, item.variantSnapshot)}
+                {item.detailsSnapshot ? (
+                  <span className="block text-xs text-ink-muted">{item.detailsSnapshot}</span>
+                ) : null}
                 {item.discountAmount > 0 ? (
                   <span className="block text-xs text-ink-muted">
                     {t("discount", { amount: money(item.discountAmount) })}

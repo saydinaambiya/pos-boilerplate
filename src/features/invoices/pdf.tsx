@@ -57,7 +57,11 @@ function pageSize(size: InvoiceSize, doc: InvoiceDocument): "A4" | [number, numb
     (doc.kasbon ? 2 : 0) +
     doc.items.reduce(
       (count, item) =>
-        count + 2 + (item.discount > 0 ? 1 : 0) + Math.floor(item.name.length / perLine),
+        count +
+        2 +
+        (item.discount > 0 ? 1 : 0) +
+        Math.floor(item.name.length / perLine) +
+        (item.details ? 1 + Math.floor(item.details.length / perLine) : 0),
       0,
     );
   return [(size === "58mm" ? 58 : 80) * MM, Math.max(lines * 10 + 40, 220)];
@@ -114,7 +118,6 @@ function InvoicePdf({
         <View key={index}>{line(payment.label, money(payment.amount))}</View>
       ))}
       {doc.kasbon ? line(labels.kasbonBalance, money(doc.kasbon.balance), true) : null}
-      {doc.kasbon ? line(labels.customer, doc.kasbon.customerName) : null}
     </>
   );
   const storeLines = [
@@ -146,10 +149,12 @@ function InvoicePdf({
           {line(labels.number, doc.invoiceNo)}
           {line(labels.date, doc.issuedAtText)}
           {line(labels.cashier, doc.cashierName)}
+          {doc.customerName ? line(labels.customer, doc.customerName) : null}
           <View style={styles.rule} />
           {doc.items.map((item, index) => (
             <View key={index} wrap={false} style={{ marginBottom: 2 }}>
               <Text>{item.name}</Text>
+              {item.details ? <Text>{item.details}</Text> : null}
               {line(
                 `${String(item.qty)} × ${money(item.unitPrice)}`,
                 money(item.qty * item.unitPrice),
@@ -192,6 +197,7 @@ function InvoicePdf({
             <Text>{`${labels.number} ${doc.invoiceNo}`}</Text>
             <Text>{`${labels.date} ${doc.issuedAtText}`}</Text>
             <Text>{`${labels.cashier} ${doc.cashierName}`}</Text>
+            {doc.customerName ? <Text>{`${labels.customer} ${doc.customerName}`}</Text> : null}
           </View>
         </View>
         <View style={styles.tableHead} fixed>
@@ -203,7 +209,10 @@ function InvoicePdf({
         </View>
         {doc.items.map((item, index) => (
           <View key={index} style={styles.tableRow} wrap={false}>
-            <Text style={styles.colItem}>{item.name}</Text>
+            <View style={styles.colItem}>
+              <Text>{item.name}</Text>
+              {item.details ? <Text style={{ fontSize: 8 }}>{item.details}</Text> : null}
+            </View>
             <Text style={styles.colQty}>{String(item.qty)}</Text>
             <Text style={styles.colNumber}>{money(item.unitPrice)}</Text>
             <Text style={styles.colNumber}>{item.discount > 0 ? minus(item.discount) : ""}</Text>

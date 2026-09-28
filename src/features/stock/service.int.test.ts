@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import { db } from "@/db/client";
 import { auditLogs, productVariants, stockMovements } from "@/db/schema";
-import { createCategory, createProduct } from "@/features/catalog/service";
+import { createProduct } from "@/features/catalog/service";
 import { updateSettings } from "@/features/settings/service";
 import { ForbiddenError } from "@/lib/auth/authorize";
 import { settingDefinitions } from "@/lib/settings/schemas";
@@ -25,17 +25,10 @@ const owner = () => signIn(fixtures.owner.username, fixtures.owner.password);
 /** Creates a product and returns its default variant id. */
 async function variant(options: { trackStock?: boolean; minStock?: number; sku?: string } = {}) {
   const session = await owner();
-  const category = await createCategory(
-    session,
-    { name: `Kat ${options.sku ?? "A"}`, sortOrder: 0 },
-    testContext(),
-  );
-  if (!category.ok) throw new Error(category.reason);
   const product = await createProduct(
     session,
     {
       name: `Produk ${options.sku ?? "A"}`,
-      categoryId: category.id,
       price: 10000,
       cost: 5000,
       unit: "pcs",

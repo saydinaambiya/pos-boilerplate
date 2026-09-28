@@ -72,6 +72,8 @@ export async function checkoutAction(
         return { ok: false, message: t("errors.kasbonForbidden") };
       case "kasbon-due-date":
         return { ok: false, message: t("errors.kasbonDueDate") };
+      case "store-closed":
+        return { ok: false, message: t("errors.storeClosed") };
       case "idempotency-conflict":
       case "invalid-items":
         return { ok: false, message: t("errors.invalid") };

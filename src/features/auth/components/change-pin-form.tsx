@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useRef } from "react";
 
+import { useGlobalPending } from "@/components/feedback/loading-indicator";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { PasswordInput, type RevealLabels } from "@/components/ui/password-input";
@@ -26,6 +27,7 @@ const initialState: ChangePinState = {};
 /** Forced PIN change (FR-AUTH-06); focuses the first invalid field (FR-UX-05). */
 export function ChangePinForm({ locale, labels }: ChangePinFormProps) {
   const [state, action, pending] = useActionState(changePinAction, initialState);
+  useGlobalPending(pending);
   const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {

@@ -4,7 +4,11 @@ import { users } from "./access";
 import { productVariants } from "./catalog";
 import { id, timestamps, timestamptz } from "./columns";
 
-/** Every way stock can change (PRD FR-STK-01). */
+/**
+ * Every way stock can change (PRD FR-STK-01). `CONSIGNMENT_OUT` and
+ * `CONSIGNMENT_RETURN` are goods a salesperson takes out and brings back
+ * (FR-CSG-02/04).
+ */
 export const stockMovementTypes = [
   "IN",
   "SALE",
@@ -13,6 +17,8 @@ export const stockMovementTypes = [
   "WRITE_OFF",
   "ADJUSTMENT",
   "VOID",
+  "CONSIGNMENT_OUT",
+  "CONSIGNMENT_RETURN",
 ] as const;
 
 export const stockMovementType = pgEnum("stock_movement_type", stockMovementTypes);

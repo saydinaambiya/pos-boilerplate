@@ -1,6 +1,9 @@
 /**
  * Seeds the E2E database with the owner and employee fixtures. Employees are
  * reset on every run, so lockouts and PIN changes from earlier runs vanish.
+ * Sessions from earlier runs are dropped and the device limit is raised to
+ * its maximum, because parallel specs sign the same fixtures in on many
+ * browser contexts (FR-AUTH-09 is covered by integration tests).
  * Also inserts one deterministic "extreme" sale for the invoice layout tests
  * (FR-INV-03): 120-character names, 50 lines and billion-rupiah amounts.
  */
@@ -8,8 +11,10 @@ import { eq } from "drizzle-orm";
 
 import { db } from "@/db/client";
 import {
-  categories,
+  brands,
   payments,
+  sessions,
+  settings,
   products,
   productVariants,
   saleItems,
@@ -19,15 +24,35 @@ import {
 } from "@/db/schema";
 import { seed } from "@/db/seed";
 
-import { accounts, EXTREME_SALE_ID } from "./accounts";
+import { accounts, E2E_BRAND, EXTREME_SALE_ID } from "./accounts";
 
 await seed(db, {
   owner: accounts.owner,
   employees: [accounts.cashier, accounts.newCashier, accounts.lockedCashier, accounts.posCashier],
 });
 
+await db.delete(sessions);
+const [operations] = await db
+  .select({ value: settings.value })
+  .from(settings)
+  .where(eq(settings.key, "operations"));
+const stored =
+  typeof operations?.value === "object" && operations.value !== null ? operations.value : {};
+await db
+  .insert(settings)
+  .values({ key: "operations", value: { ...stored, maxDevicesPerUser: 10 } })
+  .onConflictDoUpdate({
+    target: settings.key,
+    set: { value: { ...stored, maxDevicesPerUser: 10 } },
+  });
+
+/** Brand every UI-created test product uses; new products require one (FR-PRD-06). */
+await db
+  .insert(brands)
+  .values({ id: "0199a000-0000-7000-8000-00000000b001", name: E2E_BRAND })
+  .onConflictDoNothing();
+
 const FIXTURE = {
-  category: "0199a000-0000-7000-8000-00000000c001",
   product: "0199a000-0000-7000-8000-00000000c002",
   variant: "0199a000-0000-7000-8000-00000000c003",
   shift: "0199a000-0000-7000-8000-00000000c004",
@@ -42,15 +67,10 @@ const [owner] = await db
 
 if (owner) {
   await db
-    .insert(categories)
-    .values({ id: FIXTURE.category, name: "Fixture Invoice", sortOrder: 9999 })
-    .onConflictDoNothing();
-  await db
     .insert(products)
     .values({
       id: FIXTURE.product,
       name: longName.slice(0, 120),
-      categoryId: FIXTURE.category,
       price: 999_999_999,
       unit: "pcs",
       trackStock: false,

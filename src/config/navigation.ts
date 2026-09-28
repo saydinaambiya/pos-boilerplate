@@ -1,5 +1,6 @@
 import {
   Archive,
+  Backpack,
   BadgeCheck,
   Boxes,
   ChartColumn,
@@ -47,6 +48,12 @@ export const navigation: readonly NavigationItem[] = [
     icon: Truck,
     primary: true,
     permission: "page:online-orders",
+  },
+  {
+    href: "/consignments",
+    label: "consignments",
+    icon: Backpack,
+    permission: "page:consignments",
   },
   {
     href: "/products",

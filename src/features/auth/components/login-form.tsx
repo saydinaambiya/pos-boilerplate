@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useRef, useState } from "react";
 
+import { useGlobalPending } from "@/components/feedback/loading-indicator";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -37,6 +38,7 @@ const initialState: LoginState = {};
  */
 export function LoginForm({ locale, labels }: LoginFormProps) {
   const [state, action, pending] = useActionState(loginAction, initialState);
+  useGlobalPending(pending);
   const [editedState, setEditedState] = useState<LoginState | null>(null);
   const editing = editedState === state;
   const usernameRef = useRef<HTMLInputElement>(null);

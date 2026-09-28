@@ -13,8 +13,14 @@ a strict nonce-based Content Security Policy.
 ## Decision
 
 - Palette tokens live in `src/config/palettes.ts` and are rendered to CSS
-  custom properties at build time, served from `/assets/palette.css` with an
-  immutable cache and a content fingerprint in the URL.
+  custom properties at build time. Every palette is a static file at
+  `/assets/palettes/<name>.<hash>.css` with an immutable cache; the layout
+  links the one named in `app.config.ts`. The route never reads the config
+  and the fingerprint is in the path: a single `/assets/palette.css?v=<hash>`
+  route kept serving the previous palette in `next dev` after the config
+  changed (static routes are cached by path), and browsers then kept that
+  stale file for a year under the new URL. Unknown file names return 404
+  with `no-store`.
   An inline `<style nonce>` was tried first and rejected: after a client-side
   locale switch React inserts the new document's `<style>` carrying a nonce the
   current page's CSP does not know, and the browser blocks it (caught by the

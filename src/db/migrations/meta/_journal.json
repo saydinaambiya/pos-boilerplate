@@ -99,6 +99,48 @@
       "when": 1790430653139,
       "tag": "0013_kasbon_installments",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1790566419662,
+      "tag": "0014_sale_customer",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1790567021774,
+      "tag": "0015_session_last_seen",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1790567945365,
+      "tag": "0016_consignments",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1790600940471,
+      "tag": "0017_product_details",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1790602407061,
+      "tag": "0018_sale_item_details",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1790604106915,
+      "tag": "0019_drop_categories",
+      "breakpoints": true
     }
   ]
 }

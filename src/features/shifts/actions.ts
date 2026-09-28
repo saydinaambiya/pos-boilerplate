@@ -34,7 +34,11 @@ export async function openShiftAction(
   if (!parsed.success) return { status: "error", errors: fieldErrors(parsed.error, tv), values };
 
   const result = await openShift(session, parsed.data, await currentRequestContext());
-  if (!result.ok) return { status: "error", message: t("errorAlreadyOpen"), values };
+  if (!result.ok) {
+    const message =
+      result.reason === "store-closed" ? t("errorStoreClosed") : t("errorAlreadyOpen");
+    return { status: "error", message, values };
+  }
   revalidatePath("/", "layout");
   return { status: "success", message: t("opened") };
 }

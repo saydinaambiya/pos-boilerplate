@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import type { Locale } from "@/config/locales";
 import { ColorSwatch } from "@/features/catalog/components/color-swatch";
 import type { PosProduct, PosVariant } from "@/features/catalog/pos-types";
+import { productDetailsLine } from "@/features/catalog/sizes";
 import { formatCurrency } from "@/lib/format/currency";
 
 interface VariantPickerProps {
@@ -40,7 +41,11 @@ export function VariantPicker({
       <DialogContent closeLabel={t("close")}>
         <DialogTitle>{t("chooseVariant")}</DialogTitle>
         <DialogDescription>
-          {product ? t("chooseVariantFor", { name: product.name }) : null}
+          {product
+            ? t("chooseVariantFor", {
+                name: [product.name, productDetailsLine(product)].filter(Boolean).join(" · "),
+              })
+            : null}
         </DialogDescription>
         <ul className="grid gap-2 sm:grid-cols-2">
           {product?.variants.map((variant) => {

@@ -35,6 +35,7 @@ import {
   upsertCustomer,
 } from "./repository";
 import {
+  type CustomerInput,
   type KasbonCheckoutInput,
   type KasbonFilter,
   type KasbonPaymentInput,
@@ -55,9 +56,9 @@ export type KasbonPaymentResult =
 /** The customer for a new store credit, re-used by phone (FR-KSB-01). */
 export async function resolveKasbonCustomer(
   tx: Executor,
-  input: KasbonCheckoutInput,
+  customer: CustomerInput,
 ): Promise<string> {
-  return upsertCustomer(tx, input.customer);
+  return upsertCustomer(tx, customer);
 }
 
 /**

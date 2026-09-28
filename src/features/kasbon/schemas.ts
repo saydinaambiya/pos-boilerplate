@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { indonesianPhone } from "@/lib/validation/phone";
+import { indonesianPhone, optionalIndonesianPhone } from "@/lib/validation/phone";
 import { MAX_RUPIAH } from "@/lib/validation/money";
 import { plainText } from "@/lib/validation/text";
 
@@ -16,10 +16,25 @@ export const customerInput = z
   .strict();
 export type CustomerInput = z.infer<typeof customerInput>;
 
-/** Puts the unpaid remainder of a sale on store credit (FR-PAY-05, BR-11). */
+/**
+ * Buyer named on every sale (FR-POS-11): the name is required, the phone
+ * optional. A store credit additionally needs the phone (BR-11).
+ */
+export const saleCustomerInput = z
+  .object({
+    name: plainText(80),
+    phone: optionalIndonesianPhone,
+  })
+  .strict();
+export type SaleCustomerInput = z.infer<typeof saleCustomerInput>;
+
+/**
+ * Puts the unpaid remainder of a sale on store credit (FR-PAY-05, BR-11).
+ * The customer is the sale's buyer; only the note and terms are added here.
+ */
 export const kasbonCheckoutInput = z
   .object({
-    customer: customerInput,
+    note: plainText(200, 0),
     dueDate: isoDate.nullable(),
   })
   .strict();

@@ -54,8 +54,43 @@ export const operationsSchema = z
     heldOrderHours: z.int().min(1).max(720),
     housekeepingRetentionMonths: z.int().min(3).max(60),
     sessionIdleMinutes: z.int().min(15).max(1440),
+    /** Devices one account may be signed in on at the same time (FR-AUTH-09). */
+    maxDevicesPerUser: z.int().min(1).max(10),
   })
   .strict();
+
+/** Days of the store week, Monday first (FR-SET-09). */
+export const weekdays = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
+export type Weekday = (typeof weekdays)[number];
+
+const clockTime = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
+
+/** Opening hours of one day; `closed` keeps the times so the form remembers them. */
+const dayHoursSchema = z
+  .object({ closed: z.boolean(), open: clockTime, close: clockTime })
+  .strict()
+  .refine((day) => day.closed || day.close > day.open, { path: ["close"], error: "after-open" });
+
+/**
+ * Store opening hours (FR-SET-09, BR-24): outside them employees cannot use
+ * the POS; the Owner always can. Off until the owner turns it on.
+ */
+export const storeHoursSchema = z
+  .object({
+    enabled: z.boolean(),
+    days: z.tuple([
+      dayHoursSchema,
+      dayHoursSchema,
+      dayHoursSchema,
+      dayHoursSchema,
+      dayHoursSchema,
+      dayHoursSchema,
+      dayHoursSchema,
+    ]),
+  })
+  .strict();
+
+const defaultDay = { closed: false, open: "08:00", close: "21:00" };
 
 /**
  * Every settings key with its schema and default. Defaults apply until the
@@ -94,6 +129,14 @@ export const settingDefinitions = {
       heldOrderHours: 48,
       housekeepingRetentionMonths: 12,
       sessionIdleMinutes: 8 * 60,
+      maxDevicesPerUser: 3,
+    },
+  },
+  "store.hours": {
+    schema: storeHoursSchema,
+    defaults: {
+      enabled: false,
+      days: [defaultDay, defaultDay, defaultDay, defaultDay, defaultDay, defaultDay, defaultDay],
     },
   },
 } as const satisfies Record<string, { schema: z.ZodType; defaults: unknown }>;
