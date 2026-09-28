@@ -3,6 +3,7 @@
 import { Download, Link2, Printer, Share2 } from "lucide-react";
 import { useEffect, useRef, useState, useTransition } from "react";
 
+import { useGlobalPending } from "@/components/feedback/loading-indicator";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { Locale } from "@/config/locales";
@@ -57,6 +58,7 @@ export function InvoiceToolbar(props: InvoiceToolbarProps) {
   const [message, setMessage] = useState<string | null>(null);
   const [link, setLink] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  useGlobalPending(pending);
   const printed = useRef(false);
   const filename = `${props.invoiceNo}.pdf`;
 

@@ -96,7 +96,9 @@ test.describe("invoice print and PDF (FR-INV, FR-PDF)", () => {
     await context.grantPermissions(["clipboard-read", "clipboard-write"]);
     await page.goto(printUrl("58mm"));
     await page.getByRole("button", { name: "Salin tautan unduh" }).click();
-    await expect(page.getByRole("status")).toHaveText("Tautan unduh disalin. Berlaku 7 hari.");
+    await expect(page.getByRole("status").filter({ hasText: /./ })).toHaveText(
+      "Tautan unduh disalin. Berlaku 7 hari.",
+    );
     const url = await page.evaluate(() => navigator.clipboard.readText());
     expect(url).toMatch(/\/api\/v1\/invoice-links\/[^/?]+\?lang=id&size=58mm$/);
 

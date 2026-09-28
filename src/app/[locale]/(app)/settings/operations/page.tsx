@@ -14,7 +14,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t("tabOperations") };
 }
 
-/** Operational rules (FR-SET-07, FR-AUTH-05, FR-UI-11, BR-07, BR-18). */
+/** Operational rules (FR-SET-07, FR-AUTH-05, FR-AUTH-09, FR-UI-11, BR-07, BR-18). */
 export default async function OperationsSettingsPage() {
   const session = await requirePermission("page:settings");
   const [t, operations] = await Promise.all([
@@ -107,6 +107,16 @@ export default async function OperationsSettingsPage() {
             inputMode="numeric"
             maxLength={4}
             className="max-w-40"
+          />
+          <FormSelect
+            name="maxDevicesPerUser"
+            label={t("maxDevicesPerUser")}
+            hint={t("maxDevicesPerUserHint")}
+            defaultValue={String(operations.maxDevicesPerUser)}
+            options={Array.from({ length: 10 }, (_, index) => String(index + 1)).map((value) => ({
+              value,
+              label: value,
+            }))}
           />
         </SettingsForm>
       </Card>

@@ -9,3 +9,4 @@ export * from "./vouchers";
 export * from "./kasbon";
 export * from "./online-orders";
 export * from "./housekeeping";
+export * from "./consignments";

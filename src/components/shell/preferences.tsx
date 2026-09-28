@@ -8,15 +8,18 @@ import { ThemeSwitcher } from "./theme-switcher";
 
 /**
  * Theme, language and account controls. `inline` sits in a header row;
- * `stacked` is the sidebar footer: account card first, then theme and
- * language side by side filling the width.
+ * `stacked` is the drawer and sidebar footer: account card first (unless
+ * the sidebar already shows it under the logo), then theme and language
+ * side by side filling the width.
  */
 export async function Preferences({
   className,
   variant = "inline",
+  account = true,
 }: {
   className?: string;
   variant?: "inline" | "stacked";
+  account?: boolean;
 }) {
   const t = await getTranslations("Preferences");
   const locale = (
@@ -30,7 +33,7 @@ export async function Preferences({
   if (variant === "stacked") {
     return (
       <div className={cn("flex flex-col gap-3 border-t border-border pt-4", className)}>
-        <AccountMenu variant="card" />
+        {account ? <AccountMenu variant="card" /> : null}
         <div className="grid grid-cols-[3fr_2fr] gap-2">
           <ThemeSwitcher fill />
           {locale}

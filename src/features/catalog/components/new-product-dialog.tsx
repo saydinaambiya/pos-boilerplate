@@ -7,17 +7,13 @@ import { createProductAction } from "../actions";
 import { ProductForm } from "./product-form";
 
 interface NewProductDialogProps {
-  categories: ComponentProps<typeof ProductForm>["categories"];
+  brands: ComponentProps<typeof ProductForm>["brands"];
   canSeeCost: boolean;
   closeHref: ComponentProps<typeof RouteDialog>["closeHref"];
 }
 
 /** Create a product in a dialog over the list (FR-PRD-01, ADR-0018). */
-export async function NewProductDialog({
-  categories,
-  canSeeCost,
-  closeHref,
-}: NewProductDialogProps) {
+export async function NewProductDialog({ brands, canSeeCost, closeHref }: NewProductDialogProps) {
   const [t, tCommon] = await Promise.all([getTranslations("Catalog"), getTranslations("Common")]);
   return (
     <RouteDialog
@@ -28,7 +24,7 @@ export async function NewProductDialog({
     >
       <ProductForm
         action={createProductAction}
-        categories={categories}
+        brands={brands}
         canSeeCost={canSeeCost}
         submitLabel={t("create")}
       />

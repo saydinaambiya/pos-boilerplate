@@ -24,7 +24,8 @@ import { CatalogTabs } from "@/features/catalog/components/catalog-tabs";
 import { NewProductDialog } from "@/features/catalog/components/new-product-dialog";
 import { StockCell } from "@/features/catalog/components/stock-cell";
 import { productFilters } from "@/features/catalog/schemas";
-import { getCategories, listProducts } from "@/features/catalog/service";
+import { getBrands, listProducts } from "@/features/catalog/service";
+import { formatSize, PRODUCT_SIZES } from "@/features/catalog/sizes";
 import { Link } from "@/i18n/navigation";
 import { requirePermission } from "@/lib/auth/guard";
 import { formatCurrency } from "@/lib/format/currency";
@@ -36,35 +37,41 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * Product list with name/SKU search and filters (FR-PRD-01/02/04); `?new=1`
- * opens the create dialog (ADR-0018).
+ * Product list with search and brand and size filters
+ * (FR-PRD-01/02/04/06); `?new=1` opens the create dialog (ADR-0018).
  */
 export default async function ProductsPage({ searchParams }: PageProps<"/[locale]/products">) {
   const session = await requirePermission("page:products");
   const raw = await searchParams;
   const filters = productFilters.parse({
     q: first(raw.q) ?? "",
-    category: first(raw.category),
+    brand: first(raw.brand),
+    size: first(raw.size),
     status: first(raw.status) ?? "active",
     page: first(raw.page) ?? "1",
   });
 
-  const [t, tVariants, locale, categories, page] = await Promise.all([
+  const [t, tVariants, locale, brands, page] = await Promise.all([
     getTranslations("Catalog"),
     getTranslations("Variants"),
     getLocale(),
-    getCategories(session),
+    getBrands(session),
     listProducts(session, filters),
   ]);
   const canSeeCost = session.permissions.has("product:view-cost");
   const canUpdate = session.permissions.has("product:update");
-  const canCreate = session.permissions.has("product:create") && categories.length > 0;
+  const canCreate = session.permissions.has("product:create") && brands.length > 0;
+  const noBrands = brands.length === 0;
   const kept = keptQuery(raw, ["new"]);
   const filtered =
-    filters.q !== "" || filters.category !== undefined || filters.status !== "active";
+    filters.q !== "" ||
+    filters.brand !== undefined ||
+    filters.size !== undefined ||
+    filters.status !== "active";
   const query = (pageNumber: number) => ({
     ...(filters.q ? { q: filters.q } : {}),
-    ...(filters.category ? { category: filters.category } : {}),
+    ...(filters.brand ? { brand: filters.brand } : {}),
+    ...(filters.size ? { size: filters.size } : {}),
     ...(filters.status === "active" ? {} : { status: filters.status }),
     ...(pageNumber > 1 ? { page: String(pageNumber) } : {}),
   });
@@ -90,7 +97,7 @@ export default async function ProductsPage({ searchParams }: PageProps<"/[locale
       <Card className="mb-6">
         <FilterForm
           applyLabel={t("filter")}
-          className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:items-end"
+          className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:items-end xl:grid-cols-5"
         >
           <Field label={t("search")}>
             {(control) => (
@@ -104,15 +111,28 @@ export default async function ProductsPage({ searchParams }: PageProps<"/[locale
               />
             )}
           </Field>
-          <Field label={t("category")}>
+          <Field label={t("brand")}>
             {(control) => (
               <Select
                 {...control}
-                name="category"
-                defaultValue={filters.category ?? ""}
+                name="brand"
+                defaultValue={filters.brand ?? ""}
                 options={[
-                  { value: "", label: t("allCategories") },
-                  ...categories.map((category) => ({ value: category.id, label: category.name })),
+                  { value: "", label: t("allBrands") },
+                  ...brands.map((brand) => ({ value: brand.id, label: brand.name })),
+                ]}
+              />
+            )}
+          </Field>
+          <Field label={t("size")}>
+            {(control) => (
+              <Select
+                {...control}
+                name="size"
+                defaultValue={filters.size ?? ""}
+                options={[
+                  { value: "", label: t("allSizes") },
+                  ...PRODUCT_SIZES.map((size) => ({ value: size, label: formatSize(size) })),
                 ]}
               />
             )}
@@ -143,24 +163,18 @@ export default async function ProductsPage({ searchParams }: PageProps<"/[locale
         {page.products.length === 0 ? (
           <EmptyState
             icon={<PackageSearch aria-hidden="true" />}
-            title={
-              categories.length === 0
-                ? t("noCategoriesTitle")
-                : filtered
-                  ? t("noResultsTitle")
-                  : t("emptyTitle")
-            }
+            title={noBrands ? t("noBrandsTitle") : filtered ? t("noResultsTitle") : t("emptyTitle")}
             description={
-              categories.length === 0
-                ? t("noCategoriesDescription")
+              noBrands
+                ? t("noBrandsDescription")
                 : filtered
                   ? t("noResultsDescription")
                   : t("emptyDescription")
             }
             action={
-              categories.length === 0 && session.permissions.has("category:manage") ? (
+              noBrands && session.permissions.has("brand:manage") ? (
                 <Button asChild>
-                  <Link href="/products/categories">{t("addCategory")}</Link>
+                  <Link href="/products/brands">{t("addBrand")}</Link>
                 </Button>
               ) : undefined
             }
@@ -171,7 +185,8 @@ export default async function ProductsPage({ searchParams }: PageProps<"/[locale
             <TableHeader>
               <TableRow>
                 <TableHead>{t("name")}</TableHead>
-                <TableHead>{t("category")}</TableHead>
+                <TableHead>{t("brand")}</TableHead>
+                <TableHead>{t("size")}</TableHead>
                 <TableHead>{t("sku")}</TableHead>
                 <TableHead className="text-right">{t("price")}</TableHead>
                 {canSeeCost ? (
@@ -199,9 +214,14 @@ export default async function ProductsPage({ searchParams }: PageProps<"/[locale
                     ) : (
                       product.name
                     )}
-                    <span className="block text-xs font-normal text-ink-muted">{product.unit}</span>
+                    <span className="block text-xs font-normal text-ink-muted">
+                      {product.motif ? `${product.motif} · ${product.unit}` : product.unit}
+                    </span>
                   </TableCell>
-                  <TableCell>{product.categoryName}</TableCell>
+                  <TableCell>{product.brandName ?? "—"}</TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    {product.size ? formatSize(product.size) : "—"}
+                  </TableCell>
                   <TableCell className="text-ink-muted">
                     {product.hasVariants
                       ? tVariants("variantCount", { count: product.variantCount })
@@ -266,7 +286,7 @@ export default async function ProductsPage({ searchParams }: PageProps<"/[locale
       </Card>
       {canCreate && first(raw.new) === "1" ? (
         <NewProductDialog
-          categories={categories}
+          brands={brands}
           canSeeCost={canSeeCost}
           closeHref={{ pathname: "/products", query: kept }}
         />

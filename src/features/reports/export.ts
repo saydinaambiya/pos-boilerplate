@@ -61,7 +61,10 @@ export function reportCsv(report: SalesReport, section: ReportSection, locale: L
         ...lineColumns,
       ],
     },
-    categories: { rows: report.categories, columns: [col(t("category"), "name"), ...lineColumns] },
+    brands: {
+      rows: report.brands.map((row) => ({ ...row, name: row.name ?? t("noBrand") })),
+      columns: [col(t("brand"), "name"), ...lineColumns],
+    },
     employees: {
       rows: report.employees,
       columns: [

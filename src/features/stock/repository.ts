@@ -5,7 +5,7 @@ import { and, asc, desc, eq, gte, isNull, like, lt, lte, or, type SQL, sql } fro
 import { db, type Executor } from "@/db/client";
 import { containsPattern } from "@/db/like";
 import {
-  categories,
+  brands,
   productVariants,
   products,
   stockMovements,
@@ -69,7 +69,7 @@ const levelColumns = {
   variantId: productVariants.id,
   productId: products.id,
   productName: products.name,
-  categoryName: categories.name,
+  brandName: brands.name,
   unit: products.unit,
   sku: productVariants.sku,
   colorName: sql<string | null>`${productVariants.attributes} -> 'color' ->> 'name'`,
@@ -100,7 +100,7 @@ export async function queryStockLevels(filters: StockFilters, pageSize: number) 
     .select(levelColumns)
     .from(productVariants)
     .innerJoin(products, eq(products.id, productVariants.productId))
-    .innerJoin(categories, eq(categories.id, products.categoryId))
+    .leftJoin(brands, eq(brands.id, products.brandId))
     .where(and(...conditions))
     .orderBy(asc(products.name), asc(productVariants.sortOrder), asc(productVariants.id))
     .limit(pageSize + 1)
@@ -113,7 +113,7 @@ export async function queryLowStock(limit: number) {
     .select(levelColumns)
     .from(productVariants)
     .innerJoin(products, eq(products.id, productVariants.productId))
-    .innerJoin(categories, eq(categories.id, products.categoryId))
+    .leftJoin(brands, eq(brands.id, products.brandId))
     .where(
       and(
         eq(products.trackStock, true),
@@ -134,7 +134,7 @@ export async function findVariantStock(variantId: string) {
     .select(levelColumns)
     .from(productVariants)
     .innerJoin(products, eq(products.id, productVariants.productId))
-    .innerJoin(categories, eq(categories.id, products.categoryId))
+    .leftJoin(brands, eq(brands.id, products.brandId))
     .where(eq(productVariants.id, variantId))
     .limit(1);
   return row;

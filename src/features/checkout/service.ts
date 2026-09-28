@@ -2,9 +2,10 @@ import "server-only";
 
 import { createHash } from "node:crypto";
 
-import { db } from "@/db/client";
+import { db, type Executor } from "@/db/client";
 import { uniqueViolationConstraint } from "@/db/errors";
 import { colorOf } from "@/features/catalog/schemas";
+import { productDetailsLine } from "@/features/catalog/sizes";
 import { storeDate } from "@/lib/format/zoned-time";
 import { openKasbon, resolveKasbonCustomer } from "@/features/kasbon/service";
 import { recordStockMovement } from "@/features/stock/service";
@@ -15,6 +16,7 @@ import type { Session } from "@/lib/auth/session";
 import type { RequestContext } from "@/lib/http/request-context";
 import { calculateSale, type CartLine, type VoucherRule } from "@/lib/money/calculate";
 import { readSetting } from "@/lib/settings/store";
+import { storeClosedFor } from "@/lib/settings/store-hours-guard";
 
 import { paymentProviders, type PreparedPayment } from "./payment-providers";
 import {
@@ -58,7 +60,8 @@ export type CheckoutFailure =
         | "voucher-quota"
         | "voucher-min-purchase"
         | "kasbon-forbidden"
-        | "kasbon-due-date";
+        | "kasbon-due-date"
+        | "store-closed";
     }
   | { ok: false; reason: "insufficient-stock"; variantId: string; available: number };
 
@@ -71,11 +74,24 @@ class CheckoutAbort extends Error {
   }
 }
 
-function requestHash(input: CheckoutInput): string {
+/**
+ * A sale settling goods a salesperson already took out (FR-CSG-04): stock
+ * left at pickup, so no `SALE` movements are written, and `onSale` records
+ * the settlement inside the same transaction. Throwing from it rolls the
+ * sale back.
+ */
+export interface ConsignmentSale {
+  consignmentId: string;
+  onSale: (tx: Executor, sale: { id: string; invoiceNo: string }) => Promise<void>;
+}
+
+function requestHash(input: CheckoutInput, consignmentId: string | null = null): string {
   const request = {
+    ...(consignmentId ? { consignmentId } : {}),
     lines: input.lines,
     payments: input.payments,
     voucherCode: input.voucherCode ?? null,
+    customer: input.customer,
     kasbon: input.kasbon ?? null,
   };
   return createHash("sha256").update(JSON.stringify(request)).digest("hex");
@@ -90,10 +106,11 @@ async function replay(
   userId: string,
   input: CheckoutInput,
   now: Date,
+  consignmentId: string | null,
 ): Promise<CheckoutResult | null> {
   const record = await findIdempotencyRecord(db, userId, input.idempotencyKey, now);
   if (!record) return null;
-  if (record.requestHash !== requestHash(input))
+  if (record.requestHash !== requestHash(input, consignmentId))
     return { ok: false, reason: "idempotency-conflict" };
   const response = record.response as Omit<CheckoutSuccess, "replayed" | "kasbonTotal"> & {
     kasbonTotal?: number;
@@ -105,7 +122,8 @@ async function replay(
  * Completes a POS sale in one transaction (FR-POS-01..08, FR-PAY-01..04,
  * FR-SHF-01, FR-STK-01..03, NFR-REL-01):
  *
- * 1. Replays a stored result for a repeated `Idempotency-Key`.
+ * 1. Replays a stored result for a repeated `Idempotency-Key`; outside store
+ *    hours employees are refused (FR-SET-09).
  * 2. Requires an open shift, share-locked against a concurrent close.
  * 3. Prices every line from the database and recomputes totals (PRD §5).
  * 4. Validates payments through their providers; they must equal the total,
@@ -113,17 +131,21 @@ async function replay(
  * 5. Takes a gap-free invoice number, writes sale, lines, payments, and
  *    `SALE` stock movements (variants locked in id order to avoid deadlocks).
  *
- * Any failure rolls everything back, including the invoice number.
+ * Any failure rolls everything back, including the invoice number. With
+ * `consignment` the sale settles goods already taken out (FR-CSG-04).
  */
 export async function checkout(
   session: Session,
   input: CheckoutInput,
   context: RequestContext,
   now = new Date(),
+  consignment?: ConsignmentSale,
 ): Promise<CheckoutResult> {
   assertPermission(session, "page:pos");
-  const replayed = await replay(session.user.id, input, now);
+  const consignmentId = consignment?.consignmentId ?? null;
+  const replayed = await replay(session.user.id, input, now, consignmentId);
   if (replayed) return replayed;
+  if (await storeClosedFor(session, now)) return { ok: false, reason: "store-closed" };
 
   if (input.lines.some((line) => line.discount) && !session.permissions.has("pos:item-discount")) {
     return { ok: false, reason: "discount-forbidden" };
@@ -178,7 +200,15 @@ export async function checkout(
       const kasbonTotal = totals.grandTotal - paidTotal;
       if (input.kasbon ? kasbonTotal <= 0 : kasbonTotal !== 0)
         throw new CheckoutAbort({ ok: false, reason: "payment-mismatch" });
-      const customerId = input.kasbon ? await resolveKasbonCustomer(tx, input.kasbon) : null;
+      const { customer } = input;
+      const customerId =
+        input.kasbon && customer.phone
+          ? await resolveKasbonCustomer(tx, {
+              name: customer.name,
+              phone: customer.phone,
+              note: input.kasbon.note,
+            })
+          : null;
 
       const sequence = await nextInvoiceSequence(tx, storeDay(operations.timeZone, now));
       const invoiceNo = `${operations.invoicePrefix}${storeDay(operations.timeZone, now)}-${String(sequence).padStart(operations.invoiceSequenceDigits, "0")}`;
@@ -188,6 +218,9 @@ export async function checkout(
         shiftId: shift.id,
         cashierId: session.user.id,
         customerId,
+        consignmentId,
+        customerName: customer.name,
+        customerPhone: customer.phone,
         status: input.kasbon ? "COMPLETED_WITH_KASBON" : "COMPLETED",
         subtotal: totals.subtotal,
         itemDiscountTotal: totals.itemDiscountTotal,
@@ -213,6 +246,7 @@ export async function checkout(
             variantId: line.variantId,
             nameSnapshot: variant?.productName ?? "",
             variantSnapshot: colorOf(variant?.attributes)?.name ?? null,
+            detailsSnapshot: variant ? productDetailsLine(variant) || null : null,
             unitPrice: variant?.price ?? 0,
             unitCost: variant?.cost ?? 0,
             qty: line.qty,
@@ -241,8 +275,10 @@ export async function checkout(
         );
       }
 
+      if (consignment) await consignment.onSale(tx, { id: saleId, invoiceNo });
+
       const quantities = new Map<string, number>();
-      for (const line of input.lines) {
+      for (const line of consignment ? [] : input.lines) {
         quantities.set(line.variantId, (quantities.get(line.variantId) ?? 0) + line.qty);
       }
       for (const variantId of [...quantities.keys()].sort()) {
@@ -277,7 +313,7 @@ export async function checkout(
       await insertIdempotencyRecord(tx, {
         userId: session.user.id,
         key: input.idempotencyKey,
-        requestHash: requestHash(input),
+        requestHash: requestHash(input, consignmentId),
         response,
         expiresAt: new Date(now.getTime() + IDEMPOTENCY_TTL_MS),
       });
@@ -293,6 +329,7 @@ export async function checkout(
             grandTotal: totals.grandTotal,
             kasbonTotal,
             items: input.lines.length,
+            ...(consignmentId ? { consignmentId } : {}),
           },
         },
         context,
@@ -306,7 +343,7 @@ export async function checkout(
       constraint === "sales_cashier_idempotency_key" ||
       constraint === "idempotency_keys_user_key"
     ) {
-      const concurrent = await replay(session.user.id, input, now);
+      const concurrent = await replay(session.user.id, input, now, consignmentId);
       if (concurrent) return concurrent;
     }
     throw error;

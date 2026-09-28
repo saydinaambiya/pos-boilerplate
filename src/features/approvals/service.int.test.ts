@@ -11,7 +11,7 @@ import {
   sales,
   stockMovements,
 } from "@/db/schema";
-import { createCategory, createProduct } from "@/features/catalog/service";
+import { createProduct } from "@/features/catalog/service";
 import { checkout } from "@/features/checkout/service";
 import { requestVoid } from "@/features/checkout/void-service";
 import { getShiftReport, openShift } from "@/features/shifts/service";
@@ -42,17 +42,10 @@ async function grant(...permissions: Permission[]) {
 /** A completed cash sale of 2 units by `session`; returns sale, shift and variant ids. */
 async function sale(session: Session) {
   const ownerSession = await owner();
-  const category = await createCategory(
-    ownerSession,
-    { name: `K-${crypto.randomUUID()}`, sortOrder: 0 },
-    testContext(),
-  );
-  if (!category.ok) throw new Error(category.reason);
   const product = await createProduct(
     ownerSession,
     {
       name: "Teh",
-      categoryId: category.id,
       price: 5000,
       cost: 0,
       unit: "cup",
@@ -73,6 +66,7 @@ async function sale(session: Session) {
     session,
     {
       idempotencyKey: crypto.randomUUID(),
+      customer: { name: "Pembeli", phone: null },
       lines: [{ variantId: variant?.id ?? "", qty: 2 }],
       payments: [{ method: "CASH", amount: 10_000 }],
     },

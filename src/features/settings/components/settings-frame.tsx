@@ -7,7 +7,8 @@ import { SectionTabs } from "@/components/shell/section-tabs";
 import { PageHeader } from "@/components/ui/page-header";
 import type { FormAction } from "@/lib/validation/form-state";
 
-export type SettingsSection = "profile" | "tax" | "operations" | "bank-accounts" | "marketplaces";
+export type SettingsSection =
+  "profile" | "tax" | "operations" | "hours" | "bank-accounts" | "marketplaces";
 
 /** Page title and section tabs shared by every settings page (FR-SET). */
 export async function SettingsHeader({
@@ -28,6 +29,7 @@ export async function SettingsHeader({
           { id: "profile", href: "/settings", label: t("tabProfile") },
           { id: "tax", href: "/settings/tax", label: t("tabTax") },
           { id: "operations", href: "/settings/operations", label: t("tabOperations") },
+          { id: "hours", href: "/settings/hours", label: t("tabHours") },
           { id: "bank-accounts", href: "/settings/bank-accounts", label: t("tabBankAccounts") },
           { id: "marketplaces", href: "/settings/marketplaces", label: t("tabMarketplaces") },
         ]}

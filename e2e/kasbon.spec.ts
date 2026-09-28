@@ -22,7 +22,6 @@ test.describe("store credit with approved installments (FR-PAY-05, FR-KSB)", () 
     await grantEmployeePermission(page, "Jadikan sisa tagihan kas bon");
     await grantEmployeePermission(page, "Catat cicilan kas bon");
     await createStockedProduct(page, {
-      category: `Aksesori ${run}`,
       name: product,
       sku,
       price: "80000",

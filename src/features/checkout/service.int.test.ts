@@ -10,7 +10,7 @@ import {
   sales,
   stockMovements,
 } from "@/db/schema";
-import { changeProductStatus, createCategory, createProduct } from "@/features/catalog/service";
+import { changeProductStatus, createProduct } from "@/features/catalog/service";
 import { createVariant, enableVariants } from "@/features/catalog/variant-service";
 import { createBankAccount, updateSettings } from "@/features/settings/service";
 import { closeShift, getShiftReport, openShift } from "@/features/shifts/service";
@@ -33,17 +33,10 @@ let skuSeq = 0;
 async function product(stock: number, price = 10_000, options: { trackStock?: boolean } = {}) {
   skuSeq += 1;
   const session = await owner();
-  const category = await createCategory(
-    session,
-    { name: `Kat ${String(skuSeq)}`, sortOrder: 0 },
-    testContext(),
-  );
-  if (!category.ok) throw new Error(category.reason);
   const created = await createProduct(
     session,
     {
       name: `Produk ${String(skuSeq)}`,
-      categoryId: category.id,
       price,
       cost: 4000,
       unit: "pcs",
@@ -68,7 +61,7 @@ function sale(
   paid: CheckoutInput["payments"],
   key = crypto.randomUUID(),
 ): CheckoutInput {
-  return { idempotencyKey: key, lines, payments: paid };
+  return { idempotencyKey: key, lines, payments: paid, customer: { name: "Pembeli", phone: null } };
 }
 
 async function openedShift(session: Session) {
@@ -457,5 +450,77 @@ describe("checkout (FR-POS-01..08, FR-PAY-01..04)", () => {
       expectedCash: 110_000,
       variance: 0,
     });
+  });
+});
+
+describe("buyer on the sale (FR-POS-11)", () => {
+  it("stores the buyer's name and optional phone with the sale", async () => {
+    const session = await cashier();
+    await openedShift(session);
+    const { variantId } = await product(5);
+    const result = await checkout(
+      session,
+      {
+        ...sale([{ variantId, qty: 1 }], [{ method: "CASH", amount: 10_000 }]),
+        customer: { name: "Pak Budi", phone: "+6281298765432" },
+      },
+      testContext(),
+      NOW,
+    );
+    if (!result.ok) throw new Error(result.reason);
+    expect(await getSale(session, result.saleId)).toMatchObject({
+      customerName: "Pak Budi",
+      customerPhone: "+6281298765432",
+    });
+  });
+});
+
+describe("store hours (FR-SET-09, BR-24)", () => {
+  /** NOW is Saturday 10:00 in Asia/Jakarta. */
+  async function closeOnSaturday() {
+    const day = { closed: false, open: "08:00", close: "21:00" };
+    await updateSettings(
+      await owner(),
+      "store.hours",
+      { enabled: true, days: [day, day, day, day, day, { ...day, closed: true }, day] },
+      testContext(),
+    );
+  }
+
+  it("blocks employees from opening a shift and selling while closed", async () => {
+    const session = await cashier();
+    await openedShift(session);
+    const { variantId } = await product(5);
+    await closeOnSaturday();
+
+    expect(await openShift(session, { openingCash: 0 }, testContext(), NOW)).toEqual({
+      ok: false,
+      reason: "store-closed",
+    });
+    expect(
+      await checkout(
+        session,
+        sale([{ variantId, qty: 1 }], [{ method: "CASH", amount: 10_000 }]),
+        testContext(),
+        NOW,
+      ),
+    ).toEqual({ ok: false, reason: "store-closed" });
+    expect((await closeShift(session, { countedCash: 100_000, note: "" }, testContext())).ok).toBe(
+      true,
+    );
+  });
+
+  it("never blocks the Owner", async () => {
+    const session = await owner();
+    await closeOnSaturday();
+    expect((await openShift(session, { openingCash: 0 }, testContext(), NOW)).ok).toBe(true);
+    const { variantId } = await product(5);
+    const result = await checkout(
+      session,
+      sale([{ variantId, qty: 1 }], [{ method: "CASH", amount: 10_000 }]),
+      testContext(),
+      NOW,
+    );
+    expect(result.ok).toBe(true);
   });
 });

@@ -3,13 +3,10 @@ import { z } from "zod";
 import { rupiah } from "@/lib/validation/money";
 import { plainText } from "@/lib/validation/text";
 
-/** Category name and display order (FR-CAT-01). */
-export const categoryInput = z
-  .object({
-    name: plainText(40),
-    sortOrder: z.int().min(0).max(9999),
-  })
-  .strict();
+import { PRODUCT_SIZES } from "./sizes";
+
+/** Brand name (FR-CAT-02). */
+export const brandInput = z.object({ name: plainText(40) }).strict();
 
 /** SKUs double as barcodes later (PRD §13), so they stay short and URL-safe. */
 export const skuSchema = z
@@ -19,14 +16,31 @@ export const skuSchema = z
 
 const minStock = z.int().min(0).max(1_000_000);
 
+/** A choice from a list; an empty submission reads as "required", not "invalid". */
+const chosen = <T extends z.ZodType<string, string>>(schema: T) => z.string().min(1).pipe(schema);
+
+/** Empty submissions become `null` for older products without these details (FR-PRD-06). */
+const optionalChoice = <T extends z.ZodType<string, string>>(schema: T) =>
+  z
+    .string()
+    .transform((value) => (value === "" ? null : value))
+    .pipe(schema.nullable());
+
+const productSize = z.enum(PRODUCT_SIZES);
+
 /**
- * Product-level fields (FR-PRD-01). `cost` is omitted when the caller may
- * not see it (FR-PRD-02).
+ * Product-level fields (FR-PRD-01, FR-PRD-06). `cost` is omitted when the
+ * caller may not see it (FR-PRD-02). Brand, motif and size may stay empty
+ * on products created before they existed; omitted means unchanged.
  */
 export const productDetailsInput = z
   .object({
     name: plainText(120),
-    categoryId: z.uuid(),
+    brandId: optionalChoice(z.uuid()).optional(),
+    motif: plainText(60, 0)
+      .transform((value) => (value === "" ? null : value))
+      .optional(),
+    size: optionalChoice(productSize).optional(),
     price: rupiah,
     cost: rupiah.optional(),
     unit: plainText(16),
@@ -39,6 +53,13 @@ export const productDetailsInput = z
  * colour variants are enabled, those live on each variant instead.
  */
 export const productInput = productDetailsInput.extend({ sku: skuSchema, minStock });
+
+/** New products must name their brand, motif and size (FR-PRD-06). */
+export const newProductInput = productInput.extend({
+  brandId: chosen(z.uuid()),
+  motif: plainText(60),
+  size: chosen(productSize),
+});
 
 /** Swatch colour, validated strictly because it is rendered as SVG `fill` (FR-VAR-03). */
 export const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/);
@@ -85,14 +106,16 @@ export const productStatuses = ["active", "inactive", "all"] as const;
 /** List filters from the query string; invalid values fall back to defaults. */
 export const productFilters = z.object({
   q: z.string().trim().max(60).catch(""),
-  category: z.uuid().optional().catch(undefined),
+  brand: z.uuid().optional().catch(undefined),
+  size: productSize.optional().catch(undefined),
   status: z.enum(productStatuses).catch("active"),
   page: z.coerce.number().int().min(1).max(1000).catch(1),
 });
 
-export type CategoryInput = z.infer<typeof categoryInput>;
 export type ProductDetailsInput = z.infer<typeof productDetailsInput>;
 export type ProductInput = z.infer<typeof productInput>;
+export type NewProductInput = z.infer<typeof newProductInput>;
+export type BrandInput = z.infer<typeof brandInput>;
 export type EnableVariantsInput = z.infer<typeof enableVariantsInput>;
 export type VariantInput = z.infer<typeof variantInput>;
 export type NewVariantInput = z.infer<typeof newVariantInput>;

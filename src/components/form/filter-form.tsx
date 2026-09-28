@@ -11,6 +11,7 @@ import {
   useTransition,
 } from "react";
 
+import { useGlobalPending } from "@/components/feedback/loading-indicator";
 import { Button } from "@/components/ui/button";
 
 /** Input types whose every keystroke is debounced instead of applied at once. */
@@ -44,6 +45,7 @@ export function FilterForm({
   const pathname = usePathname();
   const search = useSearchParams().toString();
   const [pending, startTransition] = useTransition();
+  useGlobalPending(pending);
   const formRef = useRef<HTMLFormElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const [fields, setFields] = useState({ search, applied: search, key: 0 });

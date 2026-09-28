@@ -4,6 +4,7 @@ import { Minus, Plus, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useId, useState, useTransition } from "react";
 
+import { useGlobalPending } from "@/components/feedback/loading-indicator";
 import { ResultDialog } from "@/components/feedback/result-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +13,7 @@ import { Select } from "@/components/ui/select";
 import type { Locale } from "@/config/locales";
 import { ColorSwatch } from "@/features/catalog/components/color-swatch";
 import type { PosProduct, PosVariant } from "@/features/catalog/pos-types";
+import { productDetailsLine } from "@/features/catalog/sizes";
 import { useRouter } from "@/i18n/navigation";
 import { formatCurrency } from "@/lib/format/currency";
 import { parseRupiah } from "@/lib/format/rupiah-input";
@@ -52,6 +54,7 @@ export function OrderEntryForm({ locale, marketplaces }: OrderEntryFormProps) {
   const [lines, setLines] = useState<Line[]>([]);
   const [error, setError] = useState<{ message: string; field?: string } | null>(null);
   const [pending, startTransition] = useTransition();
+  useGlobalPending(pending);
 
   useEffect(() => {
     if (term.trim().length < 2) return;
@@ -214,7 +217,14 @@ export function OrderEntryForm({ locale, marketplaces }: OrderEntryFormProps) {
           >
             {visible.map((product) => (
               <li key={product.id} className="rounded-control border border-border p-2">
-                <p className="mb-1 text-sm font-medium text-ink">{product.name}</p>
+                <p className="mb-1 text-sm font-medium text-ink">
+                  {product.name}
+                  {productDetailsLine(product) ? (
+                    <span className="block text-xs font-normal text-ink-muted">
+                      {productDetailsLine(product)}
+                    </span>
+                  ) : null}
+                </p>
                 <div className="flex flex-wrap gap-2">
                   {product.variants.map((variant) => (
                     <Button

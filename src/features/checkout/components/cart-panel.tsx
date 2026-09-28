@@ -4,6 +4,7 @@ import { Minus, Plus, Tag, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useId, useState, useTransition } from "react";
 
+import { useGlobalPending } from "@/components/feedback/loading-indicator";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MoneyInput } from "@/components/ui/money-input";
@@ -59,6 +60,7 @@ function VoucherField(
   const [code, setCode] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  useGlobalPending(pending);
   const { voucher } = props;
 
   if (voucher) {

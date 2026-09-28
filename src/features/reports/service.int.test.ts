@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { DEFAULT_EMPLOYEE_ROLE, type Permission } from "@/config/permissions";
 import { db } from "@/db/client";
 import { onlineOrders, productVariants, rolePermissions, roles, sales } from "@/db/schema";
-import { createCategory, createProduct } from "@/features/catalog/service";
+import { createBrand, createProduct } from "@/features/catalog/service";
 import { checkout } from "@/features/checkout/service";
 import { requestVoid } from "@/features/checkout/void-service";
 import { createOnlineOrder } from "@/features/online-orders/service";
@@ -32,25 +32,19 @@ async function grant(...permissions: Permission[]) {
 }
 
 /** An untracked product priced 50.000 with cost 20.000. */
-async function product(name: string) {
+async function product(name: string, brandId?: string) {
   const session = await owner();
-  const category = await createCategory(
-    session,
-    { name: `Kat ${name}`, sortOrder: 0 },
-    testContext(),
-  );
-  if (!category.ok) throw new Error(category.reason);
   const created = await createProduct(
     session,
     {
       name,
-      categoryId: category.id,
       price: 50_000,
       cost: 20_000,
       unit: "pcs",
       trackStock: false,
       sku: `SKU-${name}`,
       minStock: 0,
+      ...(brandId ? { brandId } : {}),
     },
     testContext(),
   );
@@ -67,6 +61,7 @@ async function sell(session: Session, variantId: string, qty: number, amount: nu
     session,
     {
       idempotencyKey: crypto.randomUUID(),
+      customer: { name: "Pembeli", phone: null },
       lines: [{ variantId, qty }],
       payments: [{ method: "CASH", amount }],
     },
@@ -83,7 +78,9 @@ describe("sales report (FR-RPT-01..04)", () => {
   it("sums non-voided sales by product, method, employee and day", async () => {
     const session = await owner();
     await openShift(session, { openingCash: 0 }, testContext());
-    const kaos = await product("Kaos");
+    const brand = await createBrand(await owner(), { name: "Turkiye" }, testContext());
+    if (!brand.ok) throw new Error(brand.reason);
+    const kaos = await product("Kaos", brand.id);
     const topi = await product("Topi");
     await sell(session, kaos, 2, 100_000);
     await sell(session, topi, 1, 50_000);
@@ -111,7 +108,12 @@ describe("sales report (FR-RPT-01..04)", () => {
       { day: "2026-09-26", count: 2, grandTotal: 150_000, net: 150_000 },
     ]);
     expect(report.employees).toHaveLength(1);
-    expect(report.categories).toHaveLength(2);
+    expect(report.brands.map((row) => [row.name, row.qty, row.revenue])).toEqual([
+      ["Turkiye", 2, 100_000],
+      [null, 1, 50_000],
+    ]);
+    const csv = [...reportCsv(report, "brands", "id")].join("").split("\r\n");
+    expect(csv[2]?.startsWith("Tanpa merk,")).toBe(true);
   });
 
   it("hides cost and margin without report:view-profit (FR-RPT-02)", async () => {

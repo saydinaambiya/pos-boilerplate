@@ -1,8 +1,9 @@
-import { LogOut } from "lucide-react";
+import { LogOut, MonitorSmartphone } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
 
 import { logoutAction } from "@/features/auth/actions";
 import { LOCALE_FIELD } from "@/i18n/form-locale";
+import { Link } from "@/i18n/navigation";
 import { getSession } from "@/lib/auth/guard";
 
 function initials(name: string): string {
@@ -15,9 +16,10 @@ function initials(name: string): string {
 }
 
 /**
- * Signed-in account and sign-out ("ganti kasir", FR-AUTH-08). A plain form,
- * so it works without client JavaScript. `card` is the sidebar footer
- * variant with initials, name, role and an icon-only sign-out button.
+ * Signed-in account, a link to its devices (FR-AUTH-10) and sign-out
+ * ("ganti kasir", FR-AUTH-08). A plain form, so it works without client
+ * JavaScript. `card` is the sidebar variant under the logo with initials,
+ * name, role and icon-only devices and sign-out buttons.
  */
 export async function AccountMenu({ variant = "inline" }: { variant?: "inline" | "card" }) {
   const session = await getSession();
@@ -43,6 +45,14 @@ export async function AccountMenu({ variant = "inline" }: { variant?: "inline" |
           <span className="truncate text-sm font-medium text-ink">{session.user.name}</span>
           <span className="truncate text-xs text-ink-muted">{session.role.name}</span>
         </span>
+        <Link
+          href="/devices"
+          aria-label={t("devices")}
+          title={t("devices")}
+          className="inline-flex size-10 shrink-0 items-center justify-center rounded-control text-ink-muted transition-colors hover:bg-surface hover:text-ink"
+        >
+          <MonitorSmartphone className="size-4" aria-hidden="true" />
+        </Link>
         <button
           type="submit"
           aria-label={t("logout")}
@@ -62,6 +72,14 @@ export async function AccountMenu({ variant = "inline" }: { variant?: "inline" |
       <span aria-hidden="true" title={account} className="max-w-32 truncate text-sm text-ink-muted">
         {session.user.name}
       </span>
+      <Link
+        href="/devices"
+        aria-label={t("devices")}
+        title={t("devices")}
+        className="inline-flex size-11 items-center justify-center rounded-control text-ink transition-colors hover:bg-surface-muted"
+      >
+        <MonitorSmartphone className="size-4" aria-hidden="true" />
+      </Link>
       <button
         type="submit"
         className="inline-flex min-h-11 items-center gap-2 rounded-control px-3 text-sm font-medium text-ink transition-colors hover:bg-surface-muted"

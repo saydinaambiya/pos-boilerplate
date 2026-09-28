@@ -5,6 +5,7 @@ import { recordAudit } from "@/lib/audit/audit";
 import { hashSecret, verifyAgainstDummy, verifySecret } from "@/lib/auth/credentials";
 import { authPolicy } from "@/lib/auth/policy";
 import {
+  countActiveSessions,
   createSession,
   deleteOtherSessions,
   deleteSession,
@@ -13,11 +14,13 @@ import {
 } from "@/lib/auth/session";
 import type { RequestContext } from "@/lib/http/request-context";
 import { failureCounter } from "@/lib/security/rate-limit";
+import { readSetting } from "@/lib/settings/store";
 
 import {
   clearFailedAttempts,
   findPinHash,
   findUserByUsername,
+  lockUser,
   registerFailedAttempt,
   updatePin,
 } from "./repository";
@@ -26,6 +29,7 @@ import { type ChangePinInput, type LoginInput, usernameSchema } from "./schemas"
 export type LoginResult =
   | { ok: true; token: string; expiresAt: Date; mustChangePin: boolean }
   | { ok: false; reason: "invalid" }
+  | { ok: false; reason: "device-limit"; maxDevices: number }
   | { ok: false; reason: "locked" | "rate-limited"; retryAfterSeconds: number };
 
 const MINUTE_MS = 60_000;
@@ -75,6 +79,11 @@ export async function loginMethodFor(username: string): Promise<"password" | "pi
  * (FR-AUTH-01..05). Failures are indistinguishable except for lockouts,
  * which the user must be told about to act on. Every attempt is audited.
  * The per-IP limiter fails open: account lockout still applies.
+ *
+ * A correct secret is still refused when the account is already signed in
+ * on the maximum number of devices (FR-AUTH-09); the user row is locked so
+ * two simultaneous logins cannot both take the last slot. The user then
+ * signs a device out from the devices page, or the owner does it for them.
  */
 export async function login(
   input: LoginInput,
@@ -146,9 +155,12 @@ export async function login(
       : { ok: false, reason: "invalid" };
   }
 
+  const { maxDevicesPerUser } = await readSetting("operations");
   const session = await db.transaction(async (tx) => {
+    await lockUser(tx, user.id);
     await clearFailedAttempts(tx, user.id);
     await purgeExpiredSessions(tx, now);
+    if ((await countActiveSessions(tx, user.id, now)) >= maxDevicesPerUser) return null;
     const created = await createSession(tx, user.id, context, now);
     await recordAudit(
       tx,
@@ -158,6 +170,20 @@ export async function login(
     return created;
   });
 
+  if (!session) {
+    await recordAudit(
+      db,
+      {
+        actorId: user.id,
+        action: "auth.login.failed",
+        entity: "user",
+        entityId: user.id,
+        diff: { reason: "device-limit", maxDevices: maxDevicesPerUser },
+      },
+      context,
+    );
+    return { ok: false, reason: "device-limit", maxDevices: maxDevicesPerUser };
+  }
   return { ok: true, ...session, mustChangePin: user.mustChangePin };
 }
 

@@ -4,6 +4,7 @@ import { ShoppingBag } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 
+import { useGlobalPending } from "@/components/feedback/loading-indicator";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -17,6 +18,7 @@ import {
 import { Input } from "@/components/ui/input";
 import type { Locale } from "@/config/locales";
 import type { PosProduct, PosVariant } from "@/features/catalog/pos-types";
+import { productDetailsLine } from "@/features/catalog/sizes";
 import { Link } from "@/i18n/navigation";
 import { formatCurrency } from "@/lib/format/currency";
 import { calculateSale, type TaxRules, type VoucherRule } from "@/lib/money/calculate";
@@ -34,7 +36,7 @@ interface PosTerminalProps {
   catalog: PosProduct[];
   /** The preload was capped; search runs on the server (NFR-PERF-07). */
   truncated: boolean;
-  categories: readonly { id: string; name: string }[];
+  brands: readonly { id: string; name: string }[];
   tax: TaxRules;
   allowNegativeStock: boolean;
   canDiscount: boolean;
@@ -55,6 +57,7 @@ function matches(product: PosProduct, term: string) {
   const needle = term.toLowerCase();
   return (
     product.name.toLowerCase().includes(needle) ||
+    productDetailsLine(product).toLowerCase().includes(needle) ||
     product.variants.some(
       (variant) =>
         variant.sku.toLowerCase().includes(needle) ||
@@ -72,7 +75,7 @@ function isTyping(target: EventTarget | null) {
 
 /**
  * The POS screen (FR-POS-01..05, FR-POS-10): product grid with search and
- * category filter, colour picker, cart and payment. The preview uses the
+ * brand filter, colour picker, cart and payment. The preview uses the
  * same `calculateSale` as the server, which recomputes on checkout.
  */
 export function PosTerminal(props: PosTerminalProps) {
@@ -81,9 +84,10 @@ export function PosTerminal(props: PosTerminalProps) {
   const cart = useCart(props.storageKey);
   const searchRef = useRef<HTMLInputElement>(null);
   const [term, setTerm] = useState("");
-  const [category, setCategory] = useState<string | null>(null);
+  const [brand, setBrand] = useState<string | null>(null);
   const [remote, setRemote] = useState<PosProduct[] | null>(null);
   const [searching, startSearch] = useTransition();
+  useGlobalPending(searching);
   const [picking, setPicking] = useState<PosProduct | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
   const [paying, setPaying] = useState(false);
@@ -141,10 +145,10 @@ export function PosTerminal(props: PosTerminalProps) {
     const source = props.truncated && remote ? remote : props.catalog;
     return source.filter(
       (product) =>
-        (category === null || product.categoryId === category) &&
+        (brand === null || product.brandId === brand) &&
         (props.truncated || term.trim() === "" || matches(product, term.trim())),
     );
-  }, [props.catalog, props.truncated, remote, category, term]);
+  }, [props.catalog, props.truncated, remote, brand, term]);
 
   const maxQty = useCallback(
     (variantId: string) => {
@@ -259,20 +263,20 @@ export function PosTerminal(props: PosTerminalProps) {
           />
           <div
             role="group"
-            aria-label={t("categoriesLabel")}
+            aria-label={t("brandsLabel")}
             className="flex gap-2 overflow-x-auto pb-1"
           >
-            {[{ id: null, name: t("allCategories") }, ...props.categories].map((entry) => (
+            {[{ id: null, name: t("allBrands") }, ...props.brands].map((entry) => (
               <button
                 key={entry.id ?? "all"}
                 type="button"
-                aria-pressed={category === entry.id}
+                aria-pressed={brand === entry.id}
                 onClick={() => {
-                  setCategory(entry.id);
+                  setBrand(entry.id);
                 }}
                 className={cn(
                   "min-h-11 shrink-0 rounded-full border border-border px-4 text-sm font-medium whitespace-nowrap text-ink-muted",
-                  category === entry.id && "border-primary bg-primary text-primary-ink",
+                  brand === entry.id && "border-primary bg-primary text-primary-ink",
                 )}
               >
                 {entry.name}
@@ -308,6 +312,11 @@ export function PosTerminal(props: PosTerminalProps) {
                       <span className="line-clamp-2 font-medium [overflow-wrap:anywhere] text-ink">
                         {product.name}
                       </span>
+                      {productDetailsLine(product) ? (
+                        <span className="line-clamp-1 text-xs [overflow-wrap:anywhere] text-ink-muted">
+                          {productDetailsLine(product)}
+                        </span>
+                      ) : null}
                       <span className="text-sm font-semibold tabular-nums">
                         {low === high ? money(low) : `${money(low)} – ${money(high)}`}
                       </span>

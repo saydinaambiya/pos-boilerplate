@@ -3,7 +3,9 @@ import { NextIntlClientProvider, hasLocale } from "next-intl";
 import { getMessages, getTranslations } from "next-intl/server";
 import { Outfit } from "next/font/google";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 
+import { LoadingIndicator } from "@/components/feedback/loading-indicator";
 import { StyleNonce } from "@/components/shell/style-nonce";
 import { appConfig } from "@/config/app.config";
 import { routing } from "@/i18n/routing";
@@ -43,7 +45,12 @@ export default async function LocaleLayout({ children, params }: LayoutProps<"/[
   const { locale } = await params;
   if (!hasLocale(routing.locales, locale)) notFound();
 
-  const [theme, nonce, messages] = await Promise.all([getTheme(), getNonce(), getMessages()]);
+  const [theme, nonce, messages, tCommon] = await Promise.all([
+    getTheme(),
+    getNonce(),
+    getMessages(),
+    getTranslations({ locale, namespace: "Common" }),
+  ]);
 
   return (
     <html lang={locale} data-theme={theme} className={outfit.variable}>
@@ -56,6 +63,9 @@ export default async function LocaleLayout({ children, params }: LayoutProps<"/[
         <NextIntlClientProvider messages={{ Feedback: messages.Feedback, Picker: messages.Picker }}>
           {children}
         </NextIntlClientProvider>
+        <Suspense fallback={null}>
+          <LoadingIndicator label={tCommon("loading")} />
+        </Suspense>
       </body>
     </html>
   );

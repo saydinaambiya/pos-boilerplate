@@ -5,7 +5,7 @@ import { DEFAULT_EMPLOYEE_ROLE, type Permission } from "@/config/permissions";
 import { db } from "@/db/client";
 import { approvals, productVariants, rolePermissions, roles, sales, vouchers } from "@/db/schema";
 import { decideApproval } from "@/features/approvals/service";
-import { createCategory, createProduct } from "@/features/catalog/service";
+import { createProduct } from "@/features/catalog/service";
 import { checkout } from "@/features/checkout/service";
 import { requestVoid } from "@/features/checkout/void-service";
 import { openShift } from "@/features/shifts/service";
@@ -61,17 +61,10 @@ async function approvePending(voucherId: string) {
 /** A 100.000 rupiah untracked product and an open shift for `session`. */
 async function sellable(session: Session) {
   const ownerSession = await owner();
-  const category = await createCategory(
-    ownerSession,
-    { name: `K-${crypto.randomUUID()}`, sortOrder: 0 },
-    testContext(),
-  );
-  if (!category.ok) throw new Error(category.reason);
   const product = await createProduct(
     ownerSession,
     {
       name: "Paket",
-      categoryId: category.id,
       price: 100_000,
       cost: 0,
       unit: "pcs",
@@ -95,6 +88,7 @@ function buy(session: Session, variantId: string, amount: number, voucherCode?: 
     session,
     {
       idempotencyKey: crypto.randomUUID(),
+      customer: { name: "Pembeli", phone: null },
       lines: [{ variantId, qty: 1 }],
       payments: [{ method: "CASH", amount }],
       ...(voucherCode ? { voucherCode } : {}),

@@ -21,7 +21,6 @@ test.describe("void through approvals (FR-POS-09, FR-APR)", () => {
   test("prepares a product and lets cashiers request voids", async ({ page }) => {
     await grantEmployeePermission(page, "Ajukan void transaksi");
     await createStockedProduct(page, {
-      category: `Bakery ${run}`,
       name: product,
       sku,
       price: "7000",
@@ -35,6 +34,7 @@ test.describe("void through approvals (FR-POS-09, FR-APR)", () => {
     await page.getByRole("button", { name: new RegExp(product) }).click();
     await page.keyboard.press("F2");
     const payment = page.getByRole("dialog", { name: "Pembayaran" });
+    await payment.getByLabel("Nama pelanggan").fill("Pembeli E2E");
     await payment.getByRole("button", { name: "Uang pas" }).click();
     await payment.getByRole("button", { name: "Selesaikan transaksi" }).click();
     const success = page.getByRole("dialog", { name: "Transaksi berhasil" });

@@ -99,7 +99,7 @@ export default async function StockPage({ searchParams }: PageProps<"/[locale]/s
               <TableRow>
                 <TableHead>{t("product")}</TableHead>
                 <TableHead>{t("sku")}</TableHead>
-                <TableHead>{t("category")}</TableHead>
+                <TableHead>{t("brand")}</TableHead>
                 <TableHead>{t("stock")}</TableHead>
                 <TableHead className="text-right">{t("minStock")}</TableHead>
               </TableRow>
@@ -120,7 +120,7 @@ export default async function StockPage({ searchParams }: PageProps<"/[locale]/s
                     <span className="block text-xs font-normal text-ink-muted">{level.unit}</span>
                   </TableCell>
                   <TableCell className="text-ink-muted">{level.sku}</TableCell>
-                  <TableCell>{level.categoryName}</TableCell>
+                  <TableCell>{level.brandName ?? "—"}</TableCell>
                   <TableCell>
                     <StockCell trackStock stockQty={level.stockQty} minStock={level.minStock} />
                   </TableCell>

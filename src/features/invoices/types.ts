@@ -27,8 +27,18 @@ export interface InvoiceDocument {
   /** Formatted in the store time zone and the document locale. */
   issuedAtText: string;
   cashierName: string;
+  /** Buyer named at checkout (FR-POS-11); null on older sales without one. */
+  customerName: string | null;
   voided: boolean;
-  items: { name: string; qty: number; unitPrice: number; discount: number; total: number }[];
+  items: {
+    name: string;
+    /** Brand · motif · size frozen at sale time (FR-PRD-06); null on older sales. */
+    details: string | null;
+    qty: number;
+    unitPrice: number;
+    discount: number;
+    total: number;
+  }[];
   subtotal: number;
   itemDiscountTotal: number;
   voucherDiscount: number;
@@ -38,7 +48,7 @@ export interface InvoiceDocument {
   grandTotal: number;
   payments: { label: string; amount: number; method: string }[];
   /** Store credit on this sale with its current balance (FR-INV-04). */
-  kasbon: { customerName: string; balance: number } | null;
+  kasbon: { balance: number } | null;
 }
 
 /** Translated labels; resolved on the server for the locale chosen at print time (FR-INV-05). */

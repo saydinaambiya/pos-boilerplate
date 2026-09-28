@@ -211,6 +211,7 @@ const ENTITIES = new Set<string>([
   "bank-account",
   "marketplace",
   "category",
+  "brand",
   "product",
   "product-variant",
   "shift",

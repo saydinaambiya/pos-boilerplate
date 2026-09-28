@@ -27,7 +27,7 @@ function declarations(tokens: SchemeTokens & StatusTokens): string {
  *
  * `system` follows `prefers-color-scheme` in pure CSS, so theming needs no
  * client script and never flashes (PRD FR-UI-09). Served as a static file
- * by `app/assets/palette.css/route.ts`.
+ * by `app/assets/palettes/[file]/route.ts`.
  */
 export function renderPaletteCss(name: PaletteName): string {
   const palette = palettes[name];
@@ -39,4 +39,18 @@ export function renderPaletteCss(name: PaletteName): string {
     `@media (prefers-color-scheme:dark){:root[data-theme=system]{color-scheme:dark;${dark}}}`,
     `:root[data-theme=dark]{color-scheme:dark;${dark}}`,
   ].join("");
+}
+
+/**
+ * File name with the palette name and an FNV-1a fingerprint of its
+ * stylesheet, e.g. `ocean.12yqzh6.css`. Both sit in the path, not the query,
+ * because static routes are cached by path (ADR-0003).
+ */
+export function paletteFileName(name: PaletteName, css: string): string {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < css.length; index += 1) {
+    hash ^= css.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return `${name}.${(hash >>> 0).toString(36)}.css`;
 }

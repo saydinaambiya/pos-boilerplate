@@ -11,10 +11,10 @@ import { signIn, testContext } from "@/test/sessions";
 import type { ProductFilters, ProductInput } from "./schemas";
 import {
   changeProductStatus,
-  createCategory,
+  createBrand,
   createProduct,
-  deleteCategory,
-  getCategories,
+  deleteBrand,
+  getBrands,
   getProduct,
   listProducts,
   updateProduct,
@@ -23,13 +23,7 @@ import {
 const owner = () => signIn(fixtures.owner.username, fixtures.owner.password);
 const allActive: ProductFilters = { q: "", status: "active", page: 1 };
 
-async function categoryId(name = "Minuman"): Promise<string> {
-  const result = await createCategory(await owner(), { name, sortOrder: 10 }, testContext());
-  if (!result.ok) throw new Error(result.reason);
-  return result.id;
-}
-
-function product(overrides: Partial<ProductInput> & { categoryId: string }): ProductInput {
+function product(overrides: Partial<ProductInput> = {}): ProductInput {
   return {
     name: "Kopi Susu",
     price: 18000,
@@ -55,49 +49,73 @@ async function grantCashierProductEditing() {
 
 beforeEach(resetDatabase);
 
-describe("categories (FR-CAT-01)", () => {
-  it("orders by display order and counts products", async () => {
+describe("brands and product details (FR-CAT-02, FR-PRD-06)", () => {
+  it("stores brand, motif and size, filters by them and guards brands in use", async () => {
     const session = await owner();
-    await createCategory(session, { name: "Makanan", sortOrder: 20 }, testContext());
-    const drinks = await categoryId("Minuman");
-    await createProduct(session, product({ categoryId: drinks }), testContext());
+    const created = await createBrand(session, { name: "Turkiye" }, testContext());
+    if (!created.ok) throw new Error(created.reason);
+    expect(await createBrand(session, { name: "turkiye" }, testContext())).toEqual({
+      ok: false,
+      reason: "name-taken",
+    });
 
-    const list = await getCategories(session);
-    expect(list.map((category) => [category.name, category.productCount])).toEqual([
-      ["Minuman", 1],
-      ["Makanan", 0],
-    ]);
-  });
-
-  it("rejects duplicate names and deleting categories with products", async () => {
-    const session = await owner();
-    const drinks = await categoryId("Minuman");
-    expect(await createCategory(session, { name: "minuman", sortOrder: 0 }, testContext())).toEqual(
-      {
-        ok: false,
-        reason: "name-taken",
-      },
+    const saved = await createProduct(
+      session,
+      product({ brandId: created.id, motif: "Mihrab", size: "93x47" }),
+      testContext(),
     );
+    if (!saved.ok) throw new Error(saved.reason);
+    expect(await getProduct(session, saved.id)).toMatchObject({
+      brandName: "Turkiye",
+      motif: "Mihrab",
+      size: "93x47",
+    });
 
-    await createProduct(session, product({ categoryId: drinks }), testContext());
-    expect(await deleteCategory(session, drinks, testContext())).toEqual({
+    const search = async (filters: Partial<ProductFilters>) =>
+      (await listProducts(session, { ...allActive, ...filters })).products.map((row) => row.id);
+    expect(await search({ q: "turki" })).toEqual([saved.id]);
+    expect(await search({ q: "mihrab" })).toEqual([saved.id]);
+    expect(await search({ brand: created.id, size: "93x47" })).toEqual([saved.id]);
+    expect(await search({ size: "100x70" })).toEqual([]);
+
+    expect(await getBrands(session)).toEqual([
+      { id: created.id, name: "Turkiye", productCount: 1 },
+    ]);
+    expect(await deleteBrand(session, created.id, testContext())).toEqual({
       ok: false,
       reason: "in-use",
     });
+  });
 
-    const empty = await categoryId("Kosong");
-    expect(await deleteCategory(session, empty, testContext())).toEqual({ ok: true, id: empty });
+  it("rejects unknown brands and keeps details when an edit omits them", async () => {
+    const session = await owner();
+    expect(
+      await createProduct(
+        session,
+        product({ brandId: "0199a000-0000-7000-8000-0000000000ff" }),
+        testContext(),
+      ),
+    ).toEqual({ ok: false, reason: "invalid-brand" });
+
+    const saved = await createProduct(
+      session,
+      product({ motif: "Polos", size: "50x140" }),
+      testContext(),
+    );
+    if (!saved.ok) throw new Error(saved.reason);
+    await updateProduct(session, saved.id, product({ price: 20000 }), testContext());
+    expect(await getProduct(session, saved.id)).toMatchObject({
+      price: 20000,
+      motif: "Polos",
+      size: "50x140",
+    });
   });
 });
 
 describe("products (FR-PRD-01..04, §3.1.1)", () => {
   it("creates a product with one hidden default variant", async () => {
     const session = await owner();
-    const result = await createProduct(
-      session,
-      product({ categoryId: await categoryId() }),
-      testContext(),
-    );
+    const result = await createProduct(session, product(), testContext());
     if (!result.ok) throw new Error(result.reason);
 
     const variants = await db
@@ -117,25 +135,20 @@ describe("products (FR-PRD-01..04, §3.1.1)", () => {
 
   it("keeps SKUs unique case-insensitively", async () => {
     const session = await owner();
-    const drinks = await categoryId();
-    await createProduct(session, product({ categoryId: drinks }), testContext());
+    await createProduct(session, product(), testContext());
     expect(
-      await createProduct(
-        session,
-        product({ categoryId: drinks, name: "Lain", sku: "kopi-susu" }),
-        testContext(),
-      ),
+      await createProduct(session, product({ name: "Lain", sku: "kopi-susu" }), testContext()),
     ).toEqual({ ok: false, reason: "sku-taken" });
   });
 
-  it("searches name and SKU, filters by category and status", async () => {
+  it("searches name and SKU, filters by brand and status", async () => {
     const session = await owner();
-    const drinks = await categoryId("Minuman");
-    const food = await categoryId("Makanan");
-    await createProduct(session, product({ categoryId: drinks }), testContext());
+    await createProduct(session, product(), testContext());
+    const brand = await createBrand(session, { name: "Roti Enak" }, testContext());
+    if (!brand.ok) throw new Error(brand.reason);
     await createProduct(
       session,
-      product({ categoryId: food, name: "Roti Bakar", sku: "RB-100_%" }),
+      product({ brandId: brand.id, name: "Roti Bakar", sku: "RB-100_%" }),
       testContext(),
     );
 
@@ -146,7 +159,7 @@ describe("products (FR-PRD-01..04, §3.1.1)", () => {
     expect(await names({ q: "rb-1" })).toEqual(["Roti Bakar"]);
     expect(await names({ q: "_%" })).toEqual(["Roti Bakar"]);
     expect(await names({ q: "%" })).toEqual(["Roti Bakar"]);
-    expect(await names({ category: food })).toEqual(["Roti Bakar"]);
+    expect(await names({ brand: brand.id })).toEqual(["Roti Bakar"]);
 
     const listed = await listProducts(session, { ...allActive, q: "kopi" });
     await changeProductStatus(session, listed.products[0]?.id ?? "", false, testContext());
@@ -155,12 +168,7 @@ describe("products (FR-PRD-01..04, §3.1.1)", () => {
   });
 
   it("hides cost from roles without product:view-cost and never overwrites it (FR-PRD-02)", async () => {
-    const drinks = await categoryId();
-    const created = await createProduct(
-      await owner(),
-      product({ categoryId: drinks }),
-      testContext(),
-    );
+    const created = await createProduct(await owner(), product(), testContext());
     if (!created.ok) throw new Error(created.reason);
     await grantCashierProductEditing();
     const cashier = await signIn("kasir", "123456");
@@ -170,7 +178,6 @@ describe("products (FR-PRD-01..04, §3.1.1)", () => {
 
     const withoutCost: ProductInput = {
       name: "Kopi Susu",
-      categoryId: drinks,
       price: 20000,
       unit: "cup",
       trackStock: true,
@@ -186,25 +193,19 @@ describe("products (FR-PRD-01..04, §3.1.1)", () => {
 
     const byCashier = await createProduct(
       cashier,
-      product({ categoryId: drinks, name: "Teh", sku: "TEH", cost: 99999 }),
+      product({ name: "Teh", sku: "TEH", cost: 99999 }),
       testContext(),
     );
     if (!byCashier.ok) throw new Error(byCashier.reason);
     expect((await getProduct(await owner(), byCashier.id))?.cost).toBe(0);
   });
 
-  it("audits only changed fields and rejects unknown categories", async () => {
+  it("audits only changed fields and rejects unknown brands", async () => {
     const session = await owner();
-    const drinks = await categoryId();
-    const created = await createProduct(session, product({ categoryId: drinks }), testContext());
+    const created = await createProduct(session, product(), testContext());
     if (!created.ok) throw new Error(created.reason);
 
-    await updateProduct(
-      session,
-      created.id,
-      product({ categoryId: drinks, price: 19000 }),
-      testContext(),
-    );
+    await updateProduct(session, created.id, product({ price: 19000 }), testContext());
     const [audit] = await db.select().from(auditLogs).orderBy(desc(auditLogs.id)).limit(1);
     expect(audit?.diff).toEqual({ price: { from: 18000, to: 19000 } });
 
@@ -212,30 +213,28 @@ describe("products (FR-PRD-01..04, §3.1.1)", () => {
       await updateProduct(
         session,
         created.id,
-        product({ categoryId: "0199a000-0000-7000-8000-000000000999" }),
+        product({ brandId: "0199a000-0000-7000-8000-000000000999" }),
         testContext(),
       ),
-    ).toEqual({ ok: false, reason: "invalid-category" });
+    ).toEqual({ ok: false, reason: "invalid-brand" });
   });
 
   it("requires product permissions in the service (NFR-SEC-07)", async () => {
-    const drinks = await categoryId();
     const cashier = await signIn("kasir", "123456");
-    await expect(
-      createProduct(cashier, product({ categoryId: drinks }), testContext()),
-    ).rejects.toBeInstanceOf(ForbiddenError);
-    await expect(
-      createCategory(cashier, { name: "X", sortOrder: 0 }, testContext()),
-    ).rejects.toBeInstanceOf(ForbiddenError);
+    await expect(createProduct(cashier, product(), testContext())).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
+    await expect(createBrand(cashier, { name: "X" }, testContext())).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
   });
 
   it("searches 5,000 products in under 200 ms (FR-PRD-04)", async () => {
     const session = await owner();
-    const drinks = await categoryId();
     await db.execute(sql`
       WITH inserted AS (
-        INSERT INTO products (id, name, category_id, price, unit)
-        SELECT gen_random_uuid(), 'Produk ' || n, ${drinks}, n * 100, 'pcs'
+        INSERT INTO products (id, name, price, unit)
+        SELECT gen_random_uuid(), 'Produk ' || n, n * 100, 'pcs'
         FROM generate_series(1, 5000) AS n
         RETURNING id, name
       )

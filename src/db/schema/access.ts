@@ -75,7 +75,10 @@ export const users = pgTable(
   ],
 );
 
-/** Server-side sessions; only the SHA-256 of the cookie token is stored (ADR-0006). */
+/**
+ * Server-side sessions; only the SHA-256 of the cookie token is stored
+ * (ADR-0006). Each one is a signed-in device, capped per user (FR-AUTH-09).
+ */
 export const sessions = pgTable(
   "sessions",
   {
@@ -85,6 +88,8 @@ export const sessions = pgTable(
       .references(() => users.id, { onDelete: "cascade" }),
     tokenHash: text().notNull(),
     expiresAt: timestamptz().notNull(),
+    /** Last request, refreshed together with the sliding expiry (FR-AUTH-10). */
+    lastSeenAt: timestamptz().notNull().defaultNow(),
     ip: text(),
     userAgent: text(),
     ...timestamps,

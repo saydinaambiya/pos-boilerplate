@@ -7,6 +7,7 @@ import { navigation, type NavigationItem } from "@/config/navigation";
 import type { Permission } from "@/config/permissions";
 import { cn } from "@/lib/utils/cn";
 
+import { AccountMenu } from "./account-menu";
 import { BrandLogo } from "./brand-logo";
 import { MoreMenu } from "./more-menu";
 import { NavLink, RailNavLink } from "./nav-link";
@@ -213,11 +214,18 @@ export async function AppShell({
           compact ? "w-20 items-center px-3" : "w-64 px-4 lg:w-72 lg:px-5",
         )}
       >
-        {compact ? <BrandLogo variant="mark" /> : <BrandLogo className="px-2" />}
+        {compact ? (
+          <BrandLogo variant="mark" />
+        ) : (
+          <div className="flex flex-col gap-4">
+            <BrandLogo className="px-2" />
+            <AccountMenu variant="card" />
+          </div>
+        )}
         <nav aria-label={t("label")} className={cn("flex-1", compact && "w-full")}>
           {verticalLinks(compact)}
         </nav>
-        {compact ? null : <Preferences variant="stacked" />}
+        {compact ? null : <Preferences variant="stacked" account={false} />}
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
         {mobileHeader}

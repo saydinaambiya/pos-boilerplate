@@ -6,6 +6,7 @@ import { recordAudit } from "@/lib/audit/audit";
 import { assertPermission } from "@/lib/auth/authorize";
 import type { Session } from "@/lib/auth/session";
 import type { RequestContext } from "@/lib/http/request-context";
+import { storeClosedFor } from "@/lib/settings/store-hours-guard";
 
 import {
   closeShiftRow,
@@ -29,7 +30,8 @@ function expectedCashOf(openingCash: number, totals: ShiftTotals): number {
 }
 
 export type ShiftResult =
-  { ok: true; id: string } | { ok: false; reason: "already-open" | "no-open-shift" };
+  | { ok: true; id: string }
+  | { ok: false; reason: "already-open" | "no-open-shift" | "store-closed" };
 
 /** The caller's open shift with live totals, or null (FR-SHF-01). */
 export async function getOpenShift(session: Session) {
@@ -49,13 +51,18 @@ export async function getOtherOpenShifts(session: Session) {
   return findOtherOpenShifts(db, session.user.id);
 }
 
-/** Opens a shift with its cash float; one open shift per cashier (FR-SHF-02). */
+/**
+ * Opens a shift with its cash float; one open shift per cashier
+ * (FR-SHF-02). Employees cannot open one outside store hours (FR-SET-09).
+ */
 export async function openShift(
   session: Session,
   input: OpenShiftInput,
   context: RequestContext,
+  now = new Date(),
 ): Promise<ShiftResult> {
   assertPermission(session, "page:pos");
+  if (await storeClosedFor(session, now)) return { ok: false, reason: "store-closed" };
   try {
     const id = await db.transaction(async (tx) => {
       const shiftId = await insertShift(tx, session.user.id, input.openingCash);

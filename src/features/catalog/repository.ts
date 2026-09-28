@@ -4,53 +4,52 @@ import { and, asc, count, eq, exists, like, or, type SQL, sql } from "drizzle-or
 
 import { db, type Executor } from "@/db/client";
 import { containsPattern } from "@/db/like";
-import { categories, products, productVariants } from "@/db/schema";
+import { brands, products, productVariants } from "@/db/schema";
 
-import type { CategoryInput, ProductFilters } from "./schemas";
+import type { BrandInput, ProductFilters } from "./schemas";
 
-/** Categories in display order with their product counts (one query). */
-export async function listCategories() {
+/** Brands by name with their product counts (FR-CAT-02). */
+export async function listBrands() {
   const productCounts = db
-    .select({ categoryId: products.categoryId, total: count().as("product_total") })
+    .select({ brandId: products.brandId, total: count().as("product_total") })
     .from(products)
-    .groupBy(products.categoryId)
+    .groupBy(products.brandId)
     .as("product_counts");
   return db
     .select({
-      id: categories.id,
-      name: categories.name,
-      sortOrder: categories.sortOrder,
+      id: brands.id,
+      name: brands.name,
       productCount: sql<number>`coalesce(${productCounts.total}, 0)`.mapWith(Number),
     })
-    .from(categories)
-    .leftJoin(productCounts, eq(productCounts.categoryId, categories.id))
-    .orderBy(asc(categories.sortOrder), asc(categories.name));
+    .from(brands)
+    .leftJoin(productCounts, eq(productCounts.brandId, brands.id))
+    .orderBy(asc(sql`lower(${brands.name})`));
 }
 
-export async function findCategory(id: string) {
-  const [row] = await db.select().from(categories).where(eq(categories.id, id)).limit(1);
+export async function findBrand(id: string) {
+  const [row] = await db.select().from(brands).where(eq(brands.id, id)).limit(1);
   return row;
 }
 
-export async function insertCategory(executor: Executor, values: CategoryInput) {
-  const [row] = await executor.insert(categories).values(values).returning({ id: categories.id });
-  if (!row) throw new Error("Category insert returned no row");
+export async function insertBrand(executor: Executor, values: BrandInput) {
+  const [row] = await executor.insert(brands).values(values).returning({ id: brands.id });
+  if (!row) throw new Error("Brand insert returned no row");
   return row.id;
 }
 
-export async function updateCategoryRow(executor: Executor, id: string, values: CategoryInput) {
-  await executor.update(categories).set(values).where(eq(categories.id, id));
+export async function updateBrandRow(executor: Executor, id: string, values: BrandInput) {
+  await executor.update(brands).set(values).where(eq(brands.id, id));
 }
 
-export async function deleteCategoryRow(executor: Executor, id: string) {
-  await executor.delete(categories).where(eq(categories.id, id));
+export async function deleteBrandRow(executor: Executor, id: string) {
+  await executor.delete(brands).where(eq(brands.id, id));
 }
 
-export async function countProductsInCategory(categoryId: string): Promise<number> {
+export async function countProductsOfBrand(brandId: string): Promise<number> {
   const [row] = await db
     .select({ total: count() })
     .from(products)
-    .where(eq(products.categoryId, categoryId));
+    .where(eq(products.brandId, brandId));
   return row?.total ?? 0;
 }
 
@@ -73,8 +72,10 @@ const variantTotals = db
 const productColumns = {
   id: products.id,
   name: products.name,
-  categoryId: products.categoryId,
-  categoryName: categories.name,
+  brandId: products.brandId,
+  brandName: brands.name,
+  motif: products.motif,
+  size: products.size,
   price: products.price,
   cost: products.cost,
   unit: products.unit,
@@ -93,7 +94,7 @@ function productQuery() {
   return db
     .select(productColumns)
     .from(products)
-    .innerJoin(categories, eq(categories.id, products.categoryId))
+    .leftJoin(brands, eq(brands.id, products.brandId))
     .innerJoin(
       productVariants,
       and(eq(productVariants.productId, products.id), eq(productVariants.isDefault, true)),
@@ -104,12 +105,14 @@ function productQuery() {
 /**
  * One page of products with their default variant and stock totals across
  * active variants. Search matches product name, SKU and colour name via the
- * trigram indexes on `lower(...)` (FR-PRD-04, FR-VAR-07).
+ * trigram indexes on `lower(...)`, plus brand and motif (FR-PRD-04,
+ * FR-PRD-06, FR-VAR-07).
  */
 export async function queryProducts(filters: ProductFilters, pageSize: number) {
   const conditions: SQL[] = [];
   if (filters.status !== "all") conditions.push(eq(products.isActive, filters.status === "active"));
-  if (filters.category) conditions.push(eq(products.categoryId, filters.category));
+  if (filters.brand) conditions.push(eq(products.brandId, filters.brand));
+  if (filters.size) conditions.push(eq(products.size, filters.size));
   if (filters.q) {
     const pattern = containsPattern(filters.q);
     const variantMatch = db
@@ -124,7 +127,12 @@ export async function queryProducts(filters: ProductFilters, pageSize: number) {
           ),
         ),
       );
-    const match = or(like(sql`lower(${products.name})`, pattern), exists(variantMatch));
+    const match = or(
+      like(sql`lower(${products.name})`, pattern),
+      like(sql`lower(${products.motif})`, pattern),
+      like(sql`lower(${brands.name})`, pattern),
+      exists(variantMatch),
+    );
     if (match) conditions.push(match);
   }
 
@@ -142,7 +150,9 @@ export async function findProduct(id: string) {
 
 export interface ProductRowValues {
   name: string;
-  categoryId: string;
+  brandId: string | null;
+  motif: string | null;
+  size: string | null;
   price: number;
   cost: number;
   unit: string;
@@ -258,6 +268,7 @@ export async function markProductHasVariants(executor: Executor, productId: stri
 /**
  * Sellable items for the POS grid: active products with their active
  * variants and effective prices, grouped client-side (FR-POS-01, FR-VAR-04).
+ * Search also matches brand and motif (FR-PRD-06).
  * `limit` bounds the preload; bigger catalogues switch to server search
  * (NFR-PERF-07).
  */
@@ -267,6 +278,8 @@ export async function queryPosCatalog(options: { limit: number; search?: string 
     const pattern = containsPattern(options.search);
     const match = or(
       like(sql`lower(${products.name})`, pattern),
+      like(sql`lower(${products.motif})`, pattern),
+      like(sql`lower(${brands.name})`, pattern),
       like(sql`lower(${productVariants.sku})`, pattern),
       like(sql`lower(${productVariants.attributes} -> 'color' ->> 'name')`, pattern),
     );
@@ -276,7 +289,10 @@ export async function queryPosCatalog(options: { limit: number; search?: string 
     .select({
       productId: products.id,
       name: products.name,
-      categoryId: products.categoryId,
+      brandId: products.brandId,
+      brandName: brands.name,
+      motif: products.motif,
+      size: products.size,
       unit: products.unit,
       trackStock: products.trackStock,
       hasVariants: products.hasVariants,
@@ -290,6 +306,7 @@ export async function queryPosCatalog(options: { limit: number; search?: string 
     })
     .from(products)
     .innerJoin(productVariants, eq(productVariants.productId, products.id))
+    .leftJoin(brands, eq(brands.id, products.brandId))
     .where(and(...conditions))
     .orderBy(asc(products.name), asc(productVariants.sortOrder), asc(productVariants.id))
     .limit(options.limit);

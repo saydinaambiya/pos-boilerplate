@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { useId, useState, useTransition } from "react";
 
+import { useGlobalPending } from "@/components/feedback/loading-indicator";
 import { type ActionResult, ResultDialog } from "@/components/feedback/result-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,6 +53,7 @@ export function KasbonPaymentForm({
   const [reference, setReference] = useState("");
   const [result, setResult] = useState<ActionResult | null>(null);
   const [pending, startTransition] = useTransition();
+  useGlobalPending(pending);
 
   const money = (value: number) => formatCurrency(value, locale);
   const amount = amountOf(amountText);

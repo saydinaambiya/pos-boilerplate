@@ -4,7 +4,7 @@ import { assertPermission } from "@/lib/auth/authorize";
 import type { Session } from "@/lib/auth/session";
 
 import type { PosProduct } from "./pos-types";
-import { listCategories, queryPosCatalog } from "./repository";
+import { listBrands, queryPosCatalog } from "./repository";
 import { colorOf } from "./schemas";
 
 /** Products preloaded into the terminal; above this the POS searches on the server (NFR-PERF-07). */
@@ -20,7 +20,10 @@ function groupProducts(rows: Awaited<ReturnType<typeof queryPosCatalog>>): PosPr
       product = {
         id: row.productId,
         name: row.name,
-        categoryId: row.categoryId,
+        brandId: row.brandId,
+        brandName: row.brandName,
+        motif: row.motif,
+        size: row.size,
         unit: row.unit,
         trackStock: row.trackStock,
         hasVariants: row.hasVariants,
@@ -50,7 +53,7 @@ export async function getPosCatalog(session: Session) {
   return { products: products.slice(0, POS_PRELOAD_PRODUCTS), truncated };
 }
 
-/** Server-side search for large catalogues; matches name, SKU and colour (FR-VAR-07). */
+/** Server-side search for large catalogues; matches name, brand, motif, SKU and colour (FR-VAR-07). */
 export async function searchPosCatalog(session: Session, term: string) {
   assertPermission(session, "page:pos");
   const search = term.trim().slice(0, 60);
@@ -58,18 +61,24 @@ export async function searchPosCatalog(session: Session, term: string) {
   return groupProducts(await queryPosCatalog({ limit: SEARCH_ROWS, search }));
 }
 
-/** Category chips for the terminal; cashiers need no product-page access for this. */
-export async function getPosCategories(session: Session) {
+/** Brand chips for the terminal; cashiers need no product-page access for this. */
+export async function getPosBrands(session: Session) {
   assertPermission(session, "page:pos");
-  const categories = await listCategories();
-  return categories
-    .filter((category) => category.productCount > 0)
-    .map(({ id, name }) => ({ id, name }));
+  const brands = await listBrands();
+  return brands.filter((brand) => brand.productCount > 0).map(({ id, name }) => ({ id, name }));
 }
 
 /** Product search for entering marketplace orders (FR-ONL-01); needs no POS access. */
 export async function searchOrderCatalog(session: Session, term: string) {
   assertPermission(session, "page:online-orders");
+  const search = term.trim().slice(0, 60);
+  if (search === "") return [];
+  return groupProducts(await queryPosCatalog({ limit: SEARCH_ROWS, search }));
+}
+
+/** Product search for goods a salesperson takes out (FR-CSG-02); needs no POS access. */
+export async function searchConsignmentCatalog(session: Session, term: string) {
+  assertPermission(session, "page:consignments");
   const search = term.trim().slice(0, 60);
   if (search === "") return [];
   return groupProducts(await queryPosCatalog({ limit: SEARCH_ROWS, search }));

@@ -1,11 +1,10 @@
 import { gzipSync } from "node:zlib";
 
 import AxeBuilder from "@axe-core/playwright";
-import type { Browser, Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
 
-import { accounts } from "./accounts";
 import { expect, test } from "./fixtures";
-import { choose, expectResult } from "./helpers";
+import { cashierAtPos, expectResult, fillProductDetails } from "./helpers";
 
 /** Unique names per run: the E2E database is not truncated between runs. */
 const run = Date.now().toString(36);
@@ -24,39 +23,14 @@ async function cartTotal(page: Page): Promise<number> {
   return Number((match?.[1] ?? "").replaceAll(".", ""));
 }
 
-/** Signs in the dedicated POS cashier and makes sure a shift is open. */
-async function cashierAtPos(browser: Browser): Promise<Page> {
-  const context = await browser.newContext({ storageState: { cookies: [], origins: [] } });
-  const page = await context.newPage();
-  await page.goto("/id/login");
-  await page.getByLabel("Username").fill(accounts.posCashier.username);
-  await page.getByRole("button", { name: "Lanjut" }).click();
-  await page.getByLabel(/^(Password|PIN)$/).fill(accounts.posCashier.pin);
-  await page.getByRole("button", { name: "Masuk" }).click();
-  await expect(page).toHaveURL(/\/id$/);
-  await page.goto("/id/pos");
-  const openShift = page.getByRole("button", { name: "Buka shift" });
-  if (await openShift.isVisible()) {
-    await page.getByLabel("Modal awal kas").fill("100000");
-    await openShift.click();
-  }
-  await expect(page.getByRole("searchbox", { name: "Cari produk" })).toBeVisible();
-  return page;
-}
-
 test.describe("POS terminal and checkout (FR-POS, FR-PAY)", () => {
   test.skip(({ isMobile }) => isMobile, "stateful POS flows run once, on desktop");
   test.describe.configure({ mode: "serial" });
 
   test("prepares a product with stock", async ({ page }) => {
-    await page.goto("/id/products/categories");
-    await page.getByLabel("Nama kategori").fill(`Minuman POS ${run}`);
-    await page.getByRole("button", { name: "Tambah kategori" }).click();
-    await expectResult(page, "Kategori disimpan.");
-
     await page.goto("/id/products?new=1");
     await page.getByLabel("Nama produk").fill(product);
-    await choose(page.getByRole("dialog"), "Kategori", `Minuman POS ${run}`);
+    await fillProductDetails(page.getByRole("dialog"));
     await page.getByLabel("Harga jual").fill("8000");
     await page.getByLabel("SKU").fill(sku);
     await page.getByRole("button", { name: "Simpan produk" }).click();
@@ -78,6 +52,10 @@ test.describe("POS terminal and checkout (FR-POS, FR-PAY)", () => {
     await page.keyboard.press("/");
     await expect(page.getByRole("searchbox", { name: "Cari produk" })).toBeFocused();
     await page.keyboard.type(product);
+    const brandChips = page.getByRole("group", { name: "Filter merk" });
+    await brandChips.getByRole("button", { name: "Merk Uji" }).click();
+    await expect(page.getByRole("button", { name: new RegExp(product) })).toBeVisible();
+    await brandChips.getByRole("button", { name: "Semua" }).click();
     await page.getByRole("button", { name: new RegExp(product) }).click();
     await cart.getByRole("button", { name: `Tambah ${product}` }).click();
     await cart.getByRole("button", { name: `Tambah ${product}` }).click();
@@ -105,6 +83,10 @@ test.describe("POS terminal and checkout (FR-POS, FR-PAY)", () => {
     await dialog.getByLabel("Uang diterima").fill("100.000");
     await expect(dialog.getByText(`Kembalian: ${rupiah(100_000 - total)}`)).toBeVisible();
     await dialog.getByRole("button", { name: "Selesaikan transaksi" }).click();
+    await expect(dialog.getByText("Nama pelanggan wajib diisi.")).toBeVisible();
+    await dialog.getByLabel("Nama pelanggan").fill(`Pembeli ${run}`);
+    await dialog.getByLabel("No. HP (opsional)").fill("0812-1111-2222");
+    await dialog.getByRole("button", { name: "Selesaikan transaksi" }).click();
 
     const success = page.getByRole("dialog", { name: "Transaksi berhasil" });
     await expect(success).toContainText(/Nomor invoice INV-\d{8}-\d{4}/);
@@ -115,10 +97,14 @@ test.describe("POS terminal and checkout (FR-POS, FR-PAY)", () => {
     await expect(page.getByTestId("invoice")).toContainText("Kembalian");
     await expect(page.getByTestId("invoice")).toContainText(rupiah(100_000 - total));
     await expect(page.getByTestId("invoice")).toContainText("Tunai diterima");
+    await expect(page.getByTestId("invoice")).toContainText(`Pembeli ${run}`);
+    await expect(page.getByTestId("invoice")).toContainText("Merk Uji · Polos · 93 × 47 cm");
     const saleId = /invoices\/([0-9a-f-]+)/.exec(page.url())?.[1] ?? "";
     await page.goto(`/id/pos/sales/${saleId}`);
     await expect(page).toHaveURL(new RegExp(`/id/pos/sales\\?view=${saleId}$`));
     const detail = page.getByRole("dialog", { name: `Struk ${invoiceNo}` });
+    await expect(detail).toContainText(`Pelanggan: Pembeli ${run}`);
+    await expect(detail).toContainText("0812-1111-2222");
     await expect(detail.getByRole("row", { name: new RegExp(product) })).toContainText(
       /Rp\s24\.000/,
     );

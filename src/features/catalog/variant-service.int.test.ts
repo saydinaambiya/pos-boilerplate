@@ -9,7 +9,7 @@ import { fixtures, resetDatabase } from "@/test/database";
 import { signIn, testContext } from "@/test/sessions";
 
 import type { NewVariantInput } from "./schemas";
-import { createCategory, createProduct, getProduct, listProducts, updateProduct } from "./service";
+import { createProduct, getProduct, listProducts, updateProduct } from "./service";
 import {
   changeVariantStatus,
   createVariant,
@@ -23,13 +23,10 @@ const owner = () => signIn(fixtures.owner.username, fixtures.owner.password);
 
 async function productWithStock(stock: number) {
   const session = await owner();
-  const category = await createCategory(session, { name: "Pakaian", sortOrder: 0 }, testContext());
-  if (!category.ok) throw new Error(category.reason);
   const product = await createProduct(
     session,
     {
       name: "Kaos Polos",
-      categoryId: category.id,
       price: 50000,
       cost: 20000,
       unit: "pcs",
@@ -280,7 +277,6 @@ describe("colour variants (FR-VAR-01..05, FR-VAR-08)", () => {
       productId,
       {
         name: "Kaos Premium",
-        categoryId: product.categoryId,
         price: 60000,
         unit: "pcs",
         trackStock: true,

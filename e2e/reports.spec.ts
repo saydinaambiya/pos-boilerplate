@@ -14,13 +14,24 @@ test.describe("dashboard and sales report (FR-DSH-01, FR-RPT)", () => {
   test("the report shows sections with profit and exports CSV", async ({ page, isMobile }) => {
     test.skip(isMobile, "downloads are checked once, on desktop");
     await page.goto("/id/reports");
-    await page.getByRole("link", { name: "Bulan ini" }).click();
-    await expect(page.getByRole("link", { name: "Bulan ini" })).toHaveAttribute(
-      "aria-current",
-      "page",
-    );
+    /**
+     * The default range is already "this month", so `aria-current` holds
+     * before the click lands. Wait for the URL instead, or the filter form
+     * remounts under the date picker opened below. The report is the
+     * heaviest page, so its navigation gets more time under parallel load.
+     */
+    const thisMonth = page.getByRole("link", { name: "Bulan ini" });
+    await thisMonth.click();
+    await expect(page).toHaveURL(/[?&]from=\d{4}-\d{2}-\d{2}&to=/, { timeout: 15_000 });
+    await expect(thisMonth).toHaveAttribute("aria-current", "page");
     await expect(page.getByText("Laba kotor kasir")).toBeVisible();
-    for (const section of ["Per hari", "Per metode pembayaran", "Per produk", "PPN & service"]) {
+    for (const section of [
+      "Per hari",
+      "Per metode pembayaran",
+      "Per produk",
+      "Per merk",
+      "PPN & service",
+    ]) {
       await expect(page.getByRole("heading", { name: section, level: 2 })).toBeVisible();
     }
 

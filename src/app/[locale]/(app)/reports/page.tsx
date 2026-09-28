@@ -33,7 +33,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t("title") };
 }
 
-type LineRow = SalesReport["products"][number];
+type LineRow = Omit<SalesReport["products"][number], "id" | "name"> & { id: string | null };
 
 /** Rows shown per table; the CSV always has every row. */
 const TABLE_ROWS = 50;
@@ -43,7 +43,7 @@ const shift = (isoDate: string, days: number) =>
 
 /**
  * Sales report for a store-day range (FR-RPT-01..05): summary, per day,
- * per payment method, per product, variant, category and employee,
+ * per payment method, per product, variant, brand and employee,
  * vouchers and manual discounts, and PPN/service. Cost and margin appear
  * only with `report:view-profit`.
  */
@@ -121,7 +121,7 @@ export default async function ReportsPage({ searchParams }: PageProps<"/[locale]
           </TableHeader>
           <TableBody>
             {rows.slice(0, TABLE_ROWS).map((row) => (
-              <TableRow key={row.id}>
+              <TableRow key={row.id ?? "none"}>
                 <TableCell className="[overflow-wrap:anywhere]">{label(row)}</TableCell>
                 <TableCell className="text-right tabular-nums">{row.qty}</TableCell>
                 <TableCell className="text-right tabular-nums">{money(row.revenue)}</TableCell>
@@ -302,8 +302,8 @@ export default async function ReportsPage({ searchParams }: PageProps<"/[locale]
           )),
         )}
         {card(
-          "categories",
-          lineTable(t("categoriesCaption"), report.categories, (row) => row.name),
+          "brands",
+          lineTable(t("brandsCaption"), report.brands, (row) => row.name ?? t("noBrand")),
         )}
 
         {card(

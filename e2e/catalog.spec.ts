@@ -1,29 +1,36 @@
 import { accounts } from "./accounts";
 import { expect, test } from "./fixtures";
-import { choose, expectResult } from "./helpers";
+import { choose, expectResult, fillProductDetails } from "./helpers";
 
 /** Unique names per run: the E2E database is not truncated between runs. */
 const run = Date.now().toString(36);
-const category = `Minuman ${run}`;
 const sku = `KOPI-${run}`.toUpperCase();
+const brand = `Merk ${run}`;
 
-test.describe("categories & products (FR-CAT-01, FR-PRD)", () => {
+test.describe("brands & products (FR-CAT-02, FR-PRD)", () => {
   test.skip(({ isMobile }) => isMobile, "stateful catalog flows run once, on desktop");
   test.describe.configure({ mode: "serial" });
 
-  test("creates a category", async ({ page }) => {
-    await page.goto("/id/products/categories");
-    await page.getByLabel("Nama kategori").fill(category);
-    await page.getByRole("button", { name: "Tambah kategori" }).click();
-    await expectResult(page, "Kategori disimpan.");
-    await expect(page.getByRole("link", { name: `Ubah ${category}` })).toBeVisible();
+  test("creates a brand (FR-CAT-02)", async ({ page }) => {
+    await page.goto("/id/products/brands");
+    await page.getByLabel("Nama merk").fill(brand);
+    await page.getByRole("button", { name: "Tambah merk" }).click();
+    await expectResult(page, "Merk disimpan.");
+    await expect(page.getByRole("link", { name: `Ubah ${brand}` })).toBeVisible();
   });
 
   test("creates a product with inline validation", async ({ page }) => {
     await page.goto("/id/products?new=1");
     const dialog = page.getByRole("dialog", { name: "Produk baru" });
     await page.getByLabel("Nama produk").fill(`Kopi Susu ${run}`);
-    await choose(dialog, "Kategori", category);
+    await page.getByLabel("SKU").fill(sku);
+    await page.getByRole("button", { name: "Simpan produk" }).click();
+    await expectResult(page, /./, "error");
+    await expect(dialog.getByText("Wajib diisi.")).toHaveCount(3);
+
+    await choose(dialog, "Merk", brand);
+    await dialog.getByLabel("Motif").fill("Mihrab");
+    await choose(dialog, "Ukuran", "100 × 70 cm");
     await page.getByLabel("Harga jual").fill("abc");
     await page.getByLabel("Harga modal").fill("7.000");
     await page.getByLabel("SKU").fill(sku);
@@ -31,7 +38,7 @@ test.describe("categories & products (FR-CAT-01, FR-PRD)", () => {
     await expectResult(page, /./, "error");
     await expect(page.getByText("Format tidak valid.")).toBeVisible();
     await expect(page.getByLabel("Harga jual")).toBeFocused();
-    await expect(dialog.getByLabel("Kategori", { exact: true })).toHaveText(category);
+    await expect(dialog.getByLabel("Merk", { exact: true })).toHaveText(brand);
 
     await page.getByLabel("Harga jual").fill("18.000");
     await page.getByRole("button", { name: "Simpan produk" }).click();
@@ -43,24 +50,32 @@ test.describe("categories & products (FR-CAT-01, FR-PRD)", () => {
     await expect(row).toContainText(/Rp\s18\.000/);
     await expect(row).toContainText(/Rp\s11\.000/);
     await expect(row.getByText("Stok menipis")).toBeVisible();
+    await expect(row).toContainText(brand);
+    await expect(row).toContainText("Mihrab");
+    await expect(row).toContainText("100 × 70 cm");
+
+    await page.goto("/id/products?q=mihrab");
+    await expect(page.getByRole("row", { name: new RegExp(`Kopi Susu ${run}`) })).toBeVisible();
+    await page.goto("/id/products?size=50x140");
+    await expect(page.getByRole("row", { name: new RegExp(`Kopi Susu ${run}`) })).toHaveCount(0);
   });
 
   test("rejects a duplicate SKU", async ({ page }) => {
     await page.goto("/id/products?new=1");
     await page.getByLabel("Nama produk").fill("Duplikat");
-    await choose(page.getByRole("dialog"), "Kategori", category);
+    await fillProductDetails(page.getByRole("dialog"));
     await page.getByLabel("Harga jual").fill("1000");
     await page.getByLabel("SKU").fill(sku.toLowerCase());
     await page.getByRole("button", { name: "Simpan produk" }).click();
     await expect(page.getByText("SKU sudah dipakai produk lain.")).toBeVisible();
   });
 
-  test("keeps categories with products and hides cost from cashiers", async ({ page, browser }) => {
-    await page.goto("/id/products/categories");
-    await page.getByRole("link", { name: `Ubah ${category}` }).click();
-    await expect(page.getByRole("dialog", { name: "Ubah kategori" })).toBeVisible();
-    await expect(page.getByText("berisi 1 produk sehingga tidak dapat dihapus")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Hapus kategori" })).toHaveCount(0);
+  test("keeps brands with products and hides cost from cashiers", async ({ page, browser }) => {
+    await page.goto("/id/products/brands");
+    await page.getByRole("link", { name: `Ubah ${brand}` }).click();
+    await expect(page.getByRole("dialog", { name: "Ubah merk" })).toBeVisible();
+    await expect(page.getByText("dipakai 1 produk sehingga tidak dapat dihapus")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Hapus merk" })).toHaveCount(0);
 
     const context = await browser.newContext({ storageState: { cookies: [], origins: [] } });
     const cashier = await context.newPage();

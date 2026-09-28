@@ -97,7 +97,7 @@ test.describe("accessibility (FR-UX-06, WCAG 2.2 AA)", () => {
       "/id/audit",
       "/id/products",
       "/id/products?new=1",
-      "/id/products/categories",
+      "/id/products/brands",
       "/id/stock",
       "/id/approvals",
       "/id/vouchers",

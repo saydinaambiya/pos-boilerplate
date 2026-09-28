@@ -44,9 +44,11 @@ async function buildDocument(sale: SaleDetail, locale: Locale): Promise<InvoiceD
       timeZone: operations.timeZone,
     }).format(sale.createdAt),
     cashierName: sale.cashierName,
+    customerName: sale.customerName,
     voided: sale.status === "VOIDED",
     items: sale.items.map((item) => ({
       name: variantLabel(item.nameSnapshot, item.variantSnapshot),
+      details: item.detailsSnapshot,
       qty: item.qty,
       unitPrice: item.unitPrice,
       discount: item.discountAmount,
@@ -76,10 +78,7 @@ async function buildDocument(sale: SaleDetail, locale: Locale): Promise<InvoiceD
           ? []
           : [{ method: "KASBON", label: t("methods.KASBON"), amount: sale.kasbonTotal }],
       ),
-    kasbon:
-      sale.kasbonBalance === null
-        ? null
-        : { customerName: sale.customerName ?? "", balance: sale.kasbonBalance },
+    kasbon: sale.kasbonBalance === null ? null : { balance: sale.kasbonBalance },
   };
 }
 

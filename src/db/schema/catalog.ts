@@ -17,33 +17,32 @@ import { id, timestamps } from "./columns";
 /** Integer rupiah (PRD §5); `number` mode is exact up to 2^53. */
 const money = () => bigint({ mode: "number" });
 
-/** Product categories with a display order (FR-CAT-01). */
-export const categories = pgTable(
-  "categories",
+/** Product brands, listed by name (FR-CAT-02). */
+export const brands = pgTable(
+  "brands",
   {
     id: id(),
     name: text().notNull(),
-    sortOrder: integer().notNull().default(0),
     ...timestamps,
   },
-  (table) => [
-    uniqueIndex("categories_name_key").on(sql`lower(${table.name})`),
-    index("categories_sort_order_idx").on(table.sortOrder, table.name),
-  ],
+  (table) => [uniqueIndex("brands_name_key").on(sql`lower(${table.name})`)],
 );
 
 /**
  * Products (FR-PRD-01). SKU, stock and minimum stock live on variants; a
  * product without colour variants has one hidden default variant (§3.1.1).
+ * Brand, motif and size are required for new products only, so older rows
+ * may leave them empty (FR-PRD-06).
  */
 export const products = pgTable(
   "products",
   {
     id: id(),
     name: text().notNull(),
-    categoryId: uuid()
-      .notNull()
-      .references(() => categories.id, { onDelete: "restrict" }),
+    brandId: uuid().references(() => brands.id, { onDelete: "restrict" }),
+    motif: text(),
+    /** One of `PRODUCT_SIZES`, length × width in cm (FR-PRD-06). */
+    size: text(),
     price: money().notNull(),
     cost: money().notNull().default(0),
     unit: text().notNull(),
@@ -53,7 +52,7 @@ export const products = pgTable(
     ...timestamps,
   },
   (table) => [
-    index("products_category_id_idx").on(table.categoryId),
+    index("products_brand_id_idx").on(table.brandId),
     index("products_name_trgm_idx").using("gin", sql`lower(${table.name}) gin_trgm_ops`),
     check("products_price_non_negative", sql`${table.price} >= 0 AND ${table.cost} >= 0`),
   ],

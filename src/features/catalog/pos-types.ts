@@ -11,7 +11,11 @@ export interface PosVariant {
 export interface PosProduct {
   id: string;
   name: string;
-  categoryId: string;
+  brandId: string | null;
+  brandName: string | null;
+  motif: string | null;
+  /** Size code from `PRODUCT_SIZES` (FR-PRD-06). */
+  size: string | null;
   unit: string;
   trackStock: boolean;
   hasVariants: boolean;

@@ -14,14 +14,14 @@ import { currentRequestContext } from "@/lib/http/request-context";
 import { fieldErrors, type FormState, submittedValues } from "@/lib/validation/form-state";
 import { parseRupiah } from "@/lib/validation/money";
 
-import { categoryInput, productDetailsInput, productInput } from "./schemas";
+import { brandInput, newProductInput, productDetailsInput, productInput } from "./schemas";
 import {
   type CatalogResult,
   changeProductStatus,
-  createCategory,
+  createBrand,
   createProduct,
-  deleteCategory,
-  updateCategory,
+  deleteBrand,
+  updateBrand,
   updateProduct,
 } from "./service";
 
@@ -45,83 +45,78 @@ async function failure(
   const [t] = await translations(locale);
   switch (result.reason) {
     case "name-taken":
-      return { status: "error", errors: { name: t("errorNameTaken") } };
+      return { status: "error", errors: { name: t("errorBrandNameTaken") } };
     case "sku-taken":
       return { status: "error", errors: { sku: t("errorSkuTaken") } };
-    case "invalid-category":
-      return { status: "error", errors: { categoryId: t("errorInvalidCategory") } };
+    case "invalid-brand":
+      return { status: "error", errors: { brandId: t("errorInvalidBrand") } };
     case "in-use":
-      return { status: "error", message: t("errorCategoryInUse") };
+      return { status: "error", message: t("errorBrandInUse") };
     case "not-found":
       return { status: "error", message: t("errorNotFound") };
   }
 }
 
-function parseCategory(formData: FormData) {
-  return categoryInput.safeParse({
-    name: formText(formData, "name"),
-    sortOrder: integer(formText(formData, "sortOrder") || "0"),
-  });
-}
-
-/** Creates a category (FR-CAT-01). */
-export async function createCategoryAction(
+/** Creates a brand (FR-CAT-02). */
+export async function createBrandAction(
   _previous: FormState,
   formData: FormData,
 ): Promise<FormState> {
   const locale = localeFromForm(formData);
-  const session = await requirePermission("category:manage", locale);
-  const values = submittedValues(formData, ["name", "sortOrder"]);
-  const parsed = parseCategory(formData);
+  const session = await requirePermission("brand:manage", locale);
+  const values = submittedValues(formData, ["name"]);
+  const parsed = brandInput.safeParse({ name: formText(formData, "name") });
   if (!parsed.success) {
     const [, tv] = await translations(locale);
     return { status: "error", errors: fieldErrors(parsed.error, tv), values };
   }
-  const result = await createCategory(session, parsed.data, await currentRequestContext());
+  const result = await createBrand(session, parsed.data, await currentRequestContext());
   if (!result.ok) return { ...(await failure(result, locale)), values };
   revalidatePath("/", "layout");
   const [t] = await translations(locale);
-  return { status: "success", message: t("categorySaved") };
+  return { status: "success", message: t("brandSaved") };
 }
 
-export async function updateCategoryAction(
+export async function updateBrandAction(
   id: string,
   _previous: FormState,
   formData: FormData,
 ): Promise<FormState> {
   const locale = localeFromForm(formData);
-  const session = await requirePermission("category:manage", locale);
-  const values = submittedValues(formData, ["name", "sortOrder"]);
+  const session = await requirePermission("brand:manage", locale);
+  const values = submittedValues(formData, ["name"]);
   if (!recordId.safeParse(id).success) return failure({ ok: false, reason: "not-found" }, locale);
-  const parsed = parseCategory(formData);
+  const parsed = brandInput.safeParse({ name: formText(formData, "name") });
   if (!parsed.success) {
     const [, tv] = await translations(locale);
     return { status: "error", errors: fieldErrors(parsed.error, tv), values };
   }
-  const result = await updateCategory(session, id, parsed.data, await currentRequestContext());
+  const result = await updateBrand(session, id, parsed.data, await currentRequestContext());
   if (!result.ok) return { ...(await failure(result, locale)), values };
   revalidatePath("/", "layout");
   const [t] = await translations(locale);
-  return { status: "success", message: t("categorySaved") };
+  return { status: "success", message: t("brandSaved") };
 }
 
-/** Deletes an empty category behind a confirmation (FR-CAT-01, FR-UX-04). */
-export async function deleteCategoryAction(
+/** Deletes an unused brand behind a confirmation (FR-CAT-02, FR-UX-04). */
+export async function deleteBrandAction(
   id: string,
   _previous: FormState,
   formData: FormData,
 ): Promise<FormState> {
   const locale = localeFromForm(formData);
-  const session = await requirePermission("category:manage", locale);
+  const session = await requirePermission("brand:manage", locale);
   if (!recordId.safeParse(id).success) return failure({ ok: false, reason: "not-found" }, locale);
-  const result = await deleteCategory(session, id, await currentRequestContext());
+  const result = await deleteBrand(session, id, await currentRequestContext());
   if (!result.ok) return failure(result, locale);
-  return redirect({ href: "/products/categories", locale });
+  return redirect({ href: "/products/brands", locale });
 }
 
 const PRODUCT_FIELDS = [
   "name",
-  "categoryId",
+  "brandId",
+  "motif",
+  "size",
   "price",
   "cost",
   "unit",
@@ -134,7 +129,9 @@ function productDetails(formData: FormData, session: Session) {
   const canSeeCost = session.permissions.has("product:view-cost");
   return {
     name: formText(formData, "name"),
-    categoryId: formText(formData, "categoryId"),
+    brandId: formText(formData, "brandId"),
+    motif: formText(formData, "motif"),
+    size: formText(formData, "size"),
     price: money(formText(formData, "price")),
     ...(canSeeCost ? { cost: money(formText(formData, "cost") || "0") } : {}),
     unit: formText(formData, "unit"),
@@ -163,7 +160,8 @@ async function saveProduct(id: string | null, formData: FormData): Promise<FormS
   const context = await currentRequestContext();
   let result: CatalogResult;
   if (id === null || formData.has("sku")) {
-    const parsed = productInput.safeParse({ ...details, ...defaultVariantFields(formData) });
+    const schema = id === null ? newProductInput : productInput;
+    const parsed = schema.safeParse({ ...details, ...defaultVariantFields(formData) });
     if (!parsed.success) {
       const [, tv] = await translations(locale);
       return { status: "error", errors: fieldErrors(parsed.error, tv), values };

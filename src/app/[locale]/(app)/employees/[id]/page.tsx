@@ -15,6 +15,9 @@ import {
   setEmployeeStatusAction,
   updateEmployeeAction,
 } from "@/features/employees/actions";
+import { endUserDeviceAction } from "@/features/devices/actions";
+import { DeviceList } from "@/features/devices/components/device-list";
+import { getUserDevices } from "@/features/devices/service";
 import { EmployeeStatusChips } from "@/features/employees/components/employee-status-chips";
 import { getEmployee } from "@/features/employees/service";
 import { getAssignableRoles } from "@/features/roles/service";
@@ -26,18 +29,23 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t("editTitle") };
 }
 
-/** Edit profile, reset PIN and change status of one employee (FR-EMP-01/02, FR-AUTH-06). */
+/**
+ * Edit profile, reset PIN, sign out devices and change status of one
+ * employee (FR-EMP-01/02, FR-AUTH-06, FR-AUTH-10).
+ */
 export default async function EditEmployeePage({ params }: PageProps<"/[locale]/employees/[id]">) {
   const { id } = await params;
   const session = await requirePermission("employee:manage");
   if (!z.uuid().safeParse(id).success) notFound();
 
-  const [t, tCommon, locale, employee, roles] = await Promise.all([
+  const [t, tCommon, tDevices, locale, employee, roles, devices] = await Promise.all([
     getTranslations("Employees"),
     getTranslations("Common"),
+    getTranslations("Devices"),
     getLocale(),
     getEmployee(session, id),
     getAssignableRoles(session),
+    getUserDevices(session, id),
   ]);
   if (!employee) notFound();
 
@@ -111,6 +119,20 @@ export default async function EditEmployeePage({ params }: PageProps<"/[locale]/
                 </SubmitButton>
               </ActionForm>
             </Card>
+
+            {devices ? (
+              <Card>
+                <CardHeader className="flex-col gap-1">
+                  <CardTitle>{tDevices("title")}</CardTitle>
+                  <CardDescription>{tDevices("employeeDescription")}</CardDescription>
+                </CardHeader>
+                <DeviceList
+                  data={devices}
+                  ownerName={employee.name}
+                  endAction={(sessionId) => endUserDeviceAction.bind(null, employee.id, sessionId)}
+                />
+              </Card>
+            ) : null}
 
             {isSelf ? null : (
               <Card>

@@ -5,15 +5,19 @@ import { FormCheckbox, FormField, FormSelect } from "@/components/form/form-fiel
 import { SubmitButton } from "@/components/form/submit-button";
 import type { FormAction } from "@/lib/validation/form-state";
 
+import { formatSize, PRODUCT_SIZES } from "../sizes";
+
 interface ProductFormProps {
   action: FormAction;
-  categories: readonly { id: string; name: string }[];
+  brands: readonly { id: string; name: string }[];
   /** Cost fields render only for `product:view-cost` (FR-PRD-02). */
   canSeeCost: boolean;
   submitLabel: string;
   product?: {
     name: string;
-    categoryId: string;
+    brandId: string | null;
+    motif: string | null;
+    size: string | null;
     price: number;
     cost: number | null;
     unit: string;
@@ -24,10 +28,13 @@ interface ProductFormProps {
   };
 }
 
-/** Create/edit form for a product and its default variant (FR-PRD-01, §3.1.1). */
+/**
+ * Create/edit form for a product and its default variant (FR-PRD-01,
+ * FR-PRD-06, §3.1.1). Colour and per-colour SKU live on variants.
+ */
 export async function ProductForm({
   action,
-  categories,
+  brands,
   canSeeCost,
   submitLabel,
   product,
@@ -45,10 +52,29 @@ export async function ProductForm({
       />
       <div className="grid gap-4 sm:grid-cols-2">
         <FormSelect
-          name="categoryId"
-          label={t("category")}
-          defaultValue={product?.categoryId}
-          options={categories.map((category) => ({ value: category.id, label: category.name }))}
+          name="brandId"
+          label={t("brand")}
+          placeholder={t("brandPlaceholder")}
+          defaultValue={product?.brandId ?? ""}
+          options={brands.map((brand) => ({ value: brand.id, label: brand.name }))}
+        />
+        <FormField
+          name="motif"
+          label={t("motif")}
+          hint={t("motifHint")}
+          defaultValue={product?.motif ?? undefined}
+          maxLength={60}
+          autoComplete="off"
+        />
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <FormSelect
+          name="size"
+          label={t("size")}
+          hint={t("sizeHint")}
+          placeholder={t("sizePlaceholder")}
+          defaultValue={product?.size ?? ""}
+          options={PRODUCT_SIZES.map((size) => ({ value: size, label: formatSize(size) }))}
         />
         <FormField
           name="unit"

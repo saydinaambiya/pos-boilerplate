@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import { productVariants } from "@/db/schema";
 import { db } from "@/db/client";
-import { createCategory, createProduct } from "@/features/catalog/service";
+import { createBrand, createProduct, updateProduct } from "@/features/catalog/service";
 import { checkout } from "@/features/checkout/service";
 import { updateSettings } from "@/features/settings/service";
 import { openShift } from "@/features/shifts/service";
@@ -25,21 +25,26 @@ import { invoiceSizes } from "./types";
 const owner = () => signIn(fixtures.owner.username, fixtures.owner.password);
 
 /** Completes a sale of `qty` × a product named `name` and returns its id. */
-async function completedSale(options: { name?: string; qty?: number; price?: number } = {}) {
+async function completedSale(
+  options: {
+    name?: string;
+    qty?: number;
+    price?: number;
+    details?: { brandId: string; motif: string; size: "93x47" };
+  } = {},
+) {
   const session = await owner();
-  const category = await createCategory(session, { name: "Kategori", sortOrder: 0 }, testContext());
-  if (!category.ok) throw new Error(category.reason);
   const product = await createProduct(
     session,
     {
       name: options.name ?? "Kopi Susu",
-      categoryId: category.id,
       price: options.price ?? 18_000,
       cost: 0,
       unit: "cup",
       trackStock: false,
       sku: "KOPI",
       minStock: 0,
+      ...options.details,
     },
     testContext(),
   );
@@ -58,13 +63,14 @@ async function completedSale(options: { name?: string; qty?: number; price?: num
     session,
     {
       idempotencyKey: crypto.randomUUID(),
+      customer: { name: "Pembeli", phone: null },
       lines: [{ variantId: variant?.id ?? "", qty }],
       payments: [{ method: "CASH", amount: total }],
     },
     testContext(),
   );
   if (!sale.ok) throw new Error(sale.reason);
-  return { session, saleId: sale.saleId };
+  return { session, saleId: sale.saleId, productId: product.id };
 }
 
 beforeEach(resetDatabase);
@@ -98,6 +104,45 @@ describe("invoice document (FR-INV-04/05)", () => {
     expect(en?.payments[0]?.label).toBe("Cash");
     if (!en) throw new Error("document expected");
     expect(invoiceLabels("en", en).ppn).toBe("VAT 0%");
+  });
+
+  it("prints brand, motif and size as frozen at sale time (FR-PRD-06)", async () => {
+    const session = await owner();
+    const brand = await createBrand(session, { name: "Turkiye" }, testContext());
+    if (!brand.ok) throw new Error(brand.reason);
+    const { saleId, productId } = await completedSale({
+      name: "Sajadah",
+      details: { brandId: brand.id, motif: "Mihrab", size: "93x47" },
+    });
+    await updateProduct(
+      session,
+      productId,
+      {
+        name: "Sajadah",
+        motif: "Bunga",
+        price: 18_000,
+        unit: "cup",
+        trackStock: false,
+      },
+      testContext(),
+    );
+
+    const document = await getInvoiceDocument(session, saleId, "id");
+    expect(document?.items).toMatchObject([
+      { name: "Sajadah", details: "Turkiye · Mihrab · 93 × 47 cm" },
+    ]);
+    if (!document) throw new Error("document expected");
+    const labels = invoiceLabels("id", document);
+    for (const size of invoiceSizes) {
+      const pdf = await renderInvoicePdf(document, labels, size);
+      expect(pdf.subarray(0, 5).toString(), size).toBe("%PDF-");
+    }
+  }, 60_000);
+
+  it("leaves details empty for products without them", async () => {
+    const session = await owner();
+    const { saleId } = await completedSale();
+    expect((await getInvoiceDocument(session, saleId, "id"))?.items[0]?.details).toBeNull();
   });
 
   it("shows the NPWP only when PPN was charged (FR-SET-01)", async () => {

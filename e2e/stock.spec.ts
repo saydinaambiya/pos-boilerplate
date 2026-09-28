@@ -1,5 +1,5 @@
 import { expect, test } from "./fixtures";
-import { choose, expectResult } from "./helpers";
+import { choose, expectResult, fillProductDetails } from "./helpers";
 
 /** Unique names per run: the E2E database is not truncated between runs. */
 const run = Date.now().toString(36);
@@ -11,14 +11,9 @@ test.describe("stock ledger (FR-STK)", () => {
   test.describe.configure({ mode: "serial" });
 
   test("prepares a stock-tracked product", async ({ page }) => {
-    await page.goto("/id/products/categories");
-    await page.getByLabel("Nama kategori").fill(`Sembako ${run}`);
-    await page.getByRole("button", { name: "Tambah kategori" }).click();
-    await expectResult(page, "Kategori disimpan.");
-
     await page.goto("/id/products?new=1");
     await page.getByLabel("Nama produk").fill(product);
-    await choose(page.getByRole("dialog"), "Kategori", `Sembako ${run}`);
+    await fillProductDetails(page.getByRole("dialog"));
     await page.getByLabel("Harga jual").fill("15000");
     await page.getByLabel("SKU").fill(sku);
     await page.getByLabel("Stok minimum").fill("5");

@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { changedFields } from "@/lib/audit/diff";
 import { parseRupiah } from "@/lib/validation/money";
 
-import { colorOf, hexColor, productFilters, productInput } from "./schemas";
+import { colorOf, hexColor, newProductInput, productFilters, productInput } from "./schemas";
 
 describe("parseRupiah (PRD §5)", () => {
   it("accepts grouping in either locale and an Rp prefix", () => {
@@ -24,7 +24,6 @@ describe("parseRupiah (PRD §5)", () => {
 describe("productInput (FR-PRD-01, NFR-SEC-02)", () => {
   const valid = {
     name: "Kopi Susu",
-    categoryId: "0199a000-0000-7000-8000-000000000001",
     price: 18000,
     unit: "cup",
     trackStock: false,
@@ -43,13 +42,54 @@ describe("productInput (FR-PRD-01, NFR-SEC-02)", () => {
   });
 });
 
+describe("newProductInput (FR-PRD-06)", () => {
+  const valid = {
+    name: "Sajadah Turki",
+    brandId: "0199a000-0000-7000-8000-000000000002",
+    motif: "  Mihrab  ",
+    size: "93x47",
+    price: 150000,
+    unit: "pcs",
+    trackStock: true,
+    sku: "SJD-9347",
+    minStock: 0,
+  };
+
+  it("accepts a product with brand, motif and a known size", () => {
+    expect(newProductInput.parse(valid)).toMatchObject({ motif: "Mihrab", size: "93x47" });
+  });
+
+  it("requires brand, motif and size and only knows the fixed sizes", () => {
+    for (const field of ["brandId", "motif", "size"] as const) {
+      const result = newProductInput.safeParse({ ...valid, [field]: "" });
+      expect(result.error?.issues[0]?.code, field).toBe("too_small");
+    }
+    expect(newProductInput.safeParse({ ...valid, size: "90x40" }).success).toBe(false);
+  });
+
+  it("lets older products keep the details empty when edited", () => {
+    expect(productInput.parse({ ...valid, brandId: "", motif: "", size: "" })).toMatchObject({
+      brandId: null,
+      motif: null,
+      size: null,
+    });
+  });
+});
+
 describe("productFilters", () => {
   it("falls back to defaults for invalid query values", () => {
     expect(
-      productFilters.parse({ q: "  kopi ", category: "x", status: "deleted", page: "-2" }),
+      productFilters.parse({
+        q: "  kopi ",
+        brand: "x",
+        size: "1x1",
+        status: "deleted",
+        page: "-2",
+      }),
     ).toEqual({
       q: "kopi",
-      category: undefined,
+      brand: undefined,
+      size: undefined,
       status: "active",
       page: 1,
     });

@@ -50,6 +50,7 @@ export async function createSession(
     userId,
     tokenHash: hashSessionToken(token),
     expiresAt,
+    lastSeenAt: now,
     ip: context.ip,
     userAgent: context.userAgent,
   });
@@ -129,7 +130,10 @@ export async function validateSessionToken(
     idleExpiry(now, idle).getTime() - authPolicy.sessionRefreshMinutes * MINUTE_MS;
   if (expiresAt.getTime() < refreshAfter) {
     expiresAt = idleExpiry(now, idle);
-    await db.update(sessions).set({ expiresAt }).where(eq(sessions.id, row.sessionId));
+    await db
+      .update(sessions)
+      .set({ expiresAt, lastSeenAt: now })
+      .where(eq(sessions.id, row.sessionId));
   }
 
   return {
@@ -145,6 +149,19 @@ export async function validateSessionToken(
     role: { id: row.roleId, name: row.roleName, isSystem: row.roleSystem },
     permissions: new Set(granted),
   };
+}
+
+/** Live sessions of a user, i.e. the devices currently signed in (FR-AUTH-09). */
+export async function countActiveSessions(
+  executor: Executor,
+  userId: string,
+  now = new Date(),
+): Promise<number> {
+  const rows = await executor
+    .select({ id: sessions.id })
+    .from(sessions)
+    .where(and(eq(sessions.userId, userId), gt(sessions.expiresAt, now)));
+  return rows.length;
 }
 
 /** Removes expired sessions; called opportunistically on login. */

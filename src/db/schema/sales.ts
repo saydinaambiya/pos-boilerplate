@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  type AnyPgColumn,
   bigint,
   boolean,
   check,
@@ -17,6 +18,7 @@ import { users } from "./access";
 import { productVariants } from "./catalog";
 import { id, timestamps, timestamptz } from "./columns";
 import { bankAccounts } from "./settings";
+import { consignments } from "./consignments";
 import { customers, kasbons } from "./kasbon";
 import { vouchers } from "./vouchers";
 
@@ -78,6 +80,14 @@ export const sales = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "restrict" }),
     customerId: uuid().references(() => customers.id, { onDelete: "restrict" }),
+    /** Buyer named at checkout (FR-POS-11); null only on sales made before it was required. */
+    customerName: text(),
+    /** Optional buyer phone, normalised to `+62…` (FR-POS-11). */
+    customerPhone: text(),
+    /** Set when the sale settles goods a salesperson took out (FR-CSG-04). */
+    consignmentId: uuid().references((): AnyPgColumn => consignments.id, {
+      onDelete: "restrict",
+    }),
     status: saleStatus().notNull(),
     subtotal: money().notNull(),
     itemDiscountTotal: money().notNull(),
@@ -101,6 +111,7 @@ export const sales = pgTable(
     index("sales_created_at_idx").on(table.createdAt),
     index("sales_status_created_at_idx").on(table.status, table.createdAt),
     index("sales_voucher_id_idx").on(table.voucherId),
+    index("sales_consignment_id_idx").on(table.consignmentId),
   ],
 );
 
@@ -120,6 +131,8 @@ export const saleItems = pgTable(
       .references(() => productVariants.id, { onDelete: "restrict" }),
     nameSnapshot: text().notNull(),
     variantSnapshot: text(),
+    /** Brand · motif · size at sale time, printed under the name (FR-PRD-06, FR-INV-01). */
+    detailsSnapshot: text(),
     unitPrice: money().notNull(),
     /** Cost at sale time, for gross profit (FR-RPT-02); visible only with `report:view-profit`. */
     unitCost: money().notNull().default(0),
