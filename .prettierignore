@@ -6,3 +6,4 @@ playwright-report
 test-results
 CHANGELOG.md
 .idea
+.release-please-manifest.json
