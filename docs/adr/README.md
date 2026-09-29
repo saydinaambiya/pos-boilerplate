@@ -36,3 +36,4 @@ Records are immutable once accepted; a new record supersedes an old one.
 | [0028](./0028-home-for-every-role.md)               | A home page for every role                         | Accepted        |
 | [0029](./0029-sales-without-the-cashier.md)         | Salespeople keep a shift but not the cashier       | Accepted        |
 | [0030](./0030-devices-in-a-modal.md)                | Devices list in a modal over the current page      | Accepted        |
+| [0031](./0031-functions-next-to-the-database.md)    | Run functions in the database's region             | Accepted        |

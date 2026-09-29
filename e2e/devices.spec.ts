@@ -39,6 +39,8 @@ test.describe("signed-in devices (FR-AUTH-09/10)", () => {
     await dialog.getByRole("button", { name: "Tutup" }).click();
     await expect(dialog).toBeHidden();
     await expect(page).toHaveURL(/\/id\/products$/);
+    await expect(page.getByTestId("loading-indicator")).toHaveAttribute("data-busy", "false");
+    await expect(page.getByTestId("loading-indicator")).toBeHidden();
 
     await page.goto("/id/devices");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Perangkat login");

@@ -32,3 +32,7 @@ parameters and has no single host page.
 - The URL shows `/devices` while the modal is open, so back closes it and
   forward reopens it.
 - Other layout-level dialogs can reuse the `@modal` slot the same way.
+- Closing goes back to a page the router shows from its cache before the
+  `popstate` event arrives. The global loading indicator therefore starts
+  on back or forward only while the target URL is not rendered yet;
+  otherwise it stays up until its 15-second timeout (FR-UX-08).
