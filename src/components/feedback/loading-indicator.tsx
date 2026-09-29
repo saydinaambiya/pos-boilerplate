@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useSearchParams } from "next/navigation";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 /** Longest a navigation may keep the bar up without the URL changing. */
 const NAVIGATION_TIMEOUT_MS = 15_000;
@@ -74,7 +74,10 @@ const SHOW_DELAY_MS = 200;
  * Loading animation in the middle of the screen, shown whenever a page
  * navigation or registered action is in flight (FR-UX-08). Link clicks are
  * observed in the capture phase, before `next/link` calls `preventDefault`,
- * and end when the URL changes. It appears
+ * and end when the URL changes. A back or forward step starts the bar only
+ * while its URL is not rendered yet: closing an intercepted modal goes
+ * back to a page the router shows from cache before `popstate` reaches
+ * this listener (ADR-0030). It appears
  * after a short delay, never blocks the pointer or keyboard, and gives
  * screen readers a polite "loading" status; with reduced motion the
  * spinner stands still but the label stays (FR-UX-07). Needs a Suspense
@@ -85,8 +88,11 @@ export function LoadingIndicator({ label }: { label: string }) {
   const [visible, setVisible] = useState(false);
   const pathname = usePathname();
   const search = useSearchParams().toString();
+  /** The URL last rendered, so a history step already rendered does not start the bar. */
+  const rendered = useRef("");
 
   useEffect(() => {
+    rendered.current = `${pathname}?${search}`;
     setNavigating(false);
   }, [pathname, search]);
 
@@ -106,7 +112,8 @@ export function LoadingIndicator({ label }: { label: string }) {
       if (isInternalNavigation(event)) setNavigating(true);
     };
     const onPopState = () => {
-      setNavigating(true);
+      const target = `${window.location.pathname}?${window.location.search.replace(/^\?/, "")}`;
+      if (target !== rendered.current) setNavigating(true);
     };
     document.addEventListener("click", onClick, { capture: true });
     window.addEventListener("popstate", onPopState);
