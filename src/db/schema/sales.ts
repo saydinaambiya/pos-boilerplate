@@ -131,12 +131,14 @@ export const saleItems = pgTable(
       .references(() => productVariants.id, { onDelete: "restrict" }),
     nameSnapshot: text().notNull(),
     variantSnapshot: text(),
-    /** Brand · motif · size at sale time, printed under the name (FR-PRD-06, FR-INV-01). */
+    /** Brand · motif · thickness · size at sale time, printed under the name (FR-PRD-06, FR-INV-01). */
     detailsSnapshot: text(),
     unitPrice: money().notNull(),
     /** Cost at sale time, for gross profit (FR-RPT-02); visible only with `report:view-profit`. */
     unitCost: money().notNull().default(0),
     qty: integer().notNull(),
+    /** Length of a custom cut off a roll, per unit of `qty` (FR-ROL-04). */
+    lengthCm: integer(),
     discountType: discountType(),
     discountValue: bigint({ mode: "number" }),
     discountAmount: money().notNull().default(0),
@@ -149,10 +151,11 @@ export const saleItems = pgTable(
     index("sale_items_sale_id_idx").on(table.saleId, table.sortOrder),
     index("sale_items_variant_id_idx").on(table.variantId),
     check("sale_items_qty_positive", sql`${table.qty} > 0`),
+    check("sale_items_length_positive", sql`${table.lengthCm} IS NULL OR ${table.lengthCm} > 0`),
   ],
 );
 
-export const paymentMethods = ["CASH", "TRANSFER", "MARKETPLACE", "KASBON"] as const;
+export const paymentMethods = ["CASH", "TRANSFER", "MARKETPLACE", "KASBON", "QRIS"] as const;
 export const paymentMethod = pgEnum("payment_method", paymentMethods);
 
 export const paymentStatuses = ["SETTLED", "PENDING", "FAILED"] as const;
@@ -178,7 +181,10 @@ export const payments = pgTable(
     method: paymentMethod().notNull(),
     amount: money().notNull(),
     bankAccountId: uuid().references(() => bankAccounts.id, { onDelete: "restrict" }),
+    /** Transfer reference from before v1.2; new payments leave it empty. */
     reference: text(),
+    /** Bank or e-wallet the buyer paid a QRIS payment from (FR-PAY-07). */
+    sourceBank: text(),
     status: paymentStatus().notNull().default("SETTLED"),
     providerPayload: jsonb(),
     ...archival,

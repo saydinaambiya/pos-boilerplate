@@ -28,7 +28,6 @@ async function productWithStock(stock: number) {
     {
       name: "Kaos Polos",
       price: 50000,
-      cost: 20000,
       unit: "pcs",
       trackStock: true,
       sku: "KAOS",
@@ -53,7 +52,6 @@ function newVariant(overrides: Partial<NewVariantInput> = {}): NewVariantInput {
     sku: "KAOS-BIRU",
     minStock: 2,
     priceOverride: null,
-    costOverride: null,
     initialStock: 0,
     ...overrides,
   };
@@ -186,12 +184,12 @@ describe("colour variants (FR-VAR-01..05, FR-VAR-08)", () => {
     expect(found.products.map((product) => product.id)).toEqual([productId]);
   });
 
-  it("inherits prices unless overridden and hides cost overrides (FR-VAR-02, FR-PRD-02)", async () => {
+  it("inherits prices unless overridden (FR-VAR-02)", async () => {
     const { session, productId } = await enabled();
     const blue = await createVariant(
       session,
       productId,
-      newVariant({ priceOverride: 55000, costOverride: 22000 }),
+      newVariant({ priceOverride: 55000 }),
       testContext(),
     );
     if (!blue.ok) throw new Error(blue.reason);
@@ -202,7 +200,7 @@ describe("colour variants (FR-VAR-01..05, FR-VAR-08)", () => {
       .values({ roleId: role?.id ?? "", permission: "product:update" });
     const cashier = await signIn("kasir", "123456");
     const seen = (await getVariants(cashier, productId)).find((variant) => variant.id === blue.id);
-    expect(seen).toMatchObject({ priceOverride: 55000, costOverride: null });
+    expect(seen).toMatchObject({ priceOverride: 55000 });
 
     await updateVariant(
       cashier,
@@ -215,7 +213,6 @@ describe("colour variants (FR-VAR-01..05, FR-VAR-08)", () => {
     );
     expect(stored).toMatchObject({
       priceOverride: null,
-      costOverride: 22000,
       color: { name: "Biru Tua" },
     });
   });

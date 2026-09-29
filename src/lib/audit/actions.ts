@@ -20,6 +20,8 @@ export const auditActions = [
   "bank-account.updated",
   "bank-account.activated",
   "bank-account.deactivated",
+  "bank-account.qris-set",
+  "bank-account.qris-cleared",
   "marketplace.created",
   "marketplace.updated",
   "marketplace.activated",
@@ -62,6 +64,8 @@ export const auditActions = [
   "housekeeping.archived",
   "consignment.taken",
   "consignment.settled",
+  "stock.cut",
+  "expense.recorded",
 ] as const;
 
 export type AuditAction = (typeof auditActions)[number];

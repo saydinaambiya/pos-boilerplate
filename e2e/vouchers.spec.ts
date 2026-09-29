@@ -1,5 +1,6 @@
 import { expect, test } from "./fixtures";
 import {
+  addPiece,
   cashierAtPos,
   choose,
   createStockedProduct,
@@ -75,7 +76,7 @@ test.describe("vouchers with approval and POS use (FR-VCH, FR-POS-03)", () => {
     const page = await cashierAtPos(browser);
     const cart = page.getByRole("complementary", { name: "Keranjang" });
     await page.getByRole("searchbox", { name: "Cari produk" }).fill(product);
-    await page.getByRole("button", { name: new RegExp(product) }).click();
+    await addPiece(page, product);
 
     await cart.getByLabel("Kode voucher").fill("SALAH");
     await cart.getByRole("button", { name: "Pakai" }).click();

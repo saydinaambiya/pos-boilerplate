@@ -5,6 +5,7 @@ export const MAX_REPORT_DAYS = 366;
 
 export const reportSections = [
   "daily",
+  "expenses",
   "methods",
   "products",
   "variants",

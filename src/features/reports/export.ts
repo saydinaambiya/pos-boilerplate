@@ -19,18 +19,15 @@ const field =
 
 /**
  * CSV lines for one report section in the chosen language (FR-RPT-05).
- * Amounts are plain integer rupiah so spreadsheets can sum them; cost and
- * margin columns only exist when the report carries profit (FR-RPT-02).
+ * Amounts are plain integer rupiah so spreadsheets can sum them.
  */
 export function reportCsv(report: SalesReport, section: ReportSection, locale: Locale) {
   const t = translatorFor(locale, "Reports");
   const col = (header: string, key: string): Column => ({ header, value: field(key) });
-  const profitColumns = report.profit ? [col(t("cogs"), "cogs"), col(t("margin"), "margin")] : [];
   const lineColumns = [
     col(t("qty"), "qty"),
     col(t("discounts"), "discounts"),
     col(t("revenue"), "revenue"),
-    ...profitColumns,
   ];
 
   const sections: Record<ReportSection, { rows: Record<string, unknown>[]; columns: Column[] }> = {
@@ -41,6 +38,19 @@ export function reportCsv(report: SalesReport, section: ReportSection, locale: L
         col(t("transactions"), "count"),
         col(t("netSales"), "net"),
         col(t("grandTotal"), "grandTotal"),
+        col(t("expenses"), "expenses"),
+        col(t("balance"), "balance"),
+      ],
+    },
+    expenses: {
+      rows: report.expenses.map((row) => ({
+        ...row,
+        label: translatorFor(locale, "Expenses")(`categories.${row.category}`),
+      })),
+      columns: [
+        col(t("expenseCategory"), "label"),
+        col(t("entries"), "count"),
+        col(t("total"), "total"),
       ],
     },
     methods: {

@@ -1,7 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { DEFAULT_EMPLOYEE_ROLE, OWNER_ROLE_NAME } from "@/config/permissions";
+import { DEFAULT_EMPLOYEE_ROLE, OWNER_ROLE_NAME, SEEDED_ROLES } from "@/config/permissions";
 import { db } from "@/db/client";
 import { auditLogs, roles } from "@/db/schema";
 import { ForbiddenError } from "@/lib/auth/authorize";
@@ -23,8 +23,15 @@ beforeEach(resetDatabase);
 describe("roles service (FR-RBAC-01)", () => {
   it("lists roles with permission and member counts, Owner first", async () => {
     const list = await getRoles(await owner());
-    expect(list.map((role) => role.name)).toEqual([OWNER_ROLE_NAME, DEFAULT_EMPLOYEE_ROLE.name]);
-    expect(list[1]).toMatchObject({
+    expect(list.map((role) => role.name)).toEqual([
+      OWNER_ROLE_NAME,
+      ...[DEFAULT_EMPLOYEE_ROLE, ...SEEDED_ROLES].map((role) => role.name).sort(),
+    ]);
+    expect(list.find((role) => role.name === "Sales")).toMatchObject({
+      permissionCount: 3,
+      userCount: 0,
+    });
+    expect(list.find((role) => role.name === DEFAULT_EMPLOYEE_ROLE.name)).toMatchObject({
       permissionCount: DEFAULT_EMPLOYEE_ROLE.permissions.length,
       userCount: fixtures.employees.length,
     });

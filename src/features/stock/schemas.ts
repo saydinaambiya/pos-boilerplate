@@ -24,6 +24,8 @@ export type WriteOffStockInput = z.infer<typeof writeOffStockInput>;
 export const stockFilters = z.object({
   q: z.string().trim().max(60).catch(""),
   low: z.enum(["1"]).optional().catch(undefined),
+  /** Only defect pieces (FR-ROL-05). */
+  defect: z.enum(["1"]).optional().catch(undefined),
   page: z.coerce.number().int().min(1).max(1000).catch(1),
 });
 

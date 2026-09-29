@@ -12,15 +12,24 @@ import type { Session } from "@/lib/auth/session";
 import { formText } from "@/lib/http/form-data";
 import { currentRequestContext } from "@/lib/http/request-context";
 import { fieldErrors, type FormState, submittedValues } from "@/lib/validation/form-state";
+import { parseDecimal, parseMetersToCm } from "@/lib/format/length";
 import { parseRupiah } from "@/lib/validation/money";
 
-import { brandInput, newProductInput, productDetailsInput, productInput } from "./schemas";
+import {
+  brandInput,
+  newProductInput,
+  productDetailsInput,
+  productInput,
+  rollProductInput,
+} from "./schemas";
+import { PRODUCT_SIZES } from "./sizes";
 import {
   type CatalogResult,
   changeProductStatus,
   createBrand,
   createProduct,
   deleteBrand,
+  getProduct,
   updateBrand,
   updateProduct,
 } from "./service";
@@ -112,38 +121,76 @@ export async function deleteBrandAction(
   return redirect({ href: "/products/brands", locale });
 }
 
+const SIZE_PRICE_FIELDS = PRODUCT_SIZES.flatMap(
+  (size) => [`sizePrice_${size}`, `defectPrice_${size}`] as const,
+);
+
+/** One rupiah amount per size from fields named `${prefix}_${size}`. */
+function pricesPerSize(formData: FormData, prefix: string) {
+  return Object.fromEntries(
+    PRODUCT_SIZES.map((size) => [size, money(formText(formData, `${prefix}_${size}`))]),
+  );
+}
+
 const PRODUCT_FIELDS = [
   "name",
+  "colorName",
   "brandId",
   "motif",
-  "size",
+  "thickness",
+  ...SIZE_PRICE_FIELDS,
   "price",
-  "cost",
   "unit",
   "trackStock",
   "sku",
   "minStock",
 ] as const;
 
-function productDetails(formData: FormData, session: Session) {
-  const canSeeCost = session.permissions.has("product:view-cost");
+/**
+ * Form fields as schema input. A roll form (FR-ROL-02/05) sends a normal
+ * and a defect price per size and no unit or stock switch; its minimum
+ * stock is typed in meters.
+ */
+function productDetails(formData: FormData, session: Session, isRoll: boolean) {
+  const thickness = formText(formData, "thickness");
   return {
     name: formText(formData, "name"),
     brandId: formText(formData, "brandId"),
     motif: formText(formData, "motif"),
-    size: formText(formData, "size"),
+    thickness: thickness === "" ? null : (parseDecimal(thickness) ?? Number.NaN),
+    ...(isRoll
+      ? {
+          sizePrices: pricesPerSize(formData, "sizePrice"),
+          defectSizePrices: pricesPerSize(formData, "defectPrice"),
+          unit: "pcs",
+          trackStock: true,
+        }
+      : { unit: formText(formData, "unit"), trackStock: formData.get("trackStock") === "on" }),
     price: money(formText(formData, "price")),
-    ...(canSeeCost ? { cost: money(formText(formData, "cost") || "0") } : {}),
-    unit: formText(formData, "unit"),
-    trackStock: formData.get("trackStock") === "on",
   };
 }
 
-function defaultVariantFields(formData: FormData) {
+function defaultVariantFields(formData: FormData, isRoll: boolean) {
+  const minStock = formText(formData, "minStock") || "0";
   return {
     sku: formText(formData, "sku"),
-    minStock: integer(formText(formData, "minStock") || "0"),
+    minStock: isRoll ? (parseMetersToCm(minStock) ?? Number.NaN) : integer(minStock),
   };
+}
+
+/** Zod errors per field; a size price reports on its own input. */
+function productErrors(error: z.ZodError, tv: Parameters<typeof fieldErrors>[1]) {
+  const errors = fieldErrors(error, tv);
+  for (const issue of error.issues) {
+    const [field, size] = issue.path;
+    if (field === "sizePrices" && typeof size === "string") {
+      errors[`sizePrice_${size}`] ??= errors.sizePrices ?? tv("invalid");
+    }
+    if (field === "defectSizePrices" && typeof size === "string") {
+      errors[`defectPrice_${size}`] ??= errors.defectSizePrices ?? tv("invalid");
+    }
+  }
+  return errors;
 }
 
 async function saveProduct(id: string | null, formData: FormData): Promise<FormState> {
@@ -156,15 +203,22 @@ async function saveProduct(id: string | null, formData: FormData): Promise<FormS
   if (id !== null && !recordId.safeParse(id).success) {
     return failure({ ok: false, reason: "not-found" }, locale);
   }
-  const details = productDetails(formData, session);
+  const current = id === null ? null : await getProduct(session, id);
+  if (id !== null && !current) return failure({ ok: false, reason: "not-found" }, locale);
+  const isRoll = current?.isRoll ?? true;
+  const details = productDetails(formData, session, isRoll);
   const context = await currentRequestContext();
   let result: CatalogResult;
   if (id === null || formData.has("sku")) {
-    const schema = id === null ? newProductInput : productInput;
-    const parsed = schema.safeParse({ ...details, ...defaultVariantFields(formData) });
+    const schema = id === null ? newProductInput : isRoll ? rollProductInput : productInput;
+    const parsed = schema.safeParse({
+      ...details,
+      ...defaultVariantFields(formData, isRoll),
+      ...(id === null ? { colorName: formText(formData, "colorName") } : {}),
+    });
     if (!parsed.success) {
       const [, tv] = await translations(locale);
-      return { status: "error", errors: fieldErrors(parsed.error, tv), values };
+      return { status: "error", errors: productErrors(parsed.error, tv), values };
     }
     result =
       id === null
@@ -174,7 +228,7 @@ async function saveProduct(id: string | null, formData: FormData): Promise<FormS
     const parsed = productDetailsInput.safeParse(details);
     if (!parsed.success) {
       const [, tv] = await translations(locale);
-      return { status: "error", errors: fieldErrors(parsed.error, tv), values };
+      return { status: "error", errors: productErrors(parsed.error, tv), values };
     }
     result = await updateProduct(session, id, parsed.data, context);
   }

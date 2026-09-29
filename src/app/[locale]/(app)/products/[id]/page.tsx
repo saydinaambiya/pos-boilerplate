@@ -12,7 +12,7 @@ import { ProductForm } from "@/features/catalog/components/product-form";
 import { VariantDialog } from "@/features/catalog/components/variant-dialog";
 import { VariantsSection } from "@/features/catalog/components/variants-section";
 import { getBrands, getProduct } from "@/features/catalog/service";
-import { formatSize } from "@/features/catalog/sizes";
+import { formatMeters, formatThickness } from "@/lib/format/length";
 import { Link } from "@/i18n/navigation";
 import { requirePermission } from "@/lib/auth/guard";
 import { firstParam } from "@/lib/utils/search-params";
@@ -51,7 +51,7 @@ export default async function EditProductPage({
         description={[
           product.brandName,
           product.motif,
-          product.size ? formatSize(product.size) : null,
+          product.thickness ? formatThickness(product.thickness, locale) : null,
           product.hasVariants ? null : product.sku,
         ]
           .filter(Boolean)
@@ -66,7 +66,16 @@ export default async function EditProductPage({
         <Card className="max-w-2xl">
           {product.trackStock ? (
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-              <CardDescription>{t("stockNote", { stock: product.stockQty })}</CardDescription>
+              <CardDescription>
+                {t("stockNote", {
+                  stock: product.isRoll
+                    ? t("rollStock", {
+                        meters: formatMeters(product.stockQty, locale),
+                        pieces: product.pieceStock,
+                      })
+                    : String(product.stockQty),
+                })}
+              </CardDescription>
               {session.permissions.has("page:stock") && !product.hasVariants ? (
                 <Button asChild variant="secondary" size="sm">
                   <Link href={`/stock/${product.variantId}`}>{t("manageStock")}</Link>
@@ -74,13 +83,12 @@ export default async function EditProductPage({
               ) : null}
             </div>
           ) : null}
-          {product.brandId && product.motif && product.size ? null : (
+          {product.brandId && product.motif && product.thickness ? null : (
             <CardDescription className="mb-4">{t("detailsMissing")}</CardDescription>
           )}
           <ProductForm
             action={updateProductAction.bind(null, product.id)}
             brands={brands}
-            canSeeCost={session.permissions.has("product:view-cost")}
             submitLabel={t("save")}
             product={product}
           />

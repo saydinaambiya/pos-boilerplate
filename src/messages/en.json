@@ -20,7 +20,10 @@
     "showcase": "UI Components",
     "audit": "Audit Log",
     "badge": "{count} pending",
-    "consignments": "Field sales"
+    "consignments": "Field sales",
+    "cutting": "Cut Rolls",
+    "expenses": "Expenses",
+    "home": "Home"
   },
   "Preferences": {
     "theme": "Theme",
@@ -64,12 +67,12 @@
   "NotFound": {
     "title": "Page not found",
     "description": "The address you opened is not available.",
-    "back": "Back to dashboard"
+    "back": "Back to home"
   },
   "Forbidden": {
     "title": "Access denied",
     "description": "Your role does not have permission to open this page.",
-    "back": "Back to dashboard"
+    "back": "Back to home"
   },
   "Auth": {
     "loginTitle": "Sign in",
@@ -181,7 +184,6 @@
       "page_audit": "Audit log page",
       "product_create": "Create products",
       "product_update": "Edit products",
-      "product_view-cost": "View cost price & margin",
       "stock_adjust": "Adjust stock",
       "voucher_request": "Request vouchers",
       "order_online_update-status": "Change online order status",
@@ -198,10 +200,14 @@
       "sale_void": "Request sale voids",
       "kasbon_create": "Put the unpaid remainder on store credit",
       "kasbon_pay": "Record store credit payments",
-      "report_view-profit": "See gross profit in reports",
       "page_consignments": "Field sales page (goods carried by salespeople)",
-      "consignment_take": "Take out and settle own goods",
-      "consignment_manage": "Manage goods of every salesperson"
+      "consignment_pickup": "Record goods salespeople take",
+      "consignment_return": "Record goods salespeople return",
+      "consignment_sell": "Salesperson: sell own goods",
+      "pos_after-hours": "Use the cashier outside store hours",
+      "page_cutting": "Cut Rolls page (cutting rolls into pieces)",
+      "page_expenses": "Daily expenses page",
+      "expense_record": "Record daily expenses from the cash drawer"
     }
   },
   "Employees": {
@@ -398,7 +404,11 @@
       "housekeeping_exported": "Monthly archive downloaded",
       "housekeeping_archived": "Monthly data marked archived",
       "consignment_taken": "Goods taken by salesperson",
-      "consignment_settled": "Salesperson settlement"
+      "consignment_settled": "Salesperson goods sold / returned",
+      "stock_cut": "Roll cut",
+      "bank-account_qris-set": "Account set for QRIS",
+      "bank-account_qris-cleared": "Account removed from QRIS",
+      "expense_recorded": "Daily expense recorded"
     }
   },
   "Settings": {
@@ -439,8 +449,8 @@
     "invoiceSequenceDigits": "Sequence digits",
     "invoiceSample": "Example invoice number: {sample}",
     "paperSize": "Default paper size",
-    "paper58mm": "Thermal 58 mm",
-    "paper80mm": "Thermal 80 mm",
+    "paper58mm": "Thermal 58mm",
+    "paper80mm": "Thermal 80mm",
     "paperA4": "A4",
     "allowNegativeStock": "Allow negative stock",
     "allowNegativeStockHint": "Sales go through even when stock is insufficient.",
@@ -504,7 +514,19 @@
       "sat": "Saturday",
       "sun": "Sunday"
     },
-    "hoursInvalidTime": "Enter a time as HH:MM, e.g. 08:00."
+    "hoursInvalidTime": "Enter a time as HH:MM, e.g. 08:00.",
+    "qrisChip": "QRIS",
+    "qrisSection": "QRIS",
+    "qrisIsSet": "QRIS payments at the cashier go into this account.",
+    "qrisNotSet": "Make this the account QRIS payments go into. Only one account can take QRIS.",
+    "qrisMake": "Make QRIS account",
+    "qrisMakeTitle": "Make this the QRIS account?",
+    "qrisMakeDescription": "Future QRIS payments go into this account. Any previous QRIS account stops taking QRIS.",
+    "qrisClear": "Remove from QRIS",
+    "qrisClearTitle": "Remove this account from QRIS?",
+    "qrisClearDescription": "QRIS is hidden at the cashier until another account is set for it.",
+    "qrisSet": "QRIS account saved.",
+    "qrisCleared": "Account removed from QRIS."
   },
   "Catalog": {
     "title": "Products",
@@ -528,9 +550,6 @@
     "unit": "Unit",
     "unitHint": "For example: pcs, kg, portion.",
     "price": "Selling price",
-    "cost": "Cost price",
-    "costHint": "Visible only to roles allowed to see cost prices.",
-    "margin": "Margin",
     "moneyHint": "Rupiah without decimals, e.g. 15,000.",
     "stock": "Stock",
     "sku": "SKU",
@@ -574,12 +593,7 @@
     "allBrands": "All brands",
     "brandPlaceholder": "Choose a brand",
     "motif": "Motif",
-    "motifHint": "For example: Mihrab, Floral, Plain.",
-    "size": "Size",
-    "allSizes": "All sizes",
-    "sizePlaceholder": "Choose a size",
-    "sizeHint": "Length × width in cm.",
-    "detailsMissing": "Brand, motif and size are not filled in yet.",
+    "detailsMissing": "Brand, motif and thickness are not filled in yet.",
     "noBrandsTitle": "Add a brand first",
     "noBrandsDescription": "Every new product needs a brand.",
     "addBrand": "Add brand",
@@ -595,7 +609,26 @@
     "brandInUseNote": "{count, plural, one {# product uses} other {# products use}} this brand, so it can't be deleted.",
     "errorBrandNameTaken": "That brand name is already used.",
     "errorInvalidBrand": "Choose one of the listed brands.",
-    "errorBrandInUse": "Products still use this brand, so it can't be deleted."
+    "errorBrandInUse": "Products still use this brand, so it can't be deleted.",
+    "thickness": "Thickness (mm)",
+    "thicknessHint": "Decimals are fine, e.g. 2.5.",
+    "pricePerMeter": "Selling price per meter",
+    "pricePerMeterHint": "Used for custom cuts at the cashier, e.g. 90cm or 1.5m.",
+    "sizePrices": "Price per piece",
+    "sizePricesHint": "The same price for every colour.",
+    "sizePrice": "Price {size}",
+    "sizeUsage": "Uses {meters} m of roll per piece.",
+    "rollSkuHint": "Up to 32 characters. Piece SKUs are added automatically, e.g. SKU-93x47.",
+    "rollMinStock": "Minimum roll stock (m)",
+    "rollProduct": "Roll · cut to size",
+    "perMeter": "{price} / m",
+    "rollStock": "{meters} · {pieces} pcs",
+    "motifPlaceholder": "Choose a motif",
+    "searchChoice": "Search…",
+    "noChoice": "Nothing matches.",
+    "defectPrices": "Defect price per piece",
+    "defectPricesHint": "For pieces flagged as defect when cut. The same for every colour.",
+    "defectPrice": "Defect price {size}"
   },
   "Stock": {
     "title": "Stock",
@@ -669,9 +702,17 @@
       "ADJUSTMENT": "Adjustment",
       "VOID": "Void",
       "CONSIGNMENT_OUT": "Taken by salesperson",
-      "CONSIGNMENT_RETURN": "Returned by salesperson"
+      "CONSIGNMENT_RETURN": "Returned by salesperson",
+      "CUT": "Roll cut"
     },
-    "brand": "Brand"
+    "brand": "Brand",
+    "quantityMeters": "Length (m)",
+    "countedMeters": "Counted length (m)",
+    "receivePieceDescription": "Pieces are added through Cut Rolls, not as goods received.",
+    "errorCutOnly": "Piece stock only goes up through Cut Rolls.",
+    "cutThisRoll": "Cut this roll",
+    "defect": "Defect",
+    "defectOnly": "Defect stock only"
   },
   "Variants": {
     "title": "Colour variants",
@@ -681,16 +722,12 @@
     "enable": "Enable variants",
     "enabled": "Colour variants enabled.",
     "colorName": "Colour name",
-    "hex": "Colour code (hex)",
-    "hexHint": "Optional, e.g. #1E88E5. Without it the swatch shows the colour's initials.",
     "sku": "SKU",
     "minStock": "Minimum stock",
     "initialStock": "Opening stock",
     "initialStockHint": "Recorded as goods received.",
     "priceOverride": "Custom selling price",
     "priceOverrideHint": "Leave empty to use the product price.",
-    "costOverride": "Custom cost price",
-    "costOverrideHint": "Leave empty to use the product cost.",
     "add": "Add variant",
     "addTitle": "New variant",
     "created": "Variant added.",
@@ -724,7 +761,15 @@
     "errorColorTaken": "Another variant of this product already uses this colour name.",
     "errorStockForbidden": "You may not change stock; leave the opening stock empty.",
     "errorDefaultVariant": "The primary variant cannot be deactivated while the product is active.",
-    "errorNotFound": "Variant not found."
+    "errorNotFound": "Variant not found.",
+    "enableRollDescription": "Create the first colour. The roll and pieces already in stock move to this colour and are recorded as an adjustment.",
+    "rollSkuHint": "Up to 32 characters. Piece SKUs are added automatically.",
+    "rollMinStock": "Minimum roll stock (m)",
+    "rollInitialStock": "Opening roll stock (m)",
+    "rollInitialStockHint": "Length of roll received, e.g. 40 or 38.5. Recorded as goods received.",
+    "pieceStock": "{size}: {count} pcs",
+    "colorPlaceholder": "Choose a colour",
+    "defectPieceStock": "{size} defect: {count} pcs"
   },
   "Shifts": {
     "title": "Cashier shifts",
@@ -741,7 +786,7 @@
     "salesCount": "Transactions",
     "revenue": "Sales",
     "expectedCash": "Expected cash",
-    "expectedHint": "Opening float + cash from sales and store credit payments",
+    "expectedHint": "Opening float + cash from sales and store credit payments − expenses",
     "close": "Close shift",
     "closeTitle": "Close shift",
     "closeDescription": "Count the money in the drawer and enter the amount. The difference from the expected cash is recorded.",
@@ -771,7 +816,8 @@
       "CASH": "Cash",
       "TRANSFER": "Transfer",
       "MARKETPLACE": "Marketplace",
-      "KASBON": "Store credit"
+      "KASBON": "Store credit",
+      "QRIS": "QRIS"
     },
     "errorAlreadyOpen": "You already have an open shift.",
     "errorNoOpenShift": "There is no open shift.",
@@ -783,7 +829,10 @@
     "othersOpenTitle": "{count, plural, one {Another shift is still open} other {# other shifts are still open}}",
     "othersOpenItem": "{name} — since {time}",
     "othersOpenHint": "You can still open your own shift. Keep the cash drawers separate.",
-    "errorStoreClosed": "The store is closed. A shift can only be opened during opening hours."
+    "errorStoreClosed": "The store is closed. A shift can only be opened during opening hours.",
+    "expenses": "Paid out of the drawer",
+    "expensesHint": "Meal and fuel allowances, donations and so on. Already taken off the expected cash.",
+    "closedSummary": "Shift closed. The cash difference is recorded."
   },
   "Pos": {
     "search": "Search products",
@@ -836,7 +885,6 @@
     "transferAmount": "Transfer amount",
     "bankAccount": "Destination account",
     "chooseBank": "Choose an account",
-    "reference": "Reference no. (optional)",
     "noBankAccounts": "No active bank account. Add one in Settings.",
     "cashPortion": "Paid in cash",
     "change": "Change",
@@ -898,7 +946,29 @@
     "storeClosedAllDay": "The store is closed today. The POS opens again on the next opening day.",
     "storeClosedShift": "Your shift is still open. Close it to finish the day.",
     "allBrands": "All",
-    "brandsLabel": "Brand filter"
+    "brandsLabel": "Brand filter",
+    "chooseSize": "Choose a size",
+    "rollLeft": "{length} of roll left",
+    "customCut": "Custom cut",
+    "customCutHint": "{price} per meter · {length} of roll left",
+    "cutLength": "Cut length",
+    "cutUnit": "Length unit",
+    "addCut": "Add cut",
+    "addCutPriced": "Add · {price}",
+    "cutInvalid": "Enter a length, e.g. 90cm or 1.5m.",
+    "cutTooLong": "Only {length} of roll left.",
+    "otherColor": "Choose another colour",
+    "cutLabel": "Cut {length}cm",
+    "qris": "QRIS",
+    "nonCashLabel": "Pay the non-cash part by",
+    "qrisAmount": "QRIS amount",
+    "qrisAccount": "Goes to the QRIS account: {account}",
+    "sourceBank": "Payer's bank / e-wallet",
+    "sourceBankPlaceholder": "Choose a bank or e-wallet",
+    "sourceBankOther": "Other",
+    "sourceBankOtherName": "Bank or e-wallet name",
+    "sourceBankRequired": "Choose the payer's bank or e-wallet.",
+    "defect": "Defect"
   },
   "Receipt": {
     "customer": "Customer: {name}",
@@ -931,7 +1001,8 @@
       "CASH": "Cash",
       "TRANSFER": "Transfer",
       "MARKETPLACE": "Marketplace",
-      "KASBON": "Store credit"
+      "KASBON": "Store credit",
+      "QRIS": "QRIS"
     },
     "print": "Print / PDF",
     "void": "Void sale",
@@ -947,7 +1018,9 @@
     "kasbonBalance": "Store credit balance",
     "openKasbon": "Open store credit of {name}",
     "voidRequested": "Void request sent and waiting for approval.",
-    "voidApplied": "Sale voided."
+    "voidApplied": "Sale voided.",
+    "cutLabel": "Cut {length}cm",
+    "qrisFrom": "QRIS · from {source}"
   },
   "Invoice": {
     "invoice": "Invoice",
@@ -976,14 +1049,15 @@
       "CASH": "Cash",
       "TRANSFER": "Transfer",
       "MARKETPLACE": "Marketplace",
-      "KASBON": "Store credit"
+      "KASBON": "Store credit",
+      "QRIS": "QRIS"
     },
     "pageTitle": "Print invoice",
     "toolbarLabel": "Print options",
     "paperSize": "Paper size",
     "sizes": {
-      "58mm": "58 mm",
-      "80mm": "80 mm",
+      "58mm": "58mm",
+      "80mm": "80mm",
       "a4": "A4"
     },
     "language": "Language",
@@ -997,7 +1071,8 @@
     "shareFailed": "Sharing is not available; the PDF was downloaded instead.",
     "back": "Back",
     "customer": "Customer",
-    "kasbonBalance": "Store credit balance"
+    "kasbonBalance": "Store credit balance",
+    "qrisFrom": "QRIS ({source})"
   },
   "Approvals": {
     "title": "Approvals",
@@ -1212,7 +1287,6 @@
     "recordPayment": "Record payment",
     "recordPaymentDescription": "Up to {amount}. The balance drops once approved.",
     "bankAccount": "Destination account",
-    "reference": "Reference no.",
     "submitPayment": "Record payment",
     "paymentPending": "Payment recorded and waiting for approval.",
     "paymentApproved": "Payment recorded and approved.",
@@ -1346,7 +1420,12 @@
     },
     "conditionFor": "Condition of {name} ({qty} pcs)",
     "eventNote": "Note (optional)",
-    "addPlain": "Add"
+    "addPlain": "Add",
+    "storePrice": "Store price {price}",
+    "priceOf": "Marketplace price {name}",
+    "pricePlaceholder": "Selling price",
+    "errorPriceRequired": "Enter the selling price for {name}.",
+    "priceVsStore": "{price} (store price {store})"
   },
   "Reports": {
     "title": "Reports",
@@ -1369,9 +1448,6 @@
     "averageHint": "Average {amount}",
     "marketplace": "Marketplace",
     "marketplaceHint": "{count} orders, excluding shipping",
-    "grossProfit": "POS gross profit",
-    "grossProfitHint": "Cost {cogs}",
-    "marketplaceProfit": "Marketplace gross profit",
     "sections": {
       "daily": "By day",
       "methods": "By payment method",
@@ -1380,7 +1456,8 @@
       "brands": "By brand",
       "employees": "By employee",
       "vouchers": "Vouchers & discounts",
-      "tax": "PPN & service"
+      "tax": "PPN & service",
+      "expenses": "Daily expenses"
     },
     "downloadCsv": "Download {section} CSV",
     "noData": "No data in this range.",
@@ -1394,7 +1471,8 @@
       "CASH": "Cash",
       "TRANSFER": "Transfer",
       "KASBON": "Store credit given",
-      "MARKETPLACE": "Marketplace"
+      "MARKETPLACE": "Marketplace",
+      "QRIS": "QRIS"
     },
     "creditCollected": "Store credit payments approved: {amount} ({count} payments).",
     "productsCaption": "Sales by product",
@@ -1402,8 +1480,6 @@
     "name": "Name",
     "qty": "Qty",
     "revenue": "Sales",
-    "cogs": "Cost",
-    "margin": "Margin",
     "discounts": "Item discounts",
     "product": "Product",
     "sku": "SKU",
@@ -1429,7 +1505,14 @@
     "taxMode": "Price mode",
     "brandsCaption": "Sales by brand",
     "brand": "Brand",
-    "noBrand": "No brand"
+    "noBrand": "No brand",
+    "expenses": "Expenses",
+    "expensesHint": "Meal and fuel allowances, donations and so on, from the drawer",
+    "balance": "Balance",
+    "balanceHint": "Total sales − expenses",
+    "expensesCaption": "Expenses per type",
+    "expenseCategory": "Type",
+    "entries": "Entries"
   },
   "Housekeeping": {
     "title": "Housekeeping",
@@ -1593,9 +1676,6 @@
     "removeItem": "Remove {name}",
     "inStock": "{count} in stock",
     "saveTake": "Save goods taken",
-    "settle": "Settle",
-    "settleTitle": "Settle up",
-    "settleDescription": "Enter how many were sold and how many came back. Anything left stays with the salesperson.",
     "soldOf": "Sold, {name}",
     "returnedOf": "Brought back, {name}",
     "outstandingOf": "{count} still out",
@@ -1606,11 +1686,6 @@
     "methodTransfer": "Transfer",
     "methodKasbon": "Store credit",
     "saleTotal": "Total of sold goods",
-    "saveSettle": "Save settlement",
-    "noSold": "Nothing sold this time, only goods brought back.",
-    "settleNeedsPos": "Settlements are recorded by a cashier whose shift is open.",
-    "nothingEntered": "Enter how many were sold or brought back for at least one item.",
-    "tooMany": "Sold and brought back for {name} is more than the {count} still out.",
     "tabsLabel": "Status",
     "tabOpen": "Out now",
     "tabClosed": "Settled",
@@ -1641,7 +1716,7 @@
     "historyEmpty": "Nothing recorded yet.",
     "batches": {
       "TAKE": "Goods taken",
-      "SETTLE": "Settlement"
+      "SETTLE": "Sold / returned"
     },
     "batchBy": "{time} · by {name}",
     "items": {
@@ -1652,20 +1727,142 @@
     "invoice": "Sale {invoiceNo}",
     "units": "{count} items",
     "taken": "Got it, the goods taken are recorded.",
-    "settledWithSale": "Settled. Sale {invoiceNo} has been created.",
+    "settledWithSale": "Sold goods recorded. Sale {invoiceNo} created.",
     "settledReturnOnly": "The goods brought back are recorded.",
     "errors": {
       "invalid": "Something doesn't look right. Please check your entries.",
       "insufficientStock": "Not enough stock. Only {available} left.",
-      "forbidden": "You don't have access to this salesperson's goods.",
+      "forbidden": "You don't have access to record this.",
       "storeClosed": "The store is closed. Salesperson goods can only be recorded during opening hours.",
       "exceedsOutstanding": "Sold plus brought back is more than what's still out.",
       "closed": "These goods are already settled.",
-      "noOpenShift": "Open a shift at the POS first to take in the money.",
+      "noOpenShift": "Open a shift on the Sales page first to take the payment.",
       "noItems": "Add at least one item.",
       "network": "Connection lost. Please try again."
     },
     "dueDate": "Due date (optional)",
-    "reference": "Reference no. (optional)"
+    "recordSold": "Record sold",
+    "recordReturn": "Record return",
+    "sellTitle": "Record sold goods",
+    "sellDescription": "Enter how many sold, the buyer's name and how they paid. The rest stays on record as carried.",
+    "returnTitle": "Record returned goods",
+    "returnDescription": "Enter how many came back to the store. Stock goes up straight away.",
+    "saveSold": "Save sold goods",
+    "saveReturned": "Save returned goods",
+    "nothingSold": "Enter a sold quantity for at least one item.",
+    "nothingReturned": "Enter a returned quantity for at least one item.",
+    "tooManySold": "More {name} sold than the {count} still carried.",
+    "tooManyReturned": "More {name} returned than the {count} still carried.",
+    "viewOnly": "Store staff record goods taken out and brought back. You can see the history here.",
+    "methodQris": "QRIS",
+    "shiftTitle": "My shift",
+    "shiftSince": "Open since {time} · expected cash {cash}",
+    "shiftClose": "Close shift",
+    "shiftOpenDescription": "Open a shift to take money for goods sold. The cash you hold is counted when you close it.",
+    "sellNeedsShift": "Open a shift on the Sales page first to record sold goods."
+  },
+  "Cutting": {
+    "title": "Cut Rolls",
+    "subtitle": "Record cut rolls: how many meters were cut and how many pieces of each size it made.",
+    "filter": "Apply",
+    "search": "Search",
+    "searchPlaceholder": "Name, brand, motif, colour or SKU",
+    "reset": "Reset",
+    "listCaption": "Rolls",
+    "roll": "Roll",
+    "sku": "SKU",
+    "length": "Length left",
+    "actions": "Actions",
+    "cut": "Cut",
+    "cutNamed": "Cut {name}",
+    "emptyTitle": "No rolls yet",
+    "emptyDescription": "Rolls show up here once the product and its roll stock are recorded.",
+    "noResultsTitle": "No matching rolls",
+    "noResultsDescription": "Try a different search.",
+    "historyTitle": "Recent cuts",
+    "historyEmpty": "No rolls cut yet.",
+    "cutBy": "{time} · by {name}",
+    "pieceLine": "{count} pcs {size}",
+    "usedLine": "Cut {used}, roll left {left}",
+    "cutTitle": "Cut {name}",
+    "cutDescription": "Enter the length of roll cut, then how many pieces of each size it made.",
+    "rollNow": "Roll now",
+    "used": "Cut",
+    "left": "Left",
+    "save": "Save pieces",
+    "nothingEntered": "Enter a number of pieces for at least one size.",
+    "saved": "Pieces recorded. Cut {used}, roll left {left}.",
+    "errors": {
+      "invalid": "Something isn't filled in right. Please check.",
+      "insufficient": "Not enough roll. Needs {needed}, {available} left.",
+      "notFound": "Roll not found or no longer active.",
+      "network": "Connection lost. Please try again."
+    },
+    "lengthLabel": "Length cut (m)",
+    "lengthHint": "E.g. 8 or 7.5. The roll gets this much shorter.",
+    "piecesLabel": "Pieces made",
+    "piecesInStock": "{count} pcs in stock",
+    "lengthMissing": "Enter the length of roll cut, e.g. 8 or 7.5.",
+    "checkPieces": "These pieces usually need about {expected}, more than the {length} cut. Please check the numbers.",
+    "defectLabel": "Defect goods",
+    "defectHint": "Every piece of this cut is recorded as defect, at the defect price.",
+    "defectPiecesLabel": "Defect pieces made",
+    "defectInStock": "{count} defect pcs in stock",
+    "defectChip": "Defect",
+    "savedDefect": "Defect pieces recorded. Cut {used}, roll left {left}."
+  },
+  "Expenses": {
+    "title": "Daily expenses",
+    "subtitle": "Meal and fuel allowances, donations and other money taken from the cash drawer. Lowers the shift's cash and shows in the daily recap.",
+    "record": "Record expense",
+    "recordTitle": "Record expense",
+    "recordDescription": "The money comes out of the drawer of your open shift.",
+    "filter": "Apply",
+    "day": "Date",
+    "caption": "Expenses on this date",
+    "time": "Time",
+    "category": "Type",
+    "recipient": "Employee receiving it",
+    "recipientHint": "Required for meal and fuel allowances.",
+    "noRecipient": "No recipient",
+    "note": "Note",
+    "noteHint": "Required for Other.",
+    "recordedBy": "Recorded by",
+    "amount": "Amount",
+    "total": "Total",
+    "save": "Save expense",
+    "emptyTitle": "No expenses yet",
+    "emptyDescription": "Expenses recorded on this date show here.",
+    "categories": {
+      "MEAL": "Meal allowance",
+      "FUEL": "Fuel allowance",
+      "DONATION": "Donation",
+      "OTHER": "Other"
+    },
+    "errors": {
+      "noOpenShift": "Open a shift at the cashier first. Expenses come out of the open shift's cash.",
+      "invalidRecipient": "Choose an employee who is still active."
+    }
+  },
+  "Home": {
+    "title": "Home",
+    "greeting": "Hi, {name}",
+    "subtitle": "{role} · {store} · {date}",
+    "hoursTitle": "Store hours today",
+    "hoursAlways": "Store hours are not limited.",
+    "hoursToday": "Open {open}–{close}.",
+    "hoursClosedToday": "The store is closed today.",
+    "openNow": "The store is open.",
+    "closedNow": "The store is closed. The cashier and records open again during store hours.",
+    "afterHoursAllowed": "The store is closed, but your account may work outside store hours.",
+    "shiftTitle": "Cashier shift",
+    "shiftOpen": "Your shift has been open since {time}.",
+    "shiftClosed": "You haven't opened a shift today.",
+    "toPos": "Go to cashier",
+    "openShift": "Open a shift at the cashier",
+    "shortcutsTitle": "Your menus",
+    "noAccessTitle": "No menus for this account yet",
+    "noAccessDescription": "Ask the Owner to give your role page access in Employees › Roles.",
+    "toSales": "Go to Sales"
   }
 }

@@ -6,7 +6,6 @@ import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { useGlobalPending } from "@/components/feedback/loading-indicator";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { MoneyInput } from "@/components/ui/money-input";
 import { Select } from "@/components/ui/select";
 import { toneClasses } from "@/components/ui/tone";
@@ -24,17 +23,28 @@ import {
   type CustomerDraft,
 } from "./customer-fields";
 import {
+  emptySourceBank,
+  SourceBankField,
+  type SourceBankDraft,
+  sourceBankOf,
+} from "./source-bank-field";
+import {
   emptyKasbonDraft,
   KasbonFields,
   kasbonDraftErrors,
   type KasbonDraft,
 } from "./kasbon-fields";
 
-type Mode = "cash" | "transfer" | "split" | "kasbon";
+type Mode = "cash" | "transfer" | "qris" | "split" | "kasbon";
+
+/** How the non-cash part of a split is paid. */
+type NonCash = "TRANSFER" | "QRIS";
 
 export interface CheckoutLinePayload {
   variantId: string;
   qty: number;
+  /** Custom cut length in cm (FR-ROL-04). */
+  lengthCm?: number;
   discount: ItemDiscount | null;
 }
 
@@ -46,6 +56,8 @@ interface PaymentDialogProps {
   lines: () => CheckoutLinePayload[];
   voucherCode: string | null;
   bankAccounts: readonly { id: string; label: string }[];
+  /** The store's QRIS account, filled in automatically; null hides QRIS (FR-PAY-07). */
+  qrisAccount: { label: string } | null;
   /** The cashier may put a remainder on store credit (FR-PAY-05). */
   canKasbon: boolean;
   /** Store-local date, the earliest due date. */
@@ -62,8 +74,9 @@ interface PaymentDialogProps {
 const QUICK_CASH = [50_000, 100_000] as const;
 
 /**
- * Buyer (FR-POS-11) and cash, transfer, split or store-credit payment
- * (FR-PAY-01..05). Cash tendered and change
+ * Buyer (FR-POS-11) and cash, transfer, QRIS, split or store-credit payment
+ * (FR-PAY-01..05, FR-PAY-07). QRIS goes to the store's QRIS account and asks
+ * which bank or e-wallet the buyer paid from. Cash tendered and change
  * are only shown here; the server receives the amount allocated to the bill
  * (BR-22). The idempotency key is minted when the dialog opens and reused on
  * retry, so a double submit or a lost response never creates two sales
@@ -77,7 +90,8 @@ export function PaymentDialog(props: PaymentDialogProps) {
   const [cashText, setCashText] = useState("");
   const [transferText, setTransferText] = useState("");
   const [bankAccountId, setBankAccountId] = useState(bankAccounts[0]?.id ?? "");
-  const [reference, setReference] = useState("");
+  const [nonCash, setNonCash] = useState<NonCash>("TRANSFER");
+  const [source, setSource] = useState<SourceBankDraft>(emptySourceBank);
   const [customer, setCustomer] = useState<CustomerDraft>(emptyCustomerDraft);
   const [kasbon, setKasbon] = useState<KasbonDraft>(emptyKasbonDraft);
   const [showErrors, setShowErrors] = useState(false);
@@ -92,15 +106,18 @@ export function PaymentDialog(props: PaymentDialogProps) {
 
   const money = (amount: number) => formatCurrency(amount, locale);
   const transfer =
-    mode === "transfer"
+    mode === "transfer" || mode === "qris"
       ? grandTotal
       : mode === "split"
         ? Math.min(parseRupiah(transferText) ?? 0, grandTotal)
         : 0;
+  const nonCashMethod: NonCash = mode === "qris" ? "QRIS" : mode === "split" ? nonCash : "TRANSFER";
   const cashDue = grandTotal - transfer;
   const received = parseRupiah(cashText);
   const change = cashDue > 0 && received !== null ? received - cashDue : null;
-  const needsBank = transfer > 0;
+  const needsBank = transfer > 0 && nonCashMethod === "TRANSFER";
+  const needsQris = transfer > 0 && nonCashMethod === "QRIS";
+  const sourceBank = sourceBankOf(source);
   const downPayment = kasbon.downPayment.trim() === "" ? 0 : parseRupiah(kasbon.downPayment);
   const kasbonErrors = kasbonDraftErrors(downPayment, grandTotal);
   const customerErrors = customerDraftErrors(customer, mode === "kasbon");
@@ -108,13 +125,15 @@ export function PaymentDialog(props: PaymentDialogProps) {
     mode === "kasbon"
       ? true
       : (!needsBank || bankAccountId !== "") &&
+        (!needsQris || props.qrisAccount !== null) &&
         (cashDue === 0 || (received !== null && received >= cashDue));
 
   const submit = () => {
     if (!valid || pending) return;
     if (
       Object.values(customerErrors).some(Boolean) ||
-      (mode === "kasbon" && Object.values(kasbonErrors).some(Boolean))
+      (mode === "kasbon" && Object.values(kasbonErrors).some(Boolean)) ||
+      (needsQris && sourceBank === "")
     ) {
       setShowErrors(true);
       return;
@@ -126,16 +145,10 @@ export function PaymentDialog(props: PaymentDialogProps) {
           ? [{ method: "CASH" as const, amount: downPayment }]
           : []
         : [
-            ...(transfer > 0
-              ? [
-                  {
-                    method: "TRANSFER" as const,
-                    amount: transfer,
-                    bankAccountId,
-                    ...(reference.trim() ? { reference: reference.trim() } : {}),
-                  },
-                ]
+            ...(needsBank
+              ? [{ method: "TRANSFER" as const, amount: transfer, bankAccountId }]
               : []),
+            ...(needsQris ? [{ method: "QRIS" as const, amount: transfer, sourceBank }] : []),
             ...(cashDue > 0 ? [{ method: "CASH" as const, amount: cashDue }] : []),
           ];
     startTransition(async () => {
@@ -161,7 +174,8 @@ export function PaymentDialog(props: PaymentDialogProps) {
         }
         setCashText("");
         setTransferText("");
-        setReference("");
+        setSource(emptySourceBank);
+        setNonCash("TRANSFER");
         setCustomer(emptyCustomerDraft);
         setKasbon(emptyKasbonDraft);
         setShowErrors(false);
@@ -183,6 +197,7 @@ export function PaymentDialog(props: PaymentDialogProps) {
   const modes: readonly { value: Mode; label: string }[] = [
     { value: "cash", label: t("cash") },
     { value: "transfer", label: t("transfer") },
+    ...(props.qrisAccount ? [{ value: "qris" as const, label: t("qris") }] : []),
     { value: "split", label: t("split") },
     ...(props.canKasbon ? [{ value: "kasbon" as const, label: t("kasbon") }] : []),
   ];
@@ -218,7 +233,7 @@ export function PaymentDialog(props: PaymentDialogProps) {
               <div
                 className={cn(
                   "grid gap-1 rounded-card bg-surface-muted p-1",
-                  modes.length > 3 ? "grid-cols-2" : "grid-cols-3",
+                  modes.length === 4 ? "grid-cols-2" : "grid-cols-3",
                 )}
               >
                 {modes.map((option) => (
@@ -258,12 +273,31 @@ export function PaymentDialog(props: PaymentDialogProps) {
             />
           ) : null}
 
-          {needsBank || mode === "split" ? (
+          {needsBank || needsQris || mode === "split" ? (
             <div className="flex flex-col gap-3">
+              {mode === "split" && props.qrisAccount ? (
+                <div role="group" aria-label={t("nonCashLabel")} className="flex gap-2">
+                  {(["TRANSFER", "QRIS"] as const).map((option) => (
+                    <Button
+                      key={option}
+                      size="sm"
+                      variant={nonCash === option ? "primary" : "secondary"}
+                      aria-pressed={nonCash === option}
+                      onClick={() => {
+                        setNonCash(option);
+                      }}
+                    >
+                      {option === "QRIS" ? t("qris") : t("transfer")}
+                    </Button>
+                  ))}
+                </div>
+              ) : null}
               {mode === "split" ? (
                 <div className="flex flex-col gap-1.5">
                   <label htmlFor={`${id}-transfer`} className="text-sm font-medium text-ink">
-                    {t("transferAmount")}
+                    {nonCash === "QRIS" && props.qrisAccount
+                      ? t("qrisAmount")
+                      : t("transferAmount")}
                   </label>
                   <MoneyInput
                     id={`${id}-transfer`}
@@ -274,7 +308,14 @@ export function PaymentDialog(props: PaymentDialogProps) {
                   />
                 </div>
               ) : null}
-              {bankAccounts.length === 0 ? (
+              {needsQris && props.qrisAccount ? (
+                <>
+                  <p className="rounded-control bg-surface-muted px-3 py-2 text-sm text-ink">
+                    {t("qrisAccount", { account: props.qrisAccount.label })}
+                  </p>
+                  <SourceBankField draft={source} onChange={setSource} showError={showErrors} />
+                </>
+              ) : mode === "split" && nonCash === "QRIS" ? null : bankAccounts.length === 0 ? (
                 <p className={cn("rounded-control px-3 py-2 text-sm", toneClasses.warning)}>
                   {t("noBankAccounts")}
                 </p>
@@ -294,19 +335,6 @@ export function PaymentDialog(props: PaymentDialogProps) {
                   />
                 </div>
               )}
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor={`${id}-reference`} className="text-sm font-medium text-ink">
-                  {t("reference")}
-                </label>
-                <Input
-                  id={`${id}-reference`}
-                  value={reference}
-                  onChange={(event) => {
-                    setReference(event.target.value);
-                  }}
-                  maxLength={60}
-                />
-              </div>
             </div>
           ) : null}
 

@@ -20,6 +20,8 @@ import {
   vouchers,
 } from "@/db/schema";
 
+import { isRollRowSql, variantCostSql, variantPriceSql } from "@/features/catalog/pricing-sql";
+
 import type { PreparedPayment } from "./payment-providers";
 
 /**
@@ -35,7 +37,10 @@ export async function lockOpenShiftForSale(executor: Executor, userId: string) {
   return row;
 }
 
-/** Variants being sold with the data needed for pricing and snapshots. */
+/**
+ * Variants being sold with the data needed for pricing and snapshots. On a
+ * roll row price and cost are per meter (FR-ROL-04).
+ */
 export async function findSellableVariants(executor: Executor, variantIds: readonly string[]) {
   return executor
     .select({
@@ -43,15 +48,14 @@ export async function findSellableVariants(executor: Executor, variantIds: reado
       productName: products.name,
       brandName: brands.name,
       motif: products.motif,
-      size: products.size,
+      thickness: products.thickness,
+      size: productVariants.size,
+      isDefect: productVariants.isDefect,
+      isRoll: isRollRowSql,
       trackStock: products.trackStock,
       attributes: productVariants.attributes,
-      price: sql<number>`coalesce(${productVariants.priceOverride}, ${products.price})`.mapWith(
-        Number,
-      ),
-      cost: sql<number>`coalesce(${productVariants.costOverride}, ${products.cost})`.mapWith(
-        Number,
-      ),
+      price: variantPriceSql,
+      cost: variantCostSql,
       sellable: sql<boolean>`${products.isActive} AND ${productVariants.isActive}`,
     })
     .from(productVariants)
@@ -181,6 +185,7 @@ export async function findSaleDetail(saleId: string) {
         detailsSnapshot: saleItems.detailsSnapshot,
         unitPrice: saleItems.unitPrice,
         qty: saleItems.qty,
+        lengthCm: saleItems.lengthCm,
         discountAmount: saleItems.discountAmount,
         lineTotal: saleItems.lineTotal,
       })
@@ -193,6 +198,7 @@ export async function findSaleDetail(saleId: string) {
         method: payments.method,
         amount: payments.amount,
         reference: payments.reference,
+        sourceBank: payments.sourceBank,
         bankName: bankAccounts.bankName,
         accountNo: bankAccounts.accountNo,
       })
@@ -228,12 +234,15 @@ export async function setSaleStatus(
   await executor.update(sales).set({ status }).where(eq(sales.id, saleId));
 }
 
-/** Sold quantities per stock-tracked variant, to put back on void. */
+/**
+ * Sold quantities per stock-tracked variant, to put back on void; a custom
+ * cut counts its centimetres (FR-ROL-04).
+ */
 export async function soldTrackedQuantities(executor: Executor, saleId: string) {
   return executor
     .select({
       variantId: saleItems.variantId,
-      qty: sql<number>`sum(${saleItems.qty})`.mapWith(Number),
+      qty: sql<number>`sum(${saleItems.qty} * coalesce(${saleItems.lengthCm}, 1))`.mapWith(Number),
     })
     .from(saleItems)
     .innerJoin(productVariants, eq(productVariants.id, saleItems.variantId))
@@ -249,7 +258,7 @@ export interface SaleListQuery {
   /** Restricts to one cashier; null lists every cashier. */
   cashierId: string | null;
   invoice: string;
-  method: "CASH" | "TRANSFER" | "KASBON" | undefined;
+  method: "CASH" | "TRANSFER" | "QRIS" | "KASBON" | undefined;
   status: (typeof sales.$inferSelect)["status"] | undefined;
   includeArchived: boolean;
 }

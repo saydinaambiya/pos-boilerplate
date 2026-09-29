@@ -30,7 +30,6 @@ async function variant(options: { trackStock?: boolean; minStock?: number; sku?:
     {
       name: `Produk ${options.sku ?? "A"}`,
       price: 10000,
-      cost: 5000,
       unit: "pcs",
       trackStock: options.trackStock ?? true,
       sku: options.sku ?? "SKU-A",

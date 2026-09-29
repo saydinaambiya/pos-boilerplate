@@ -23,14 +23,26 @@ test.describe("signed-in devices (FR-AUTH-09/10)", () => {
   test.skip(({ isMobile }) => isMobile, "stateful device flows run once, on desktop");
   test.describe.configure({ mode: "serial" });
 
-  test("the account card under the logo links to the device list", async ({ page }) => {
-    await page.goto("/id");
+  test("the account card opens the device list over the current page (ADR-0030)", async ({
+    page,
+  }) => {
+    await page.goto("/id/products");
     const sidebar = page.getByRole("complementary").filter({ visible: true }).first();
     await expect(sidebar.getByText("Owner E2E", { exact: true })).toBeVisible();
     await sidebar.getByRole("link", { name: "Perangkat login" }).click();
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Perangkat login");
-    await expect(page.getByText("Perangkat ini")).toBeVisible();
+    const dialog = page.getByRole("dialog", { name: "Perangkat login" });
+    await expect(dialog.getByText("Perangkat ini")).toBeVisible();
+    /** The page stays underneath; the modal hides it from assistive tech, so query the element. */
+    await expect(page.locator("h1")).toHaveText("Produk");
     await expect(page.getByTestId("loading-indicator")).toHaveAttribute("data-busy", "false");
+
+    await dialog.getByRole("button", { name: "Tutup" }).click();
+    await expect(dialog).toBeHidden();
+    await expect(page).toHaveURL(/\/id\/products$/);
+
+    await page.goto("/id/devices");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Perangkat login");
+    await expect(page.getByRole("dialog")).toHaveCount(0);
   });
 
   test("an employee signs another device out", async ({ page, browser }) => {

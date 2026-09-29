@@ -1,6 +1,6 @@
 import "server-only";
 
-import { db } from "@/db/client";
+import { db, type Executor } from "@/db/client";
 import { uniqueViolationConstraint } from "@/db/errors";
 import { recordStockMovement } from "@/features/stock/service";
 import { recordAudit } from "@/lib/audit/audit";
@@ -9,13 +9,18 @@ import { assertPermission } from "@/lib/auth/authorize";
 import type { Session } from "@/lib/auth/session";
 import type { RequestContext } from "@/lib/http/request-context";
 
+import { isProductSize } from "./sizes";
 import {
+  ensureDefectPiece,
   findDefaultVariant,
   findProduct,
   findVariant,
+  insertPieces,
   insertVariant,
   listColorVariants,
+  listPieces,
   markProductHasVariants,
+  syncPieces,
   updateVariantRow,
 } from "./repository";
 import {
@@ -52,36 +57,69 @@ function clash(error: unknown): VariantResult | null {
   return null;
 }
 
-/** Colour variants of a product; cost overrides hidden per FR-PRD-02. */
+/**
+ * Colour variants of a product with the pieces cut from each roll
+ * (FR-ROL-01).
+ */
 export async function getVariants(session: Session, productId: string) {
   assertPermission(session, "page:products");
-  const canSeeCost = session.permissions.has("product:view-cost");
   const rows = await listColorVariants(db, productId);
+  const pieces = await listPieces(
+    db,
+    rows.map((row) => row.id),
+  );
   return rows.map((row) => ({
     ...row,
     color: colorOf(row.attributes),
-    costOverride: canSeeCost ? row.costOverride : null,
+    pieces: pieces
+      .filter((piece) => piece.parentId === row.id)
+      .map(({ id, size, sku, stockQty, isDefect }) => ({ id, size, sku, stockQty, isDefect })),
   }));
 }
 
+/** A colour variant; pieces are edited through their roll, so they are not returned. */
 export async function getVariant(session: Session, variantId: string) {
   assertPermission(session, "page:products");
   const row = await findVariant(variantId);
-  if (!row) return undefined;
-  const canSeeCost = session.permissions.has("product:view-cost");
-  return {
-    ...row,
-    color: colorOf(row.attributes),
-    costOverride: canSeeCost ? row.costOverride : null,
-    productCost: canSeeCost ? row.productCost : null,
-  };
+  if (row?.parentId !== null) return undefined;
+  return { ...row, color: colorOf(row.attributes) };
+}
+
+/**
+ * Moves the whole stock of one variant to another as a recorded pair of
+ * `ADJUSTMENT` movements sharing `reference` (ADR-0008). Returns the moved
+ * quantity.
+ */
+async function moveStock(
+  tx: Executor,
+  fromId: string,
+  toId: string,
+  actorId: string,
+  reason: string,
+  reference: { type: string; id: string },
+): Promise<number> {
+  const emptied = await recordStockMovement(
+    tx,
+    { variantId: fromId, type: "ADJUSTMENT", countedQty: 0, actorId, reason, reference },
+    { allowNegative: true },
+  );
+  const moved = emptied.ok ? -emptied.qtyDelta : 0;
+  if (moved === 0) return 0;
+  await recordStockMovement(
+    tx,
+    { variantId: toId, type: "ADJUSTMENT", qtyDelta: moved, actorId, reason, reference },
+    { allowNegative: true },
+  );
+  return moved;
 }
 
 /**
  * Turns on colour variants (FR-VAR-01, FR-VAR-06). The first colour variant
  * becomes the default; the hidden default is retired and its stock moves
  * across as a recorded pair of `ADJUSTMENT` movements, so the ledger of
- * both variants stays complete. See ADR-0008.
+ * both variants stays complete. See ADR-0008. On a roll product the first
+ * colour gets its own pieces and each hidden piece's stock moves to the
+ * piece of the same size (ADR-0023).
  */
 export async function enableVariants(
   session: Session,
@@ -99,45 +137,45 @@ export async function enableVariants(
       const hidden = await findDefaultVariant(tx, productId);
       if (!hidden) throw new Error(`Product ${productId} has no default variant`);
       await updateVariantRow(tx, hidden.id, { isDefault: false, isActive: false });
+      await syncPieces(tx, hidden.id, { isActive: false });
+      const attributes = attributesFor(input.colorName, input.hex);
       const firstId = await insertVariant(tx, {
         productId,
         sku: input.sku,
-        attributes: attributesFor(input.colorName, input.hex),
+        attributes,
         minStock: input.minStock,
         isDefault: true,
         sortOrder: 0,
       });
+      if (product.isRoll) {
+        await insertPieces(tx, { id: firstId, productId, sku: input.sku, attributes });
+      }
       await markProductHasVariants(tx, productId);
 
       let movedStock = 0;
-      if (product.trackStock && hidden.stockQty !== 0) {
+      if (product.trackStock) {
         const reason = input.colorName;
         const reference = { type: "variant-activation", id: productId };
-        const emptied = await recordStockMovement(
-          tx,
-          {
-            variantId: hidden.id,
-            type: "ADJUSTMENT",
-            countedQty: 0,
-            actorId: session.user.id,
-            reason,
-            reference,
-          },
-          { allowNegative: true },
-        );
-        movedStock = emptied.ok ? -emptied.qtyDelta : 0;
-        await recordStockMovement(
-          tx,
-          {
-            variantId: firstId,
-            type: "ADJUSTMENT",
-            qtyDelta: movedStock,
-            actorId: session.user.id,
-            reason,
-            reference,
-          },
-          { allowNegative: true },
-        );
+        if (hidden.stockQty !== 0) {
+          movedStock = await moveStock(tx, hidden.id, firstId, session.user.id, reason, reference);
+        }
+        const [hiddenPieces, firstPieces] = await Promise.all([
+          listPieces(tx, [hidden.id]),
+          listPieces(tx, [firstId]),
+        ]);
+        for (const piece of hiddenPieces) {
+          if (piece.stockQty === 0 || !isProductSize(piece.size)) continue;
+          const targetId = piece.isDefect
+            ? await ensureDefectPiece(
+                tx,
+                { id: firstId, productId, sku: input.sku, attributes, isActive: true },
+                piece.size,
+              )
+            : firstPieces.find((candidate) => candidate.size === piece.size && !candidate.isDefect)
+                ?.id;
+          if (!targetId) continue;
+          await moveStock(tx, piece.id, targetId, session.user.id, reason, reference);
+        }
       }
 
       await recordAudit(
@@ -163,7 +201,9 @@ export async function enableVariants(
 
 /**
  * Adds a colour variant (FR-VAR-01/02). Opening stock is an `IN` movement
- * and therefore also needs `stock:adjust`.
+ * and therefore also needs `stock:adjust`. On a roll product the colour is
+ * a roll with a piece per size, opening stock is centimetres of roll, and
+ * prices come from the product (FR-ROL-01/02).
  */
 export async function createVariant(
   session: Session,
@@ -178,21 +218,23 @@ export async function createVariant(
   const product = await findProduct(productId);
   if (!product) return { ok: false, reason: "not-found" };
   if (!product.hasVariants) return { ok: false, reason: "variants-disabled" };
-  const canSeeCost = session.permissions.has("product:view-cost");
 
   try {
     const id = await db.transaction(async (tx) => {
       const existing = await listColorVariants(tx, productId);
       const sortOrder = Math.max(-1, ...existing.map((variant) => variant.sortOrder)) + 1;
+      const attributes = attributesFor(input.colorName, input.hex);
       const variantId = await insertVariant(tx, {
         productId,
         sku: input.sku,
-        attributes: attributesFor(input.colorName, input.hex),
+        attributes,
         minStock: input.minStock,
-        priceOverride: input.priceOverride,
-        costOverride: canSeeCost ? (input.costOverride ?? null) : null,
+        priceOverride: product.isRoll ? null : input.priceOverride,
         sortOrder,
       });
+      if (product.isRoll) {
+        await insertPieces(tx, { id: variantId, productId, sku: input.sku, attributes });
+      }
       if (product.trackStock && input.initialStock > 0) {
         await recordStockMovement(
           tx,
@@ -235,7 +277,10 @@ export async function createVariant(
   }
 }
 
-/** Edits a colour variant; the cost override is kept for editors who cannot see it. */
+/**
+ * Edits a colour variant. A roll's pieces follow its SKU and colour, and
+ * roll colours take their prices from the product (ADR-0023).
+ */
 export async function updateVariant(
   session: Session,
   variantId: string,
@@ -245,19 +290,18 @@ export async function updateVariant(
   assertPermission(session, "product:update");
   const current = await findVariant(variantId);
   const color = current ? colorOf(current.attributes) : null;
-  if (!current || !color) return { ok: false, reason: "not-found" };
-  const canSeeCost = session.permissions.has("product:view-cost");
+  if (!current || !color || current.parentId !== null) return { ok: false, reason: "not-found" };
   const values = {
     sku: input.sku,
     attributes: attributesFor(input.colorName, input.hex),
     minStock: input.minStock,
-    priceOverride: input.priceOverride,
-    costOverride: canSeeCost ? (input.costOverride ?? null) : current.costOverride,
+    priceOverride: current.isRoll ? null : input.priceOverride,
   };
 
   try {
     await db.transaction(async (tx) => {
       await updateVariantRow(tx, variantId, values);
+      await syncPieces(tx, variantId, { sku: values.sku, attributes: values.attributes });
       await recordAudit(
         tx,
         {
@@ -272,7 +316,6 @@ export async function updateVariant(
               hex: color.hex ?? "",
               minStock: current.minStock,
               priceOverride: current.priceOverride,
-              costOverride: current.costOverride,
             },
             {
               sku: values.sku,
@@ -280,7 +323,6 @@ export async function updateVariant(
               hex: input.hex,
               minStock: values.minStock,
               priceOverride: values.priceOverride,
-              costOverride: values.costOverride,
             },
           ),
         },
@@ -295,7 +337,10 @@ export async function updateVariant(
   }
 }
 
-/** Variants are deactivated, never deleted; the default stays active with its product (FR-VAR-05). */
+/**
+ * Variants are deactivated, never deleted; the default stays active with
+ * its product (FR-VAR-05). A roll's pieces follow its status.
+ */
 export async function changeVariantStatus(
   session: Session,
   variantId: string,
@@ -304,13 +349,16 @@ export async function changeVariantStatus(
 ): Promise<VariantResult> {
   assertPermission(session, "product:update");
   const current = await findVariant(variantId);
-  if (!current || !colorOf(current.attributes)) return { ok: false, reason: "not-found" };
+  if (!current || !colorOf(current.attributes) || current.parentId !== null) {
+    return { ok: false, reason: "not-found" };
+  }
   if (!isActive && current.isDefault && current.productActive) {
     return { ok: false, reason: "default-variant" };
   }
   if (current.isActive === isActive) return { ok: true, id: variantId };
   await db.transaction(async (tx) => {
     await updateVariantRow(tx, variantId, { isActive });
+    await syncPieces(tx, variantId, { isActive });
     await recordAudit(
       tx,
       {

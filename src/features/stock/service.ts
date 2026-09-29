@@ -31,7 +31,7 @@ export const MOVEMENT_PAGE_SIZE = 50;
 
 export type StockResult =
   | { ok: true; movementId: string; qtyDelta: number; stockAfter: number }
-  | { ok: false; reason: "not-found" | "not-tracked" }
+  | { ok: false; reason: "not-found" | "not-tracked" | "cut-only" }
   | { ok: false; reason: "insufficient-stock"; available: number };
 
 export type StockMovementInput = {
@@ -92,6 +92,9 @@ async function manualMovement(
   assertPermission(session, "stock:adjust");
   const { allowNegativeStock } = await readSetting("operations");
   return db.transaction(async (tx) => {
+    if (movement.type === "IN" && (await lockVariant(tx, variantId))?.isPiece) {
+      return { ok: false as const, reason: "cut-only" as const };
+    }
     const result = await recordStockMovement(
       tx,
       { variantId, actorId: session.user.id, ...movement },
@@ -118,7 +121,10 @@ async function manualMovement(
   });
 }
 
-/** Goods received (`IN`). */
+/**
+ * Goods received (`IN`). A roll receives centimetres; its pieces only come
+ * from cutting it (FR-ROL-03).
+ */
 export function receiveStock(
   session: Session,
   variantId: string,
@@ -167,6 +173,11 @@ export async function getStockLevels(session: Session, filters: StockFilters) {
   assertPermission(session, "page:stock");
   const rows = await queryStockLevels(filters, STOCK_PAGE_SIZE);
   return { levels: rows.slice(0, STOCK_PAGE_SIZE), hasNextPage: rows.length > STOCK_PAGE_SIZE };
+}
+
+/** Whether a variant's quantities are roll centimetres (ADR-0023); callers checked access. */
+export async function stockIsRoll(variantId: string): Promise<boolean> {
+  return (await findVariantStock(variantId))?.isRoll ?? false;
 }
 
 export async function getVariantStock(session: Session, variantId: string) {

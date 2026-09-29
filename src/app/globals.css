@@ -177,3 +177,12 @@
     padding: 0;
   }
 }
+
+/* Scrollable lists without a visible scrollbar, e.g. dropdowns (ADR-0026). */
+@utility scrollbar-none {
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}

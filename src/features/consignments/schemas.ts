@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { sourceBank } from "@/features/checkout/schemas";
 import { kasbonCheckoutInput, saleCustomerInput } from "@/features/kasbon/schemas";
 import { plainText } from "@/lib/validation/text";
 
@@ -19,18 +20,16 @@ export const takeGoodsInput = z
   .strict();
 export type TakeGoodsInput = z.infer<typeof takeGoodsInput>;
 
-export const settlementMethods = ["CASH", "TRANSFER", "KASBON"] as const;
+export const settlementMethods = ["CASH", "TRANSFER", "QRIS", "KASBON"] as const;
 
-/** How the sold part is paid: in full by cash or transfer, or on store credit (FR-CSG-04). */
+/**
+ * How the sold part is paid: in full by cash, transfer or QRIS, or on
+ * store credit (FR-CSG-04, FR-PAY-07).
+ */
 const settlementPayment = z.discriminatedUnion("method", [
   z.object({ method: z.literal("CASH") }).strict(),
-  z
-    .object({
-      method: z.literal("TRANSFER"),
-      bankAccountId: z.uuid(),
-      reference: plainText(60, 0),
-    })
-    .strict(),
+  z.object({ method: z.literal("TRANSFER"), bankAccountId: z.uuid() }).strict(),
+  z.object({ method: z.literal("QRIS"), sourceBank }).strict(),
   z
     .object({ method: z.literal("KASBON") })
     .extend(kasbonCheckoutInput.shape)

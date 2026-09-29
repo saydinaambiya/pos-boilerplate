@@ -47,7 +47,6 @@ async function sale(session: Session) {
     {
       name: "Teh",
       price: 5000,
-      cost: 0,
       unit: "cup",
       trackStock: true,
       sku: `TEH-${crypto.randomUUID().slice(0, 8)}`,

@@ -1,26 +1,35 @@
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 
+import { DEFAULT_EMPLOYEE_ROLE } from "@/config/permissions";
 import { db } from "@/db/client";
 import {
   invoiceCounters,
   payments,
   productVariants,
+  rolePermissions,
+  roles,
   saleItems,
   sales,
   stockMovements,
 } from "@/db/schema";
 import { changeProductStatus, createProduct } from "@/features/catalog/service";
 import { createVariant, enableVariants } from "@/features/catalog/variant-service";
-import { createBankAccount, updateSettings } from "@/features/settings/service";
+import {
+  changeBankAccountStatus,
+  createBankAccount,
+  getQrisAccount,
+  setQrisAccount,
+  updateSettings,
+} from "@/features/settings/service";
 import { closeShift, getShiftReport, openShift } from "@/features/shifts/service";
-import { receiveStock } from "@/features/stock/service";
+import { countStock, receiveStock } from "@/features/stock/service";
 import type { Session } from "@/lib/auth/session";
 import { settingDefinitions } from "@/lib/settings/schemas";
 import { fixtures, resetDatabase } from "@/test/database";
 import { signIn, testContext } from "@/test/sessions";
 
-import type { CheckoutInput } from "./schemas";
+import { type CheckoutInput, checkoutInput } from "./schemas";
 import { checkout, getSale } from "./service";
 
 const owner = () => signIn(fixtures.owner.username, fixtures.owner.password);
@@ -38,7 +47,6 @@ async function product(stock: number, price = 10_000, options: { trackStock?: bo
     {
       name: `Produk ${String(skuSeq)}`,
       price,
-      cost: 4000,
       unit: "pcs",
       trackStock: options.trackStock ?? true,
       sku: `SKU-${String(skuSeq)}`,
@@ -296,7 +304,7 @@ describe("checkout (FR-POS-01..08, FR-PAY-01..04)", () => {
       sale(
         [{ variantId, qty: 1 }],
         [
-          { method: "TRANSFER", amount: 30_000, bankAccountId: bank.id, reference: "TRX-1" },
+          { method: "TRANSFER", amount: 30_000, bankAccountId: bank.id },
           { method: "CASH", amount: 20_000 },
         ],
       ),
@@ -321,6 +329,48 @@ describe("checkout (FR-POS-01..08, FR-PAY-01..04)", () => {
         NOW,
       ),
     ).toEqual({ ok: false, reason: "invalid-payment" });
+  });
+
+  it("pays QRIS into the one QRIS account with the payer's bank (FR-PAY-07)", async () => {
+    const owner_ = await owner();
+    const bca = await createBankAccount(
+      owner_,
+      { bankName: "BCA", accountNo: "111", accountName: "Toko" },
+      testContext(),
+    );
+    const bri = await createBankAccount(
+      owner_,
+      { bankName: "BRI", accountNo: "222", accountName: "Toko" },
+      testContext(),
+    );
+    if (!bca.ok || !bri.ok) throw new Error("bank account expected");
+    const session = await cashier();
+    await openedShift(session);
+    const { variantId } = await product(5, 50_000);
+    const qris = (sourceBank: string) =>
+      checkout(
+        session,
+        sale([{ variantId, qty: 1 }], [{ method: "QRIS", amount: 50_000, sourceBank }]),
+        testContext(),
+        NOW,
+      );
+
+    expect(await qris("GoPay")).toEqual({ ok: false, reason: "invalid-payment" });
+    await setQrisAccount(owner_, bca.id, testContext());
+    await setQrisAccount(owner_, bri.id, testContext());
+    expect(await getQrisAccount(session)).toEqual({ label: "BRI · 222 · Toko" });
+
+    const result = await qris("GoPay");
+    if (!result.ok) throw new Error(result.reason);
+    const [paid] = await db.select().from(payments).where(eq(payments.saleId, result.saleId));
+    expect(paid).toMatchObject({ method: "QRIS", bankAccountId: bri.id, sourceBank: "GoPay" });
+    expect(
+      checkoutInput.safeParse(sale([{ variantId, qty: 1 }], [{ method: "QRIS", amount: 50_000 }]))
+        .success,
+    ).toBe(false);
+
+    await changeBankAccountStatus(owner_, bri.id, false, testContext());
+    expect(await getQrisAccount(session)).toBeNull();
   });
 
   it("allows item discounts only with pos:item-discount (FR-POS-02)", async () => {
@@ -370,7 +420,6 @@ describe("checkout (FR-POS-01..08, FR-PAY-01..04)", () => {
         sku: "V-B",
         minStock: 0,
         priceOverride: 65_000,
-        costOverride: null,
         initialStock: 2,
       },
       testContext(),
@@ -510,6 +559,24 @@ describe("store hours (FR-SET-09, BR-24)", () => {
     );
   });
 
+  it("lets roles with pos:after-hours sell outside store hours, like Sales", async () => {
+    const [role] = await db.select().from(roles).where(eq(roles.name, DEFAULT_EMPLOYEE_ROLE.name));
+    await db
+      .insert(rolePermissions)
+      .values({ roleId: role?.id ?? "", permission: "pos:after-hours" });
+    const session = await cashier();
+    await closeOnSaturday();
+    expect((await openShift(session, { openingCash: 0 }, testContext(), NOW)).ok).toBe(true);
+    const { variantId } = await product(5);
+    const result = await checkout(
+      session,
+      sale([{ variantId, qty: 1 }], [{ method: "CASH", amount: 10_000 }]),
+      testContext(),
+      NOW,
+    );
+    expect(result.ok).toBe(true);
+  });
+
   it("never blocks the Owner", async () => {
     const session = await owner();
     await closeOnSaturday();
@@ -522,5 +589,105 @@ describe("store hours (FR-SET-09, BR-24)", () => {
       NOW,
     );
     expect(result.ok).toBe(true);
+  });
+});
+
+describe("roll products at the POS (FR-ROL-02/04, ADR-0023)", () => {
+  const sizePrices = { "93x47": 50_000, "100x70": 60_000, "50x140": 55_000, "100x140": 110_000 };
+
+  /** A roll product priced 100.000 per meter, cost 40.000, with 5 m of roll. */
+  async function rollProduct() {
+    const session = await owner();
+    const created = await createProduct(
+      session,
+      {
+        name: "Karpet Roll",
+        price: 100_000,
+        unit: "pcs",
+        trackStock: true,
+        sku: "ROLL-1",
+        minStock: 0,
+        sizePrices,
+      },
+      testContext(),
+    );
+    if (!created.ok) throw new Error(created.reason);
+    const rows = await db
+      .select()
+      .from(productVariants)
+      .where(eq(productVariants.productId, created.id));
+    const roll = rows.find((row) => row.parentId === null);
+    const piece = (size: string) => rows.find((row) => row.size === size)?.id ?? "";
+    await receiveStock(session, roll?.id ?? "", { qty: 500, note: "" }, testContext());
+    await countStock(session, piece("93x47"), { counted: 3, reason: "awal" }, testContext());
+    return { rollId: roll?.id ?? "", piece };
+  }
+
+  it("prices pieces per size and a custom cut per meter, taking cm off the roll", async () => {
+    const session = await cashier();
+    await openedShift(session);
+    const { rollId, piece } = await rollProduct();
+
+    const result = await checkout(
+      session,
+      sale(
+        [
+          { variantId: piece("93x47"), qty: 2 },
+          { variantId: rollId, qty: 2, lengthCm: 90 },
+        ],
+        [{ method: "CASH", amount: 280_000 }],
+      ),
+      testContext(),
+      NOW,
+    );
+    if (!result.ok) throw new Error(result.reason);
+    expect(result.grandTotal).toBe(280_000);
+
+    const items = await db.select().from(saleItems).where(eq(saleItems.saleId, result.saleId));
+    expect(
+      items.map(({ unitPrice, unitCost, qty, lengthCm }) => ({
+        unitPrice,
+        unitCost,
+        qty,
+        lengthCm,
+      })),
+    ).toEqual([
+      { unitPrice: 50_000, unitCost: 0, qty: 2, lengthCm: null },
+      { unitPrice: 90_000, unitCost: 0, qty: 2, lengthCm: 90 },
+    ]);
+    expect(items[0]?.detailsSnapshot).toBe("93cm x 47cm");
+    expect(await stockOf(rollId)).toBe(320);
+    expect(await stockOf(piece("93x47"))).toBe(1);
+  });
+
+  it("refuses a roll without a length, a length on a piece, and a cut longer than the roll", async () => {
+    const session = await cashier();
+    await openedShift(session);
+    const { rollId, piece } = await rollProduct();
+    const paid = (amount: number) => [{ method: "CASH" as const, amount }];
+    expect(
+      await checkout(
+        session,
+        sale([{ variantId: rollId, qty: 1 }], paid(100_000)),
+        testContext(),
+        NOW,
+      ),
+    ).toEqual({ ok: false, reason: "invalid-items" });
+    expect(
+      await checkout(
+        session,
+        sale([{ variantId: piece("93x47"), qty: 1, lengthCm: 50 }], paid(50_000)),
+        testContext(),
+        NOW,
+      ),
+    ).toEqual({ ok: false, reason: "invalid-items" });
+    expect(
+      await checkout(
+        session,
+        sale([{ variantId: rollId, qty: 1, lengthCm: 501 }], paid(501_000)),
+        testContext(),
+        NOW,
+      ),
+    ).toEqual({ ok: false, reason: "insufficient-stock", variantId: rollId, available: 500 });
   });
 });

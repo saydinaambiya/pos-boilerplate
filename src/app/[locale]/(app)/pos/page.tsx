@@ -3,19 +3,14 @@ import type { Metadata } from "next";
 import { NextIntlClientProvider } from "next-intl";
 import { getFormatter, getLocale, getMessages, getTranslations } from "next-intl/server";
 
-import { ActionForm } from "@/components/form/action-form";
-import { FormField } from "@/components/form/form-field";
-import { SubmitButton } from "@/components/form/submit-button";
 import { Button } from "@/components/ui/button";
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
-import { RouteDialog } from "@/components/ui/route-dialog";
 import { getPosBrands, getPosCatalog } from "@/features/catalog/pos-catalog";
 import { PosTerminal } from "@/features/checkout/components/pos-terminal";
-import { getCheckoutBankAccounts } from "@/features/settings/service";
-import { closeShiftAction, openShiftAction } from "@/features/shifts/actions";
-import { ShiftFigures } from "@/features/shifts/components/shift-figures";
+import { getCheckoutBankAccounts, getQrisAccount } from "@/features/settings/service";
+import { CloseShiftDialog, OpenShiftCard } from "@/features/shifts/components/shift-controls";
 import { getOpenShift, getOtherOpenShifts } from "@/features/shifts/service";
 import { Link } from "@/i18n/navigation";
 import { requirePermission } from "@/lib/auth/guard";
@@ -41,47 +36,16 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function PosPage({ searchParams }: PageProps<"/[locale]/pos">) {
   const session = await requirePermission("page:pos");
   const closing = firstParam((await searchParams).close) === "1";
-  const [t, tPos, tNav, tCommon, format, locale, shift] = await Promise.all([
+  const [t, tPos, tNav, format, locale, shift] = await Promise.all([
     getTranslations("Shifts"),
     getTranslations("Pos"),
     getTranslations("Navigation"),
-    getTranslations("Common"),
     getFormatter(),
     getLocale(),
     getOpenShift(session),
   ]);
 
-  const closeDialog =
-    shift && closing ? (
-      <RouteDialog
-        closeHref="/pos"
-        closeLabel={tCommon("close")}
-        size="lg"
-        title={t("closeTitle")}
-        description={t("closeDescription")}
-      >
-        <ShiftFigures shift={{ ...shift, countedCash: null, variance: null }} />
-        <ActionForm
-          action={closeShiftAction}
-          locale={locale}
-          className="border-t border-border pt-4"
-        >
-          <div className="grid gap-4 sm:grid-cols-2">
-            <FormField
-              name="countedCash"
-              money
-              label={t("countedCash")}
-              hint={t("moneyHint")}
-              maxLength={20}
-            />
-            <FormField name="note" label={t("note")} hint={t("noteHint")} maxLength={200} />
-          </div>
-          <SubmitButton variant="danger" className="self-start">
-            {t("close")}
-          </SubmitButton>
-        </ActionForm>
-      </RouteDialog>
-    ) : null;
+  const closeDialog = shift && closing ? <CloseShiftDialog shift={shift} closeHref="/pos" /> : null;
 
   const closed = await storeClosedFor(session);
   if (closed) {
@@ -169,34 +133,22 @@ export default async function PosPage({ searchParams }: PageProps<"/[locale]/pos
             </div>
           </div>
         ) : null}
-        <Card className="max-w-md">
-          <CardHeader className="flex-col gap-1">
-            <CardTitle>{t("openTitle")}</CardTitle>
-            <CardDescription>{t("openDescription")}</CardDescription>
-          </CardHeader>
-          <ActionForm action={openShiftAction} locale={locale}>
-            <FormField
-              name="openingCash"
-              money
-              label={t("openingCash")}
-              hint={t("moneyHint")}
-              maxLength={20}
-            />
-            <SubmitButton className="self-start">{t("open")}</SubmitButton>
-          </ActionForm>
-        </Card>
+        <OpenShiftCard />
       </div>
     );
   }
 
-  const [catalog, brands, bankAccounts, tax, operations, messages] = await Promise.all([
-    getPosCatalog(session),
-    getPosBrands(session),
-    getCheckoutBankAccounts(session),
-    readSetting("tax"),
-    readSetting("operations"),
-    getMessages(),
-  ]);
+  const [catalog, brands, bankAccounts, qrisAccount, tax, operations, messages] = await Promise.all(
+    [
+      getPosCatalog(session),
+      getPosBrands(session),
+      getCheckoutBankAccounts(session),
+      getQrisAccount(session),
+      readSetting("tax"),
+      readSetting("operations"),
+      getMessages(),
+    ],
+  );
 
   return (
     <>
@@ -234,6 +186,7 @@ export default async function PosPage({ searchParams }: PageProps<"/[locale]/pos
           canKasbon={session.permissions.has("kasbon:create")}
           today={storeDate(new Date(), operations.timeZone)}
           bankAccounts={bankAccounts}
+          qrisAccount={qrisAccount}
         />
       </NextIntlClientProvider>
       {closeDialog}

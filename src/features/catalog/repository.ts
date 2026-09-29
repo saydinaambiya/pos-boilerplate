@@ -1,12 +1,14 @@
 import "server-only";
 
-import { and, asc, count, eq, exists, like, or, type SQL, sql } from "drizzle-orm";
+import { and, asc, count, eq, exists, inArray, isNull, like, or, type SQL, sql } from "drizzle-orm";
 
 import { db, type Executor } from "@/db/client";
 import { containsPattern } from "@/db/like";
 import { brands, products, productVariants } from "@/db/schema";
 
-import type { BrandInput, ProductFilters } from "./schemas";
+import { variantPriceSql } from "./pricing-sql";
+import type { BrandInput, ProductFilters, SizePrices } from "./schemas";
+import { PRODUCT_SIZES } from "./sizes";
 
 /** Brands by name with their product counts (FR-CAT-02). */
 export async function listBrands() {
@@ -53,16 +55,30 @@ export async function countProductsOfBrand(brandId: string): Promise<number> {
   return row?.total ?? 0;
 }
 
-/** Stock totals over a product's active variants (one row per product). */
+/**
+ * Stock totals over a product's active variants (one row per product).
+ * Colour rows (a roll's centimetres, or plain pieces) and cut pieces are
+ * summed apart, since their units differ (ADR-0023). A piece only counts
+ * as low when it has a minimum set, so uncut sizes do not flag every roll.
+ */
 const variantTotals = db
   .select({
     productId: productVariants.productId,
-    totalStock: sql<number>`sum(${productVariants.stockQty})`.as("total_stock"),
+    totalStock:
+      sql<number>`coalesce(sum(${productVariants.stockQty}) filter (where ${productVariants.parentId} is null), 0)`.as(
+        "total_stock",
+      ),
+    pieceStock:
+      sql<number>`coalesce(sum(${productVariants.stockQty}) filter (where ${productVariants.parentId} is not null), 0)`.as(
+        "piece_stock",
+      ),
     lowCount:
-      sql<number>`count(*) filter (where ${productVariants.stockQty} <= ${productVariants.minStock})`.as(
+      sql<number>`count(*) filter (where ${productVariants.stockQty} <= ${productVariants.minStock} and (${productVariants.parentId} is null or ${productVariants.minStock} > 0))`.as(
         "low_count",
       ),
-    variantCount: count().as("variant_count"),
+    variantCount: sql<number>`count(*) filter (where ${productVariants.parentId} is null)`.as(
+      "variant_count",
+    ),
   })
   .from(productVariants)
   .where(eq(productVariants.isActive, true))
@@ -75,9 +91,11 @@ const productColumns = {
   brandId: products.brandId,
   brandName: brands.name,
   motif: products.motif,
-  size: products.size,
+  thickness: products.thickness,
+  isRoll: products.isRoll,
+  sizePrices: products.sizePrices,
+  defectSizePrices: products.defectSizePrices,
   price: products.price,
-  cost: products.cost,
   unit: products.unit,
   trackStock: products.trackStock,
   hasVariants: products.hasVariants,
@@ -86,6 +104,7 @@ const productColumns = {
   sku: productVariants.sku,
   minStock: productVariants.minStock,
   stockQty: sql<number>`coalesce(${variantTotals.totalStock}, 0)`.mapWith(Number),
+  pieceStock: sql<number>`coalesce(${variantTotals.pieceStock}, 0)`.mapWith(Number),
   lowStockVariants: sql<number>`coalesce(${variantTotals.lowCount}, 0)`.mapWith(Number),
   variantCount: sql<number>`coalesce(${variantTotals.variantCount}, 0)`.mapWith(Number),
 };
@@ -112,7 +131,6 @@ export async function queryProducts(filters: ProductFilters, pageSize: number) {
   const conditions: SQL[] = [];
   if (filters.status !== "all") conditions.push(eq(products.isActive, filters.status === "active"));
   if (filters.brand) conditions.push(eq(products.brandId, filters.brand));
-  if (filters.size) conditions.push(eq(products.size, filters.size));
   if (filters.q) {
     const pattern = containsPattern(filters.q);
     const variantMatch = db
@@ -152,25 +170,124 @@ export interface ProductRowValues {
   name: string;
   brandId: string | null;
   motif: string | null;
-  size: string | null;
+  thickness: number | null;
+  sizePrices: SizePrices | null;
+  defectSizePrices: SizePrices | null;
   price: number;
-  cost: number;
   unit: string;
   trackStock: boolean;
 }
 
+/**
+ * SKU of a piece: its roll's SKU plus the size, e.g. `KRP-01-93x47`, and
+ * `-D` for a defect piece (ADR-0023, FR-ROL-05).
+ */
+export function pieceSku(rollSku: string, size: string, isDefect = false): string {
+  return `${rollSku}-${size}${isDefect ? "-D" : ""}`;
+}
+
+/**
+ * One piece row per size under a roll row, copying its colour (FR-ROL-01).
+ * Pieces sort in `PRODUCT_SIZES` order.
+ */
+export async function insertPieces(
+  executor: Executor,
+  roll: { id: string; productId: string; sku: string; attributes: unknown; isActive?: boolean },
+): Promise<void> {
+  await executor.insert(productVariants).values(
+    PRODUCT_SIZES.map((size, index) => ({
+      productId: roll.productId,
+      parentId: roll.id,
+      size,
+      sku: pieceSku(roll.sku, size),
+      attributes: roll.attributes,
+      sortOrder: index,
+      isActive: roll.isActive ?? true,
+    })),
+  );
+}
+
+/**
+ * The defect piece of one size under a roll, created on first use with
+ * the roll's colour and status; defect pieces list after the normal ones
+ * (FR-ROL-05).
+ */
+export async function ensureDefectPiece(
+  executor: Executor,
+  roll: { id: string; productId: string; sku: string; attributes: unknown; isActive: boolean },
+  size: (typeof PRODUCT_SIZES)[number],
+): Promise<string> {
+  const [existing] = await executor
+    .select({ id: productVariants.id })
+    .from(productVariants)
+    .where(
+      and(
+        eq(productVariants.parentId, roll.id),
+        eq(productVariants.size, size),
+        eq(productVariants.isDefect, true),
+      ),
+    )
+    .limit(1);
+  if (existing) return existing.id;
+  return insertVariant(executor, {
+    productId: roll.productId,
+    parentId: roll.id,
+    size,
+    isDefect: true,
+    sku: pieceSku(roll.sku, size, true),
+    attributes: roll.attributes,
+    sortOrder: PRODUCT_SIZES.length + PRODUCT_SIZES.indexOf(size),
+    isActive: roll.isActive,
+  });
+}
+
+/** Keeps a roll's pieces in step with its SKU, colour and status (ADR-0023). */
+export async function syncPieces(
+  executor: Executor,
+  rollId: string,
+  values: { sku?: string; attributes?: unknown; isActive?: boolean },
+): Promise<void> {
+  const { sku, ...rest } = values;
+  await executor
+    .update(productVariants)
+    .set({
+      ...rest,
+      ...(sku === undefined
+        ? {}
+        : {
+            sku: sql`${sku} || '-' || ${productVariants.size} || CASE WHEN ${productVariants.isDefect} THEN '-D' ELSE '' END`,
+          }),
+    })
+    .where(eq(productVariants.parentId, rollId));
+}
+
 export async function insertProductWithDefaultVariant(
   executor: Executor,
-  product: ProductRowValues,
-  variant: { sku: string; minStock: number },
+  product: ProductRowValues & { isRoll: boolean; hasVariants?: boolean },
+  variant: { sku: string; minStock: number; attributes?: unknown },
 ): Promise<string> {
   const [row] = await executor.insert(products).values(product).returning({ id: products.id });
   if (!row) throw new Error("Product insert returned no row");
-  await executor.insert(productVariants).values({ productId: row.id, isDefault: true, ...variant });
+  const [defaultRow] = await executor
+    .insert(productVariants)
+    .values({ productId: row.id, isDefault: true, ...variant })
+    .returning({ id: productVariants.id });
+  if (!defaultRow) throw new Error("Variant insert returned no row");
+  if (product.isRoll) {
+    await insertPieces(executor, {
+      id: defaultRow.id,
+      productId: row.id,
+      sku: variant.sku,
+      attributes: variant.attributes ?? {},
+    });
+  }
   return row.id;
 }
 
-/** Updates a product; the default variant too unless colour variants own those fields. */
+/**
+ * Updates a product; the default variant too unless colour variants own
+ * those fields. On a roll product the default roll's pieces follow its SKU.
+ */
 export async function updateProductWithDefaultVariant(
   executor: Executor,
   id: string,
@@ -179,10 +296,12 @@ export async function updateProductWithDefaultVariant(
 ): Promise<void> {
   await executor.update(products).set(product).where(eq(products.id, id));
   if (!variant) return;
-  await executor
+  const [updated] = await executor
     .update(productVariants)
     .set(variant)
-    .where(and(eq(productVariants.productId, id), eq(productVariants.isDefault, true)));
+    .where(and(eq(productVariants.productId, id), eq(productVariants.isDefault, true)))
+    .returning({ id: productVariants.id });
+  if (updated) await syncPieces(executor, updated.id, { sku: variant.sku });
 }
 
 export async function setProductActive(executor: Executor, id: string, isActive: boolean) {
@@ -192,10 +311,12 @@ export async function setProductActive(executor: Executor, id: string, isActive:
 const variantColumns = {
   id: productVariants.id,
   productId: productVariants.productId,
+  parentId: productVariants.parentId,
+  size: productVariants.size,
+  isDefect: productVariants.isDefect,
   sku: productVariants.sku,
   attributes: productVariants.attributes,
   priceOverride: productVariants.priceOverride,
-  costOverride: productVariants.costOverride,
   stockQty: productVariants.stockQty,
   minStock: productVariants.minStock,
   sortOrder: productVariants.sortOrder,
@@ -203,14 +324,31 @@ const variantColumns = {
   isActive: productVariants.isActive,
 };
 
-/** Colour variants of a product in display order; the retired hidden default is excluded. */
+/**
+ * Colour variants of a product in display order; the retired hidden
+ * default and the pieces cut from a roll are excluded.
+ */
 export async function listColorVariants(executor: Executor, productId: string) {
   return executor
     .select(variantColumns)
     .from(productVariants)
     .where(
-      and(eq(productVariants.productId, productId), sql`${productVariants.attributes} ? 'color'`),
+      and(
+        eq(productVariants.productId, productId),
+        isNull(productVariants.parentId),
+        sql`${productVariants.attributes} ? 'color'`,
+      ),
     )
+    .orderBy(asc(productVariants.sortOrder), asc(productVariants.id));
+}
+
+/** Pieces of the given rolls in size order (FR-ROL-01). */
+export async function listPieces(executor: Executor, rollIds: readonly string[]) {
+  if (rollIds.length === 0) return [];
+  return executor
+    .select(variantColumns)
+    .from(productVariants)
+    .where(inArray(productVariants.parentId, [...rollIds]))
     .orderBy(asc(productVariants.sortOrder), asc(productVariants.id));
 }
 
@@ -220,10 +358,10 @@ export async function findVariant(variantId: string) {
       ...variantColumns,
       productName: products.name,
       productPrice: products.price,
-      productCost: products.cost,
       productActive: products.isActive,
       hasVariants: products.hasVariants,
       trackStock: products.trackStock,
+      isRoll: products.isRoll,
     })
     .from(productVariants)
     .innerJoin(products, eq(products.id, productVariants.productId))
@@ -268,7 +406,9 @@ export async function markProductHasVariants(executor: Executor, productId: stri
 /**
  * Sellable items for the POS grid: active products with their active
  * variants and effective prices, grouped client-side (FR-POS-01, FR-VAR-04).
- * Search also matches brand and motif (FR-PRD-06).
+ * On a roll product that is each colour's roll, priced per meter for
+ * custom cuts, and its pieces (FR-ROL-04). Search also matches brand and
+ * motif (FR-PRD-06).
  * `limit` bounds the preload; bigger catalogues switch to server search
  * (NFR-PERF-07).
  */
@@ -292,16 +432,18 @@ export async function queryPosCatalog(options: { limit: number; search?: string 
       brandId: products.brandId,
       brandName: brands.name,
       motif: products.motif,
-      size: products.size,
+      thickness: products.thickness,
+      isRoll: products.isRoll,
       unit: products.unit,
       trackStock: products.trackStock,
       hasVariants: products.hasVariants,
       variantId: productVariants.id,
+      parentId: productVariants.parentId,
+      size: productVariants.size,
+      isDefect: productVariants.isDefect,
       sku: productVariants.sku,
       attributes: productVariants.attributes,
-      price: sql<number>`coalesce(${productVariants.priceOverride}, ${products.price})`.mapWith(
-        Number,
-      ),
+      price: variantPriceSql,
       stockQty: productVariants.stockQty,
     })
     .from(products)

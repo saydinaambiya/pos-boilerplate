@@ -44,16 +44,18 @@ const shift = (isoDate: string, days: number) =>
 /**
  * Sales report for a store-day range (FR-RPT-01..05): summary, per day,
  * per payment method, per product, variant, brand and employee,
- * vouchers and manual discounts, and PPN/service. Cost and margin appear
- * only with `report:view-profit`.
+ * vouchers and manual discounts, and PPN/service, plus staff expenses and
+ * the balance of sales minus expenses (FR-EXP-02). No cost or profit is
+ * shown (ADR-0027).
  */
 export default async function ReportsPage({ searchParams }: PageProps<"/[locale]/reports">) {
   await requirePermission("page:reports");
   const session = await requirePermission("report:view");
   const raw = await searchParams;
   const first = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value);
-  const [t, format, locale, report, operations] = await Promise.all([
+  const [t, tExpenses, format, locale, report, operations] = await Promise.all([
     getTranslations("Reports"),
+    getTranslations("Expenses"),
     getFormatter(),
     getLocale(),
     getSalesReport(session, { from: first(raw.from), to: first(raw.to) }),
@@ -111,12 +113,6 @@ export default async function ReportsPage({ searchParams }: PageProps<"/[locale]
               <TableHead>{t("name")}</TableHead>
               <TableHead className="text-right">{t("qty")}</TableHead>
               <TableHead className="text-right">{t("revenue")}</TableHead>
-              {report.profit ? (
-                <>
-                  <TableHead className="text-right">{t("cogs")}</TableHead>
-                  <TableHead className="text-right">{t("margin")}</TableHead>
-                </>
-              ) : null}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -125,16 +121,6 @@ export default async function ReportsPage({ searchParams }: PageProps<"/[locale]
                 <TableCell className="[overflow-wrap:anywhere]">{label(row)}</TableCell>
                 <TableCell className="text-right tabular-nums">{row.qty}</TableCell>
                 <TableCell className="text-right tabular-nums">{money(row.revenue)}</TableCell>
-                {report.profit ? (
-                  <>
-                    <TableCell className="text-right tabular-nums">
-                      {money(row.cogs ?? 0)}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {money(row.margin ?? 0)}
-                    </TableCell>
-                  </>
-                ) : null}
               </TableRow>
             ))}
           </TableBody>
@@ -207,16 +193,8 @@ export default async function ReportsPage({ searchParams }: PageProps<"/[locale]
             money(report.online.itemsTotal),
             t("marketplaceHint", { count: report.online.count }),
           )}
-          {report.summary.grossProfit !== null
-            ? stat(
-                t("grossProfit"),
-                money(report.summary.grossProfit),
-                t("grossProfitHint", { cogs: money(report.summary.cogs ?? 0) }),
-              )
-            : null}
-          {report.online.grossProfit !== null
-            ? stat(t("marketplaceProfit"), money(report.online.grossProfit))
-            : null}
+          {stat(t("expenses"), money(report.summary.expenses), t("expensesHint"))}
+          {stat(t("balance"), money(report.summary.balance), t("balanceHint"))}
         </dl>
       </section>
 
@@ -233,6 +211,8 @@ export default async function ReportsPage({ searchParams }: PageProps<"/[locale]
                   <TableHead>{t("day")}</TableHead>
                   <TableHead className="text-right">{t("transactions")}</TableHead>
                   <TableHead className="text-right">{t("grandTotal")}</TableHead>
+                  <TableHead className="text-right">{t("expenses")}</TableHead>
+                  <TableHead className="text-right">{t("balance")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -250,6 +230,37 @@ export default async function ReportsPage({ searchParams }: PageProps<"/[locale]
                     <TableCell className="text-right tabular-nums">
                       {money(row.grandTotal)}
                     </TableCell>
+                    <TableCell className="text-right tabular-nums">{money(row.expenses)}</TableCell>
+                    <TableCell className="text-right font-medium tabular-nums">
+                      {money(row.balance)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ),
+        )}
+
+        {card(
+          "expenses",
+          report.expenses.length === 0 ? (
+            empty
+          ) : (
+            <Table>
+              <TableCaption>{t("expensesCaption")}</TableCaption>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t("expenseCategory")}</TableHead>
+                  <TableHead className="text-right">{t("entries")}</TableHead>
+                  <TableHead className="text-right">{t("total")}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {report.expenses.map((row) => (
+                  <TableRow key={row.category}>
+                    <TableCell>{tExpenses(`categories.${row.category}`)}</TableCell>
+                    <TableCell className="text-right tabular-nums">{row.count}</TableCell>
+                    <TableCell className="text-right tabular-nums">{money(row.total)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

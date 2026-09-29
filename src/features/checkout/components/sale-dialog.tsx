@@ -111,8 +111,17 @@ export async function SaleDialog({ session, saleId, closeHref }: SaleDialogProps
             <TableRow key={item.id}>
               <TableCell className="[overflow-wrap:anywhere]">
                 {variantLabel(item.nameSnapshot, item.variantSnapshot)}
-                {item.detailsSnapshot ? (
-                  <span className="block text-xs text-ink-muted">{item.detailsSnapshot}</span>
+                {item.detailsSnapshot || item.lengthCm !== null ? (
+                  <span className="block text-xs text-ink-muted">
+                    {[
+                      item.detailsSnapshot,
+                      item.lengthCm === null
+                        ? null
+                        : t("cutLabel", { length: String(item.lengthCm) }),
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </span>
                 ) : null}
                 {item.discountAmount > 0 ? (
                   <span className="block text-xs text-ink-muted">
@@ -135,7 +144,9 @@ export async function SaleDialog({ session, saleId, closeHref }: SaleDialogProps
               row(
                 payment.method === "TRANSFER" && payment.bankName
                   ? t("transferTo", { bank: payment.bankName, account: payment.accountNo ?? "" })
-                  : t(`methods.${payment.method}`),
+                  : payment.method === "QRIS"
+                    ? t("qrisFrom", { source: payment.sourceBank ?? "—" })
+                    : t(`methods.${payment.method}`),
                 money(payment.amount),
               ),
             )}

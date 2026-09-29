@@ -1,6 +1,6 @@
 # ADR-0020: Field sales consignments
 
-- Status: Accepted
+- Status: Accepted; "Who" amended by [ADR-0024](./0024-consignment-roles.md)
 - Date: 2026-09-28
 - Requirements: PRD §3.16 FR-CSG-01..06, FR-STK-01, FR-POS-11, FR-SET-09; BRD BR-27, Q-07, Q-08
 

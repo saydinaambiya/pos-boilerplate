@@ -23,7 +23,7 @@ test.describe("settings (FR-SET) and audit log (FR-AUD-03)", () => {
     await expectResult(page, "Pengaturan disimpan.");
     await expect(page.getByLabel("Telepon")).toHaveValue("+6281234567890");
 
-    await page.goto("/id");
+    await page.goto("/id/dashboard");
     await expect(page.getByText("Profil toko belum lengkap")).toHaveCount(0);
   });
 

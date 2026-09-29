@@ -28,8 +28,12 @@ const sizeClasses = {
 } as const;
 
 interface RouteDialogProps {
-  /** Where closing goes: the host page without the dialog's search parameter. */
-  closeHref: Href;
+  /**
+   * Where closing goes: the host page without the dialog's search
+   * parameter. Omitted for an intercepted route (ADR-0030), which closes by
+   * going back to the page it opened over.
+   */
+  closeHref?: Href | undefined;
   title: ReactNode;
   description?: ReactNode;
   closeLabel: string;
@@ -56,7 +60,8 @@ export function RouteDialog({
   const [open, setOpen] = useState(true);
   const close = () => {
     setOpen(false);
-    router.replace(closeHref, { scroll: false });
+    if (closeHref === undefined) router.back();
+    else router.replace(closeHref, { scroll: false });
   };
 
   return (

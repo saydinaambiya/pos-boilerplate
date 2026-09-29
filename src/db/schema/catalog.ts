@@ -1,11 +1,13 @@
 import { sql } from "drizzle-orm";
 import {
+  type AnyPgColumn,
   bigint,
   boolean,
   check,
   index,
   integer,
   jsonb,
+  numeric,
   pgTable,
   text,
   uniqueIndex,
@@ -31,8 +33,13 @@ export const brands = pgTable(
 /**
  * Products (FR-PRD-01). SKU, stock and minimum stock live on variants; a
  * product without colour variants has one hidden default variant (§3.1.1).
- * Brand, motif and size are required for new products only, so older rows
- * may leave them empty (FR-PRD-06).
+ * Brand, motif and thickness are required for new products only, so older
+ * rows may leave them empty (FR-PRD-06).
+ *
+ * A roll product (`is_roll`, FR-ROL-01, ADR-0023) is bought by the meter and
+ * cut into pieces: `price` and `cost` are then per meter, and `size_prices`
+ * holds the piece price of every size in `PRODUCT_SIZES`, the same for
+ * every colour.
  */
 export const products = pgTable(
   "products",
@@ -41,8 +48,13 @@ export const products = pgTable(
     name: text().notNull(),
     brandId: uuid().references(() => brands.id, { onDelete: "restrict" }),
     motif: text(),
-    /** One of `PRODUCT_SIZES`, length × width in cm (FR-PRD-06). */
-    size: text(),
+    /** Thickness in mm (FR-PRD-06). */
+    thickness: numeric({ precision: 6, scale: 2, mode: "number" }),
+    isRoll: boolean().notNull().default(false),
+    /** Piece price per size code, validated by Zod (FR-ROL-02). */
+    sizePrices: jsonb(),
+    /** Price per size of defect pieces, the same for every colour (FR-ROL-05). */
+    defectSizePrices: jsonb(),
     price: money().notNull(),
     cost: money().notNull().default(0),
     unit: text().notNull(),
@@ -58,7 +70,12 @@ export const products = pgTable(
   ],
 );
 
-/** Sellable unit with its own SKU and stock (§3.1.1, FR-STK-01). */
+/**
+ * Sellable unit with its own SKU and stock (§3.1.1, FR-STK-01). On a roll
+ * product each colour is a roll row holding its length in cm, and each of
+ * its pieces is a child row (`parent_id`, `size`) counted in pcs; pieces
+ * copy the roll's colour (FR-ROL-01, ADR-0023).
+ */
 export const productVariants = pgTable(
   "product_variants",
   {
@@ -66,6 +83,11 @@ export const productVariants = pgTable(
     productId: uuid()
       .notNull()
       .references(() => products.id, { onDelete: "restrict" }),
+    parentId: uuid().references((): AnyPgColumn => productVariants.id, { onDelete: "restrict" }),
+    /** Piece size code from `PRODUCT_SIZES`; null on rolls and plain variants. */
+    size: text(),
+    /** A defect piece: same product and size, flagged and priced apart (FR-ROL-05). */
+    isDefect: boolean().notNull().default(false),
     sku: text().notNull(),
     /** Validated by Zod: `{ color?: { name, hex? } }`. */
     attributes: jsonb().notNull().default({}),
@@ -80,10 +102,12 @@ export const productVariants = pgTable(
   },
   (table) => [
     uniqueIndex("product_variants_sku_key").on(sql`lower(${table.sku})`),
-    uniqueIndex("product_variants_color_name_key").on(
-      table.productId,
-      sql`lower(${table.attributes} -> 'color' ->> 'name')`,
-    ),
+    uniqueIndex("product_variants_color_name_key")
+      .on(table.productId, sql`lower(${table.attributes} -> 'color' ->> 'name')`)
+      .where(sql`${table.parentId} IS NULL`),
+    uniqueIndex("product_variants_piece_size_key")
+      .on(table.parentId, table.size, table.isDefect)
+      .where(sql`${table.parentId} IS NOT NULL`),
     uniqueIndex("product_variants_one_default_key")
       .on(table.productId)
       .where(sql`${table.isDefault}`),

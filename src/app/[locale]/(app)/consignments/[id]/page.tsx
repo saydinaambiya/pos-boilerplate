@@ -21,7 +21,8 @@ import { ConsignmentMessages } from "@/features/consignments/components/consignm
 import { SettleForm } from "@/features/consignments/components/settle-form";
 import { TakeForm } from "@/features/consignments/components/take-form";
 import { getConsignment, getSalespeopleFor } from "@/features/consignments/service";
-import { getCheckoutBankAccounts } from "@/features/settings/service";
+import { getCheckoutBankAccounts, getQrisAccount } from "@/features/settings/service";
+import { getOpenShift } from "@/features/shifts/service";
 import { Link } from "@/i18n/navigation";
 import { requirePermission } from "@/lib/auth/guard";
 import { variantLabel } from "@/lib/format/variant-label";
@@ -37,8 +38,10 @@ export async function generateMetadata(): Promise<Metadata> {
 /**
  * One salesperson's goods (FR-CSG-02..05): what is still out per item and
  * every pickup and settlement grouped by day, newest first. `?take=1` adds
- * goods and `?settle=1` settles sold and returned goods; settling takes
- * money, so it needs POS access and an open shift.
+ * goods (pickup staff), `?return=1` records goods brought back (shop
+ * floor) and `?sell=1` lets the salesperson record what they sold; selling
+ * takes money, so it needs the salesperson's own open shift, but not the
+ * cashier (ADR-0024, ADR-0029).
  */
 export default async function ConsignmentPage({
   params,
@@ -48,8 +51,9 @@ export default async function ConsignmentPage({
   const { id } = await params;
   if (!z.uuid().safeParse(id).success) notFound();
   const query = await searchParams;
-  const dialog =
-    firstParam(query.take) === "1" ? "take" : firstParam(query.settle) === "1" ? "settle" : null;
+  const dialog = (["take", "sell", "return"] as const).find(
+    (name) => firstParam(query[name]) === "1",
+  );
 
   const [t, tCommon, format, locale, consignment, salespeople, operations] = await Promise.all([
     getTranslations("Consignments"),
@@ -65,8 +69,13 @@ export default async function ConsignmentPage({
   const open = consignment.status === "OPEN";
   const outstanding = consignment.balances.filter((balance) => balance.outstanding > 0);
   const canTake = open && salespeople.some((person) => person.id === consignment.salespersonId);
-  const canSettle =
-    open && outstanding.length > 0 && canTake && session.permissions.has("page:pos");
+  const isOwn = consignment.salespersonId === session.user.id;
+  const canSell =
+    open &&
+    outstanding.length > 0 &&
+    (session.role.isSystem || (isOwn && session.permissions.has("consignment:sell")));
+  const shiftOpen = canSell ? (await getOpenShift(session)) !== null : false;
+  const canReturn = open && outstanding.length > 0 && session.permissions.has("consignment:return");
   const dayOf = (date: Date) => storeDate(date, operations.timeZone);
   const days = [...new Set(consignment.batches.map((batch) => dayOf(batch.createdAt)))];
 
@@ -87,10 +96,17 @@ export default async function ConsignmentPage({
                 </Link>
               </Button>
             ) : null}
-            {canSettle ? (
+            {canReturn ? (
+              <Button asChild variant="secondary">
+                <Link href={`/consignments/${id}?return=1`} scroll={false}>
+                  {t("recordReturn")}
+                </Link>
+              </Button>
+            ) : null}
+            {canSell ? (
               <Button asChild>
-                <Link href={`/consignments/${id}?settle=1`} scroll={false}>
-                  {t("settle")}
+                <Link href={`/consignments/${id}?sell=1`} scroll={false}>
+                  {t("recordSold")}
                 </Link>
               </Button>
             ) : null}
@@ -99,8 +115,11 @@ export default async function ConsignmentPage({
       />
       <div className="mb-6 flex flex-wrap items-center gap-3">
         <Chip tone={open ? "warning" : "success"}>{t(`statuses.${consignment.status}`)}</Chip>
-        {open && outstanding.length > 0 && !session.permissions.has("page:pos") ? (
-          <p className="text-sm text-ink-muted">{t("settleNeedsPos")}</p>
+        {open && isOwn && !canSell && !canReturn ? (
+          <p className="text-sm text-ink-muted">{t("viewOnly")}</p>
+        ) : null}
+        {canSell && !shiftOpen ? (
+          <p className="text-sm text-ink-muted">{t("sellNeedsShift")}</p>
         ) : null}
       </div>
 
@@ -226,18 +245,19 @@ export default async function ConsignmentPage({
           </ConsignmentMessages>
         </RouteDialog>
       ) : null}
-      {dialog === "settle" && canSettle ? (
+      {(dialog === "sell" && canSell) || (dialog === "return" && canReturn) ? (
         <RouteDialog
           closeHref={`/consignments/${id}`}
           closeLabel={tCommon("close")}
           size="lg"
-          title={t("settleTitle")}
-          description={t("settleDescription")}
+          title={t(dialog === "sell" ? "sellTitle" : "returnTitle")}
+          description={t(dialog === "sell" ? "sellDescription" : "returnDescription")}
         >
           <ConsignmentMessages>
             <SettleForm
               locale={locale}
               consignmentId={id}
+              mode={dialog === "sell" ? "sell" : "return"}
               items={outstanding.map((balance) => ({
                 variantId: balance.variantId,
                 label: variantLabel(balance.name, balance.variantName),
@@ -246,6 +266,7 @@ export default async function ConsignmentPage({
               }))}
               tax={await readSetting("tax")}
               bankAccounts={await getCheckoutBankAccounts(session)}
+              qrisAccount={await getQrisAccount(session)}
               canKasbon={session.permissions.has("kasbon:create")}
               today={storeDate(new Date(), operations.timeZone)}
             />

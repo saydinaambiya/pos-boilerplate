@@ -15,7 +15,7 @@ import { parseRupiah } from "@/lib/format/rupiah-input";
 import type { ItemDiscount, SaleTotals, TaxRules, VoucherRule } from "@/lib/money/calculate";
 import { basisPointsToPercent, percentToBasisPoints } from "@/lib/settings/rates";
 
-import type { CartItem } from "./use-cart";
+import { type CartItem, cartLineKey } from "./use-cart";
 
 interface CartPanelProps {
   items: CartItem[];
@@ -23,10 +23,11 @@ interface CartPanelProps {
   tax: TaxRules;
   locale: Locale;
   canDiscount: boolean;
-  maxQty: (variantId: string) => number | null;
-  onQty: (variantId: string, qty: number) => void;
-  onRemove: (variantId: string) => void;
-  onDiscount: (variantId: string, discount: ItemDiscount | null) => void;
+  /** Cart operations take `cartLineKey(item)`, so cuts of one roll stay apart. */
+  maxQty: (key: string) => number | null;
+  onQty: (key: string, qty: number) => void;
+  onRemove: (key: string) => void;
+  onDiscount: (key: string, discount: ItemDiscount | null) => void;
   onClear: () => void;
   onPay: () => void;
   voucher: { code: string; name: string; rule: VoucherRule } | null;
@@ -257,9 +258,10 @@ export function CartPanel(props: CartPanelProps) {
         {items.map((item, index) => {
           const line = totals.lines[index];
           const name = itemName(item);
-          const max = props.maxQty(item.variantId);
+          const key = cartLineKey(item);
+          const max = props.maxQty(key);
           return (
-            <li key={item.variantId} className="py-3">
+            <li key={key} className="py-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="font-medium [overflow-wrap:anywhere] text-ink">{name}</p>
@@ -278,7 +280,7 @@ export function CartPanel(props: CartPanelProps) {
                   variant="secondary"
                   aria-label={t("decrease", { name })}
                   onClick={() => {
-                    props.onQty(item.variantId, item.qty - 1);
+                    props.onQty(key, item.qty - 1);
                   }}
                 >
                   <Minus aria-hidden="true" />
@@ -289,10 +291,7 @@ export function CartPanel(props: CartPanelProps) {
                   inputMode="numeric"
                   onChange={(event) => {
                     const qty = Number(event.target.value.replace(/\D/g, "") || "0");
-                    props.onQty(
-                      item.variantId,
-                      max === null ? Math.min(qty, 9999) : Math.min(qty, max),
-                    );
+                    props.onQty(key, max === null ? Math.min(qty, 9999) : Math.min(qty, max));
                   }}
                   className="w-16 text-center tabular-nums"
                 />
@@ -302,7 +301,7 @@ export function CartPanel(props: CartPanelProps) {
                   aria-label={t("increase", { name })}
                   disabled={max !== null && item.qty >= max}
                   onClick={() => {
-                    props.onQty(item.variantId, item.qty + 1);
+                    props.onQty(key, item.qty + 1);
                   }}
                 >
                   <Plus aria-hidden="true" />
@@ -313,9 +312,9 @@ export function CartPanel(props: CartPanelProps) {
                     size="icon"
                     variant="ghost"
                     aria-label={t("discountFor", { name })}
-                    aria-expanded={editing === item.variantId}
+                    aria-expanded={editing === key}
                     onClick={() => {
-                      setEditing(editing === item.variantId ? null : item.variantId);
+                      setEditing(editing === key ? null : key);
                     }}
                   >
                     <Tag aria-hidden="true" />
@@ -326,17 +325,17 @@ export function CartPanel(props: CartPanelProps) {
                   variant="ghost"
                   aria-label={t("remove", { name })}
                   onClick={() => {
-                    props.onRemove(item.variantId);
+                    props.onRemove(key);
                   }}
                 >
                   <Trash2 aria-hidden="true" />
                 </Button>
               </div>
-              {editing === item.variantId ? (
+              {editing === key ? (
                 <DiscountEditor
                   item={item}
                   onApply={(discount) => {
-                    props.onDiscount(item.variantId, discount);
+                    props.onDiscount(key, discount);
                   }}
                   onDone={() => {
                     setEditing(null);

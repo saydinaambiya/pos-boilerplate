@@ -60,15 +60,13 @@ export async function VariantDialog({ session, productId, variantId }: VariantDi
       </div>
       <ActionForm action={updateVariantAction.bind(null, variant.id)} locale={locale}>
         <VariantFields
-          canSeeCost={session.permissions.has("product:view-cost")}
+          roll={variant.isRoll}
           withInitialStock={false}
           variant={{
             colorName: name,
-            hex: variant.color.hex ?? "",
             sku: variant.sku,
             minStock: variant.minStock,
             priceOverride: variant.priceOverride,
-            costOverride: variant.costOverride,
           }}
         />
         <SubmitButton className="self-start">{tCommon("save")}</SubmitButton>

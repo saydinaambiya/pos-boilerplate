@@ -4,14 +4,17 @@ import { expect, test } from "./fixtures";
 
 test.describe("dashboard and sales report (FR-DSH-01, FR-RPT)", () => {
   test("the dashboard shows today's figures and online order chips", async ({ page }) => {
-    await page.goto("/id");
+    await page.goto("/id/dashboard");
     const today = page.getByRole("region", { name: "Ringkasan hari ini" });
     await expect(today).toContainText("Penjualan hari ini");
     await expect(today).toContainText("Transaksi hari ini");
     await expect(page.getByRole("list", { name: "Pesanan online" })).toContainText("Diproses");
   });
 
-  test("the report shows sections with profit and exports CSV", async ({ page, isMobile }) => {
+  test("the report shows sales results and expenses and exports CSV", async ({
+    page,
+    isMobile,
+  }) => {
     test.skip(isMobile, "downloads are checked once, on desktop");
     await page.goto("/id/reports");
     /**
@@ -24,9 +27,11 @@ test.describe("dashboard and sales report (FR-DSH-01, FR-RPT)", () => {
     await thisMonth.click();
     await expect(page).toHaveURL(/[?&]from=\d{4}-\d{2}-\d{2}&to=/, { timeout: 15_000 });
     await expect(thisMonth).toHaveAttribute("aria-current", "page");
-    await expect(page.getByText("Laba kotor kasir")).toBeVisible();
+    await expect(page.getByText("Laba kotor kasir")).toHaveCount(0);
+    await expect(page.getByRole("term").filter({ hasText: /^Sisa$/ })).toBeVisible();
     for (const section of [
       "Per hari",
+      "Pengeluaran harian",
       "Per metode pembayaran",
       "Per produk",
       "Per merk",
@@ -53,9 +58,7 @@ test.describe("dashboard and sales report (FR-DSH-01, FR-RPT)", () => {
       /^rekap-products-\d{4}-\d{2}-\d{2}-\d{4}-\d{2}-\d{2}\.csv$/,
     );
     const content = await readFile(await file.path(), "utf8");
-    expect(content.replace(/^﻿/, "").split("\r\n")[0]).toBe(
-      "Produk,Qty,Diskon item,Penjualan,Modal,Margin",
-    );
+    expect(content.replace(/^﻿/, "").split("\r\n")[0]).toBe("Produk,Qty,Diskon item,Penjualan");
   });
 
   test("an employee without report access is refused", async ({ browser }) => {

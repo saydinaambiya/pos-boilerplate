@@ -2,7 +2,12 @@ import "server-only";
 
 import { eq, sql } from "drizzle-orm";
 
-import { DEFAULT_EMPLOYEE_ROLE, OWNER_ROLE_NAME } from "@/config/permissions";
+import {
+  DEFAULT_EMPLOYEE_ROLE,
+  OWNER_ROLE_NAME,
+  type Permission,
+  SEEDED_ROLES,
+} from "@/config/permissions";
 import { hashSecret, passwordSchema, pinSchema } from "@/lib/auth/credentials";
 
 import type { Database, Executor } from "./client";
@@ -35,8 +40,9 @@ async function ensureRole(
 
 /**
  * Idempotent bootstrap: the Owner system role, the default employee role
- * with its starter permissions, and the single owner account (BR-01,
- * PRD §2.2). An existing owner is never overwritten.
+ * and the salespeople roles with their starter permissions (ADR-0024), and
+ * the single owner account (BR-01, PRD §2.2). Existing roles and an
+ * existing owner are never overwritten.
  */
 export async function seed(database: Database, options: SeedOptions): Promise<void> {
   const password = passwordSchema.parse(options.owner.password);
@@ -51,13 +57,21 @@ export async function seed(database: Database, options: SeedOptions): Promise<vo
   await database.transaction(async (tx) => {
     const owner = await ensureRole(tx, OWNER_ROLE_NAME, true);
     const employee = await ensureRole(tx, DEFAULT_EMPLOYEE_ROLE.name, false);
-    if (employee.created) {
-      await tx.insert(rolePermissions).values(
-        DEFAULT_EMPLOYEE_ROLE.permissions.map((permission) => ({
-          roleId: employee.id,
-          permission,
-        })),
-      );
+    const starters: {
+      role: { id: string; created: boolean };
+      permissions: readonly Permission[];
+    }[] = [{ role: employee, permissions: DEFAULT_EMPLOYEE_ROLE.permissions }];
+    for (const seeded of SEEDED_ROLES) {
+      starters.push({
+        role: await ensureRole(tx, seeded.name, false),
+        permissions: seeded.permissions,
+      });
+    }
+    for (const { role, permissions } of starters) {
+      if (!role.created) continue;
+      await tx
+        .insert(rolePermissions)
+        .values(permissions.map((permission) => ({ roleId: role.id, permission })));
     }
 
     const [existingOwner] = await tx

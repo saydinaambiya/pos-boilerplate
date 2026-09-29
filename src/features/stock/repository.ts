@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, desc, eq, gte, isNull, like, lt, lte, or, type SQL, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, isNull, like, lt, or, type SQL, sql } from "drizzle-orm";
 
 import { db, type Executor } from "@/db/client";
 import { containsPattern } from "@/db/like";
@@ -13,6 +13,8 @@ import {
   users,
 } from "@/db/schema";
 
+import { isRollRowSql } from "@/features/catalog/pricing-sql";
+
 import type { StockFilters } from "./schemas";
 
 export type StockMovementType = (typeof stockMovementTypes)[number];
@@ -24,6 +26,8 @@ export async function lockVariant(executor: Executor, variantId: string) {
       id: productVariants.id,
       stockQty: productVariants.stockQty,
       trackStock: products.trackStock,
+      isRoll: isRollRowSql,
+      isPiece: sql<boolean>`(${products.isRoll} AND ${productVariants.parentId} IS NOT NULL)`,
     })
     .from(productVariants)
     .innerJoin(products, eq(products.id, productVariants.productId))
@@ -65,6 +69,9 @@ export async function insertMovement(
   return row.id;
 }
 
+/** Display order of a piece's roll, so pieces list under their colour. */
+const parentSort = sql`(SELECT "roll"."sort_order" FROM "product_variants" AS "roll" WHERE "roll"."id" = ${productVariants.parentId})`;
+
 const levelColumns = {
   variantId: productVariants.id,
   productId: products.id,
@@ -73,20 +80,31 @@ const levelColumns = {
   unit: products.unit,
   sku: productVariants.sku,
   colorName: sql<string | null>`${productVariants.attributes} -> 'color' ->> 'name'`,
+  size: productVariants.size,
+  isDefect: productVariants.isDefect,
+  parentId: productVariants.parentId,
+  isRoll: isRollRowSql,
   stockQty: productVariants.stockQty,
   minStock: productVariants.minStock,
   trackStock: products.trackStock,
   isActive: products.isActive,
 };
 
-/** Stock levels of active variants of stock-tracked products. */
+/** At or below the minimum; a piece only once a minimum is set (ADR-0023). */
+const isLow = sql`(${productVariants.stockQty} <= ${productVariants.minStock} AND (${productVariants.parentId} IS NULL OR ${productVariants.minStock} > 0))`;
+
+/**
+ * Stock levels of active variants of stock-tracked products: rolls and
+ * their pieces, each colour's roll first (ADR-0023).
+ */
 export async function queryStockLevels(filters: StockFilters, pageSize: number) {
   const conditions: SQL[] = [
     eq(products.trackStock, true),
     eq(products.isActive, true),
     eq(productVariants.isActive, true),
   ];
-  if (filters.low) conditions.push(lte(productVariants.stockQty, productVariants.minStock));
+  if (filters.low) conditions.push(isLow);
+  if (filters.defect) conditions.push(eq(productVariants.isDefect, true));
   if (filters.q) {
     const pattern = containsPattern(filters.q);
     const match = or(
@@ -102,7 +120,13 @@ export async function queryStockLevels(filters: StockFilters, pageSize: number) 
     .innerJoin(products, eq(products.id, productVariants.productId))
     .leftJoin(brands, eq(brands.id, products.brandId))
     .where(and(...conditions))
-    .orderBy(asc(products.name), asc(productVariants.sortOrder), asc(productVariants.id))
+    .orderBy(
+      asc(products.name),
+      asc(sql`coalesce(${parentSort}, ${productVariants.sortOrder})`),
+      asc(sql`${productVariants.parentId} IS NOT NULL`),
+      asc(productVariants.sortOrder),
+      asc(productVariants.id),
+    )
     .limit(pageSize + 1)
     .offset((filters.page - 1) * pageSize);
 }
@@ -119,7 +143,7 @@ export async function queryLowStock(limit: number) {
         eq(products.trackStock, true),
         eq(products.isActive, true),
         eq(productVariants.isActive, true),
-        lte(productVariants.stockQty, productVariants.minStock),
+        isLow,
       ),
     )
     .orderBy(

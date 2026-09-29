@@ -36,7 +36,8 @@ import { movementFilters } from "@/features/stock/schemas";
 import { getMovements, getVariantStock } from "@/features/stock/service";
 import { Link } from "@/i18n/navigation";
 import { requirePermission } from "@/lib/auth/guard";
-import { variantLabel } from "@/lib/format/variant-label";
+import { formatMeters } from "@/lib/format/length";
+import { stockItemLabel } from "@/lib/format/variant-label";
 import { cn } from "@/lib/utils/cn";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -44,7 +45,11 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t("title") };
 }
 
-/** One variant's stock: manual movements and the filtered ledger (FR-STK-01/05/06). */
+/**
+ * One variant's stock: manual movements and the filtered ledger
+ * (FR-STK-01/05/06). A roll counts meters, typed with decimals; its pieces
+ * gain stock only by cutting (FR-ROL-03).
+ */
 export default async function VariantStockPage({
   params,
   searchParams,
@@ -78,17 +83,34 @@ export default async function VariantStockPage({
       (entry): entry is [string, string] => entry[0] !== "cursor" && entry[1] !== undefined,
     ),
   );
-  const quantityProps = { inputMode: "numeric", maxLength: 7, autoComplete: "off" } as const;
+  const roll = variant.isRoll;
+  const piece = variant.parentId !== null;
+  const amount = (value: number) => (roll ? formatMeters(value, locale) : String(value));
+  const signed = (value: number) => `${value > 0 ? "+" : ""}${amount(value)}`;
+  const quantityProps = roll
+    ? ({ inputMode: "decimal", maxLength: 9, autoComplete: "off" } as const)
+    : ({ inputMode: "numeric", maxLength: 7, autoComplete: "off" } as const);
+  const quantityLabel = roll ? t("quantityMeters") : t("quantity");
+  const title = stockItemLabel(variant, t("defect"));
 
   return (
     <>
       <PageHeader
-        title={variantLabel(variant.productName, variant.colorName)}
+        title={title}
         description={[variant.sku, variant.brandName].filter(Boolean).join(" · ")}
         actions={
-          <Button asChild variant="secondary">
-            <Link href="/stock">{t("back")}</Link>
-          </Button>
+          <>
+            <Button asChild variant="secondary">
+              <Link href="/stock">{t("back")}</Link>
+            </Button>
+            {roll && session.permissions.has("page:cutting") ? (
+              <Button asChild>
+                <Link href={{ pathname: "/cutting", query: { roll: variantId } }}>
+                  {t("cutThisRoll")}
+                </Link>
+              </Button>
+            ) : null}
+          </>
         }
       />
 
@@ -96,15 +118,21 @@ export default async function VariantStockPage({
         <div>
           <p className="text-sm text-ink-muted">{t("current")}</p>
           <p className="text-3xl font-semibold text-ink tabular-nums">
-            {t("currentValue", { qty: variant.stockQty, unit: variant.unit })}
+            {roll
+              ? formatMeters(variant.stockQty, locale)
+              : t("currentValue", { qty: variant.stockQty, unit: piece ? "pcs" : variant.unit })}
           </p>
         </div>
         <StockCell
           trackStock={variant.trackStock}
           stockQty={variant.stockQty}
           minStock={variant.minStock}
+          low={variant.stockQty <= variant.minStock && (!piece || variant.minStock > 0)}
+          label={amount(variant.stockQty)}
         />
-        <p className="text-sm text-ink-muted">{t("minimumValue", { qty: variant.minStock })}</p>
+        <p className="text-sm text-ink-muted">
+          {t("minimumValue", { qty: amount(variant.minStock) })}
+        </p>
       </Card>
 
       {canAdjust ? (
@@ -112,13 +140,17 @@ export default async function VariantStockPage({
           <Card>
             <CardHeader className="flex-col gap-1">
               <CardTitle>{t("receiveTitle")}</CardTitle>
-              <CardDescription>{t("receiveDescription")}</CardDescription>
+              <CardDescription>
+                {piece ? t("receivePieceDescription") : t("receiveDescription")}
+              </CardDescription>
             </CardHeader>
-            <ActionForm action={receiveStockAction.bind(null, variantId)} locale={locale}>
-              <FormField name="qty" label={t("quantity")} {...quantityProps} />
-              <FormField name="note" label={t("note")} hint={t("noteHint")} maxLength={200} />
-              <SubmitButton className="self-start">{t("receive")}</SubmitButton>
-            </ActionForm>
+            {piece ? null : (
+              <ActionForm action={receiveStockAction.bind(null, variantId)} locale={locale}>
+                <FormField name="qty" label={quantityLabel} {...quantityProps} />
+                <FormField name="note" label={t("note")} hint={t("noteHint")} maxLength={200} />
+                <SubmitButton className="self-start">{t("receive")}</SubmitButton>
+              </ActionForm>
+            )}
           </Card>
           <Card>
             <CardHeader className="flex-col gap-1">
@@ -126,7 +158,11 @@ export default async function VariantStockPage({
               <CardDescription>{t("countDescription")}</CardDescription>
             </CardHeader>
             <ActionForm action={countStockAction.bind(null, variantId)} locale={locale}>
-              <FormField name="counted" label={t("counted")} {...quantityProps} />
+              <FormField
+                name="counted"
+                label={roll ? t("countedMeters") : t("counted")}
+                {...quantityProps}
+              />
               <FormField
                 name="reason"
                 label={t("reason")}
@@ -144,7 +180,7 @@ export default async function VariantStockPage({
               <CardDescription>{t("writeOffDescription")}</CardDescription>
             </CardHeader>
             <ActionForm action={writeOffStockAction.bind(null, variantId)} locale={locale}>
-              <FormField name="qty" label={t("quantity")} {...quantityProps} />
+              <FormField name="qty" label={quantityLabel} {...quantityProps} />
               <FormField
                 name="reason"
                 label={t("reason")}
@@ -234,9 +270,11 @@ export default async function VariantStockPage({
                       movement.qtyDelta < 0 && "text-danger-ink",
                     )}
                   >
-                    {movement.qtyDelta > 0 ? `+${movement.qtyDelta}` : movement.qtyDelta}
+                    {signed(movement.qtyDelta)}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">{movement.stockAfter}</TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {amount(movement.stockAfter)}
+                  </TableCell>
                   <TableCell className="max-w-64 break-words">{movement.reason ?? "—"}</TableCell>
                   <TableCell>{movement.actorName ?? t("system")}</TableCell>
                 </TableRow>

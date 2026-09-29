@@ -6,7 +6,11 @@ import { CapacityBanner } from "@/features/capacity/components/capacity-banner";
 import { getCapacityWarning } from "@/features/capacity/service";
 import { requireSession } from "@/lib/auth/guard";
 
-export default async function AppLayout({ children }: LayoutProps<"/[locale]">) {
+/**
+ * Signed-in shell. `modal` is the parallel slot for dialogs opened over the
+ * current page by intercepted routes, such as the devices list (ADR-0030).
+ */
+export default async function AppLayout({ children, modal }: LayoutProps<"/[locale]">) {
   const session = await requireSession();
   const [pendingApprovals, capacity] = await Promise.all([
     countPendingForViewer(session),
@@ -19,7 +23,10 @@ export default async function AppLayout({ children }: LayoutProps<"/[locale]">) 
       badges={{ "/approvals": pendingApprovals }}
     >
       {capacity ? <CapacityBanner level={capacity.level} percent={capacity.percent} /> : null}
-      <ResultProvider>{children}</ResultProvider>
+      <ResultProvider>
+        {children}
+        {modal}
+      </ResultProvider>
     </AppShell>
   );
 }

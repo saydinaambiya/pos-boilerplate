@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 
 import { localeFromForm } from "@/i18n/form-locale";
 import { redirect } from "@/i18n/navigation";
-import { requirePermission } from "@/lib/auth/guard";
+import { requireSession } from "@/lib/auth/guard";
 import { formText } from "@/lib/http/form-data";
 import { currentRequestContext } from "@/lib/http/request-context";
 import { fieldErrors, type FormState, submittedValues } from "@/lib/validation/form-state";
@@ -16,13 +16,13 @@ import { closeShift, openShift } from "./service";
 
 const money = (value: string) => parseRupiah(value) ?? Number.NaN;
 
-/** Opens the cashier's shift (FR-SHF-02). */
+/** Opens the caller's shift, at the cashier or in the Sales menu (FR-SHF-02, ADR-0029). */
 export async function openShiftAction(
   _previous: FormState,
   formData: FormData,
 ): Promise<FormState> {
   const locale = localeFromForm(formData);
-  const session = await requirePermission("page:pos", locale);
+  const session = await requireSession(locale);
   const [t, tv] = await Promise.all([
     getTranslations({ locale, namespace: "Shifts" }),
     getTranslations({ locale, namespace: "Validation" }),
@@ -43,13 +43,16 @@ export async function openShiftAction(
   return { status: "success", message: t("opened") };
 }
 
-/** Closes the cashier's shift and shows its report (FR-SHF-03/04). */
+/**
+ * Closes the caller's shift (FR-SHF-03/04): cashiers go on to its report,
+ * salespeople without the cashier stay in the Sales menu (ADR-0029).
+ */
 export async function closeShiftAction(
   _previous: FormState,
   formData: FormData,
 ): Promise<FormState> {
   const locale = localeFromForm(formData);
-  const session = await requirePermission("page:pos", locale);
+  const session = await requireSession(locale);
   const [t, tv] = await Promise.all([
     getTranslations({ locale, namespace: "Shifts" }),
     getTranslations({ locale, namespace: "Validation" }),
@@ -63,5 +66,9 @@ export async function closeShiftAction(
 
   const result = await closeShift(session, parsed.data, await currentRequestContext());
   if (!result.ok) return { status: "error", message: t("errorNoOpenShift") };
+  if (!session.permissions.has("page:pos")) {
+    revalidatePath("/", "layout");
+    return { status: "success", message: t("closedSummary") };
+  }
   return redirect({ href: `/pos/shifts?view=${result.id}`, locale });
 }

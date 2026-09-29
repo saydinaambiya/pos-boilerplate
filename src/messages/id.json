@@ -20,7 +20,10 @@
     "showcase": "Komponen UI",
     "audit": "Audit Log",
     "badge": "{count} menunggu",
-    "consignments": "Sales"
+    "consignments": "Sales",
+    "cutting": "Potong Roll",
+    "expenses": "Pengeluaran",
+    "home": "Beranda"
   },
   "Preferences": {
     "theme": "Tema",
@@ -64,12 +67,12 @@
   "NotFound": {
     "title": "Halaman tidak ditemukan",
     "description": "Alamat yang Anda buka tidak tersedia.",
-    "back": "Kembali ke dasbor"
+    "back": "Kembali ke beranda"
   },
   "Forbidden": {
     "title": "Akses ditolak",
     "description": "Role Anda tidak memiliki izin untuk membuka halaman ini.",
-    "back": "Kembali ke dasbor"
+    "back": "Kembali ke beranda"
   },
   "Auth": {
     "loginTitle": "Masuk",
@@ -181,7 +184,6 @@
       "page_audit": "Halaman audit log",
       "product_create": "Tambah produk",
       "product_update": "Ubah produk",
-      "product_view-cost": "Lihat harga modal & margin",
       "stock_adjust": "Penyesuaian stok",
       "voucher_request": "Ajukan voucher",
       "order_online_update-status": "Ubah status pesanan online",
@@ -198,10 +200,14 @@
       "sale_void": "Ajukan void transaksi",
       "kasbon_create": "Jadikan sisa tagihan kas bon",
       "kasbon_pay": "Catat cicilan kas bon",
-      "report_view-profit": "Lihat laba kotor di rekap",
       "page_consignments": "Halaman Sales (barang bawaan sales)",
-      "consignment_take": "Ambil dan setor barang bawaan sendiri",
-      "consignment_manage": "Kelola barang bawaan semua sales"
+      "consignment_pickup": "Catat barang yang diambil sales",
+      "consignment_return": "Catat barang yang dikembalikan sales",
+      "consignment_sell": "Sales: jual barang bawaan sendiri",
+      "pos_after-hours": "Buka kasir di luar jam toko",
+      "page_cutting": "Halaman Potong Roll (memotong roll jadi potongan)",
+      "page_expenses": "Halaman pengeluaran harian",
+      "expense_record": "Catat pengeluaran harian dari kas"
     }
   },
   "Employees": {
@@ -398,7 +404,11 @@
       "housekeeping_exported": "Arsip bulanan diunduh",
       "housekeeping_archived": "Data bulanan ditandai arsip",
       "consignment_taken": "Barang dibawa sales",
-      "consignment_settled": "Setoran barang sales"
+      "consignment_settled": "Barang sales terjual / dikembalikan",
+      "stock_cut": "Potong roll",
+      "bank-account_qris-set": "Rekening dijadikan rekening QRIS",
+      "bank-account_qris-cleared": "Rekening dilepas dari QRIS",
+      "expense_recorded": "Pengeluaran harian dicatat"
     }
   },
   "Settings": {
@@ -439,8 +449,8 @@
     "invoiceSequenceDigits": "Jumlah digit urutan",
     "invoiceSample": "Contoh nomor invoice: {sample}",
     "paperSize": "Ukuran kertas default",
-    "paper58mm": "Thermal 58 mm",
-    "paper80mm": "Thermal 80 mm",
+    "paper58mm": "Thermal 58mm",
+    "paper80mm": "Thermal 80mm",
     "paperA4": "A4",
     "allowNegativeStock": "Izinkan stok minus",
     "allowNegativeStockHint": "Transaksi tetap bisa dibuat walau stok tidak cukup.",
@@ -504,7 +514,19 @@
       "sat": "Sabtu",
       "sun": "Minggu"
     },
-    "hoursInvalidTime": "Isi jam dengan format JJ:MM, mis. 08:00."
+    "hoursInvalidTime": "Isi jam dengan format JJ:MM, mis. 08:00.",
+    "qrisChip": "QRIS",
+    "qrisSection": "QRIS",
+    "qrisIsSet": "Pembayaran QRIS di kasir masuk ke rekening ini.",
+    "qrisNotSet": "Jadikan rekening ini tujuan pembayaran QRIS. Hanya satu rekening yang bisa dipakai untuk QRIS.",
+    "qrisMake": "Jadikan rekening QRIS",
+    "qrisMakeTitle": "Jadikan rekening QRIS?",
+    "qrisMakeDescription": "Pembayaran QRIS berikutnya masuk ke rekening ini. Rekening QRIS sebelumnya, kalau ada, tidak dipakai lagi untuk QRIS.",
+    "qrisClear": "Lepas dari QRIS",
+    "qrisClearTitle": "Lepas rekening dari QRIS?",
+    "qrisClearDescription": "Pilihan QRIS disembunyikan di kasir sampai ada rekening QRIS lagi.",
+    "qrisSet": "Rekening QRIS disimpan.",
+    "qrisCleared": "Rekening dilepas dari QRIS."
   },
   "Catalog": {
     "title": "Produk",
@@ -528,9 +550,6 @@
     "unit": "Satuan",
     "unitHint": "Contoh: pcs, kg, porsi.",
     "price": "Harga jual",
-    "cost": "Harga modal",
-    "costHint": "Hanya terlihat oleh role dengan izin harga modal.",
-    "margin": "Margin",
     "moneyHint": "Rupiah tanpa desimal, contoh 15.000.",
     "stock": "Stok",
     "sku": "SKU",
@@ -574,12 +593,7 @@
     "allBrands": "Semua merk",
     "brandPlaceholder": "Pilih merk",
     "motif": "Motif",
-    "motifHint": "Contoh: Mihrab, Bunga, Polos.",
-    "size": "Ukuran",
-    "allSizes": "Semua ukuran",
-    "sizePlaceholder": "Pilih ukuran",
-    "sizeHint": "Panjang × lebar dalam cm.",
-    "detailsMissing": "Merk, motif, dan ukuran belum diisi.",
+    "detailsMissing": "Merk, motif, dan ketebalan belum diisi.",
     "noBrandsTitle": "Buat merk terlebih dahulu",
     "noBrandsDescription": "Setiap produk baru harus punya merk.",
     "addBrand": "Tambah merk",
@@ -595,7 +609,26 @@
     "brandInUseNote": "Merk ini dipakai {count} produk sehingga tidak dapat dihapus.",
     "errorBrandNameTaken": "Nama merk sudah dipakai.",
     "errorInvalidBrand": "Pilih merk yang tersedia.",
-    "errorBrandInUse": "Merk masih dipakai produk sehingga tidak dapat dihapus."
+    "errorBrandInUse": "Merk masih dipakai produk sehingga tidak dapat dihapus.",
+    "thickness": "Ketebalan (mm)",
+    "thicknessHint": "Boleh pakai koma, contoh 2,5.",
+    "pricePerMeter": "Harga jual per meter",
+    "pricePerMeterHint": "Untuk potongan custom di kasir, contoh 90cm atau 1,5m.",
+    "sizePrices": "Harga per potong",
+    "sizePricesHint": "Harganya sama untuk semua warna.",
+    "sizePrice": "Harga {size}",
+    "sizeUsage": "Memakai {meters} m roll per potong.",
+    "rollSkuHint": "Maksimal 32 karakter. SKU potongan dibuat otomatis, contoh SKU-93x47.",
+    "rollMinStock": "Stok minimum roll (m)",
+    "rollProduct": "Roll · dipotong per ukuran",
+    "perMeter": "{price} / m",
+    "rollStock": "{meters} · {pieces} pcs",
+    "motifPlaceholder": "Pilih motif",
+    "searchChoice": "Cari…",
+    "noChoice": "Tidak ada yang cocok.",
+    "defectPrices": "Harga barang cacat per potong",
+    "defectPricesHint": "Untuk potongan yang ditandai cacat saat dipotong. Sama untuk semua warna.",
+    "defectPrice": "Harga cacat {size}"
   },
   "Stock": {
     "title": "Stok",
@@ -669,9 +702,17 @@
       "ADJUSTMENT": "Penyesuaian",
       "VOID": "Pembatalan",
       "CONSIGNMENT_OUT": "Dibawa sales",
-      "CONSIGNMENT_RETURN": "Kembali dari sales"
+      "CONSIGNMENT_RETURN": "Kembali dari sales",
+      "CUT": "Potong roll"
     },
-    "brand": "Merk"
+    "brand": "Merk",
+    "quantityMeters": "Panjang (m)",
+    "countedMeters": "Panjang fisik (m)",
+    "receivePieceDescription": "Potongan bertambah lewat menu Potong Roll, bukan dari barang masuk.",
+    "errorCutOnly": "Stok potongan hanya bertambah lewat Potong Roll.",
+    "cutThisRoll": "Potong roll ini",
+    "defect": "Cacat",
+    "defectOnly": "Hanya stok cacat"
   },
   "Variants": {
     "title": "Varian warna",
@@ -681,16 +722,12 @@
     "enable": "Aktifkan varian",
     "enabled": "Varian warna diaktifkan.",
     "colorName": "Nama warna",
-    "hex": "Kode warna (hex)",
-    "hexHint": "Opsional, contoh #1E88E5. Tanpa kode, swatch memakai inisial warna.",
     "sku": "SKU",
     "minStock": "Stok minimum",
     "initialStock": "Stok awal",
     "initialStockHint": "Dicatat sebagai barang masuk.",
     "priceOverride": "Harga jual khusus",
     "priceOverrideHint": "Kosongkan untuk memakai harga produk.",
-    "costOverride": "Harga modal khusus",
-    "costOverrideHint": "Kosongkan untuk memakai harga modal produk.",
     "add": "Tambah varian",
     "addTitle": "Varian baru",
     "created": "Varian ditambahkan.",
@@ -724,7 +761,15 @@
     "errorColorTaken": "Nama warna sudah dipakai varian lain di produk ini.",
     "errorStockForbidden": "Anda tidak memiliki izin mengubah stok; kosongkan stok awal.",
     "errorDefaultVariant": "Varian utama tidak dapat dinonaktifkan selama produk aktif.",
-    "errorNotFound": "Varian tidak ditemukan."
+    "errorNotFound": "Varian tidak ditemukan.",
+    "enableRollDescription": "Buat warna pertama. Stok roll dan potongan yang sudah ada dipindahkan ke warna ini dan tercatat sebagai penyesuaian.",
+    "rollSkuHint": "Maksimal 32 karakter. SKU potongan dibuat otomatis.",
+    "rollMinStock": "Stok minimum roll (m)",
+    "rollInitialStock": "Stok awal roll (m)",
+    "rollInitialStockHint": "Panjang roll yang masuk, contoh 40 atau 38,5. Dicatat sebagai barang masuk.",
+    "pieceStock": "{size}: {count} pcs",
+    "colorPlaceholder": "Pilih warna",
+    "defectPieceStock": "{size} cacat: {count} pcs"
   },
   "Shifts": {
     "title": "Shift kasir",
@@ -741,7 +786,7 @@
     "salesCount": "Transaksi",
     "revenue": "Penjualan",
     "expectedCash": "Kas seharusnya",
-    "expectedHint": "Modal awal + tunai dari penjualan dan cicilan kas bon",
+    "expectedHint": "Modal awal + tunai dari penjualan dan cicilan kas bon − pengeluaran",
     "close": "Tutup shift",
     "closeTitle": "Tutup shift",
     "closeDescription": "Hitung uang di laci lalu masukkan jumlahnya. Selisih dengan kas seharusnya akan dicatat.",
@@ -771,7 +816,8 @@
       "CASH": "Tunai",
       "TRANSFER": "Transfer",
       "MARKETPLACE": "Marketplace",
-      "KASBON": "Kas bon"
+      "KASBON": "Kas bon",
+      "QRIS": "QRIS"
     },
     "errorAlreadyOpen": "Anda sudah memiliki shift yang berjalan.",
     "errorNoOpenShift": "Tidak ada shift yang berjalan.",
@@ -783,7 +829,10 @@
     "othersOpenTitle": "{count, plural, one {Ada shift lain yang masih terbuka} other {Ada # shift lain yang masih terbuka}}",
     "othersOpenItem": "{name} — sejak {time}",
     "othersOpenHint": "Anda tetap bisa membuka shift sendiri. Pastikan kas laci tidak tercampur.",
-    "errorStoreClosed": "Toko sedang tutup. Shift hanya bisa dibuka pada jam buka toko."
+    "errorStoreClosed": "Toko sedang tutup. Shift hanya bisa dibuka pada jam buka toko.",
+    "expenses": "Pengeluaran dari kas",
+    "expensesHint": "Uang makan, bensin, donasi, dll. Sudah dikurangkan dari kas seharusnya.",
+    "closedSummary": "Shift ditutup. Selisih kas tercatat."
   },
   "Pos": {
     "search": "Cari produk",
@@ -836,7 +885,6 @@
     "transferAmount": "Nominal transfer",
     "bankAccount": "Rekening tujuan",
     "chooseBank": "Pilih rekening",
-    "reference": "No. referensi (opsional)",
     "noBankAccounts": "Belum ada rekening aktif. Tambahkan di Pengaturan.",
     "cashPortion": "Dibayar tunai",
     "change": "Kembalian",
@@ -898,7 +946,29 @@
     "storeClosedAllDay": "Hari ini toko tutup. Kasir bisa dipakai lagi pada hari buka berikutnya.",
     "storeClosedShift": "Shift Anda masih terbuka. Tutup shift untuk menyelesaikan hari ini.",
     "allBrands": "Semua",
-    "brandsLabel": "Filter merk"
+    "brandsLabel": "Filter merk",
+    "chooseSize": "Pilih ukuran",
+    "rollLeft": "Roll tersisa {length}",
+    "customCut": "Potong custom",
+    "customCutHint": "{price} per meter · roll tersisa {length}",
+    "cutLength": "Panjang potongan",
+    "cutUnit": "Satuan panjang",
+    "addCut": "Tambah potongan",
+    "addCutPriced": "Tambah · {price}",
+    "cutInvalid": "Isi panjang potongan, contoh 90cm atau 1,5m.",
+    "cutTooLong": "Roll hanya tersisa {length}.",
+    "otherColor": "Pilih warna lain",
+    "cutLabel": "Potong {length}cm",
+    "qris": "QRIS",
+    "nonCashLabel": "Bagian non-tunai dibayar lewat",
+    "qrisAmount": "Jumlah QRIS",
+    "qrisAccount": "Masuk ke rekening QRIS: {account}",
+    "sourceBank": "Bank / e-wallet pengirim",
+    "sourceBankPlaceholder": "Pilih bank atau e-wallet",
+    "sourceBankOther": "Lainnya",
+    "sourceBankOtherName": "Nama bank atau e-wallet",
+    "sourceBankRequired": "Pilih bank atau e-wallet pengirim.",
+    "defect": "Cacat"
   },
   "Receipt": {
     "customer": "Pelanggan: {name}",
@@ -931,7 +1001,8 @@
       "CASH": "Tunai",
       "TRANSFER": "Transfer",
       "MARKETPLACE": "Marketplace",
-      "KASBON": "Kas bon"
+      "KASBON": "Kas bon",
+      "QRIS": "QRIS"
     },
     "print": "Cetak / PDF",
     "void": "Void transaksi",
@@ -947,7 +1018,9 @@
     "kasbonBalance": "Sisa kas bon",
     "openKasbon": "Buka kas bon {name}",
     "voidRequested": "Pengajuan void dikirim dan menunggu persetujuan.",
-    "voidApplied": "Transaksi berhasil di-void."
+    "voidApplied": "Transaksi berhasil di-void.",
+    "cutLabel": "Potong {length}cm",
+    "qrisFrom": "QRIS · dari {source}"
   },
   "Invoice": {
     "invoice": "Invoice",
@@ -976,14 +1049,15 @@
       "CASH": "Tunai",
       "TRANSFER": "Transfer",
       "MARKETPLACE": "Marketplace",
-      "KASBON": "Kas bon"
+      "KASBON": "Kas bon",
+      "QRIS": "QRIS"
     },
     "pageTitle": "Cetak invoice",
     "toolbarLabel": "Opsi cetak",
     "paperSize": "Ukuran kertas",
     "sizes": {
-      "58mm": "58 mm",
-      "80mm": "80 mm",
+      "58mm": "58mm",
+      "80mm": "80mm",
       "a4": "A4"
     },
     "language": "Bahasa",
@@ -997,7 +1071,8 @@
     "shareFailed": "Berbagi tidak tersedia; PDF diunduh sebagai gantinya.",
     "back": "Kembali",
     "customer": "Pelanggan",
-    "kasbonBalance": "Sisa kas bon"
+    "kasbonBalance": "Sisa kas bon",
+    "qrisFrom": "QRIS ({source})"
   },
   "Approvals": {
     "title": "Persetujuan",
@@ -1212,7 +1287,6 @@
     "recordPayment": "Catat pembayaran",
     "recordPaymentDescription": "Maksimal {amount}. Saldo berkurang setelah disetujui.",
     "bankAccount": "Rekening tujuan",
-    "reference": "No. referensi",
     "submitPayment": "Catat pembayaran",
     "paymentPending": "Pembayaran dicatat dan menunggu persetujuan.",
     "paymentApproved": "Pembayaran dicatat dan langsung disetujui.",
@@ -1346,7 +1420,12 @@
     },
     "conditionFor": "Kondisi {name} ({qty} pcs)",
     "eventNote": "Catatan (opsional)",
-    "addPlain": "Tambah"
+    "addPlain": "Tambah",
+    "storePrice": "Harga toko {price}",
+    "priceOf": "Harga marketplace {name}",
+    "pricePlaceholder": "Harga jual",
+    "errorPriceRequired": "Isi harga jual untuk {name}.",
+    "priceVsStore": "{price} (harga toko {store})"
   },
   "Reports": {
     "title": "Rekap",
@@ -1369,9 +1448,6 @@
     "averageHint": "Rata-rata {amount}",
     "marketplace": "Marketplace",
     "marketplaceHint": "{count} pesanan, tanpa ongkir",
-    "grossProfit": "Laba kotor kasir",
-    "grossProfitHint": "Modal {cogs}",
-    "marketplaceProfit": "Laba kotor marketplace",
     "sections": {
       "daily": "Per hari",
       "methods": "Per metode pembayaran",
@@ -1380,7 +1456,8 @@
       "brands": "Per merk",
       "employees": "Per karyawan",
       "vouchers": "Voucher & diskon",
-      "tax": "PPN & service"
+      "tax": "PPN & service",
+      "expenses": "Pengeluaran harian"
     },
     "downloadCsv": "Unduh CSV {section}",
     "noData": "Tidak ada data pada rentang ini.",
@@ -1394,7 +1471,8 @@
       "CASH": "Tunai",
       "TRANSFER": "Transfer",
       "KASBON": "Kas bon diberikan",
-      "MARKETPLACE": "Marketplace"
+      "MARKETPLACE": "Marketplace",
+      "QRIS": "QRIS"
     },
     "creditCollected": "Cicilan kas bon disetujui: {amount} ({count} pembayaran).",
     "productsCaption": "Penjualan per produk",
@@ -1402,8 +1480,6 @@
     "name": "Nama",
     "qty": "Qty",
     "revenue": "Penjualan",
-    "cogs": "Modal",
-    "margin": "Margin",
     "discounts": "Diskon item",
     "product": "Produk",
     "sku": "SKU",
@@ -1429,7 +1505,14 @@
     "taxMode": "Mode harga",
     "brandsCaption": "Penjualan per merk",
     "brand": "Merk",
-    "noBrand": "Tanpa merk"
+    "noBrand": "Tanpa merk",
+    "expenses": "Pengeluaran",
+    "expensesHint": "Uang makan, bensin, donasi, dll. dari kas",
+    "balance": "Sisa",
+    "balanceHint": "Total transaksi − pengeluaran",
+    "expensesCaption": "Pengeluaran per jenis",
+    "expenseCategory": "Jenis",
+    "entries": "Jumlah catatan"
   },
   "Housekeeping": {
     "title": "Housekeeping",
@@ -1593,9 +1676,6 @@
     "removeItem": "Hapus {name}",
     "inStock": "Stok {count}",
     "saveTake": "Simpan barang dibawa",
-    "settle": "Setor",
-    "settleTitle": "Setor hasil penjualan",
-    "settleDescription": "Isi berapa yang terjual dan berapa yang dikembalikan. Sisanya masih dibawa sales.",
     "soldOf": "Terjual, {name}",
     "returnedOf": "Dikembalikan, {name}",
     "outstandingOf": "Masih dibawa {count}",
@@ -1606,11 +1686,6 @@
     "methodTransfer": "Transfer",
     "methodKasbon": "Kas bon",
     "saleTotal": "Total barang terjual",
-    "saveSettle": "Simpan setoran",
-    "noSold": "Tidak ada yang terjual, hanya barang yang dikembalikan.",
-    "settleNeedsPos": "Setoran dicatat oleh kasir yang shift-nya sedang buka.",
-    "nothingEntered": "Isi jumlah terjual atau dikembalikan untuk minimal satu barang.",
-    "tooMany": "Jumlah terjual dan dikembalikan untuk {name} lebih dari {count} yang masih dibawa.",
     "tabsLabel": "Status barang bawaan",
     "tabOpen": "Sedang dibawa",
     "tabClosed": "Selesai",
@@ -1641,7 +1716,7 @@
     "historyEmpty": "Belum ada catatan.",
     "batches": {
       "TAKE": "Ambil barang",
-      "SETTLE": "Setor"
+      "SETTLE": "Terjual / dikembalikan"
     },
     "batchBy": "{time} · oleh {name}",
     "items": {
@@ -1652,20 +1727,142 @@
     "invoice": "Transaksi {invoiceNo}",
     "units": "{count} barang",
     "taken": "Barang yang dibawa sudah dicatat.",
-    "settledWithSale": "Setoran sudah dicatat. Transaksi {invoiceNo} dibuat.",
+    "settledWithSale": "Barang terjual sudah dicatat. Transaksi {invoiceNo} dibuat.",
     "settledReturnOnly": "Barang yang dikembalikan sudah dicatat.",
     "errors": {
       "invalid": "Ada isian yang belum benar. Coba periksa lagi.",
       "insufficientStock": "Stoknya tidak cukup. Tersisa {available}.",
-      "forbidden": "Anda tidak punya akses ke barang bawaan sales ini.",
+      "forbidden": "Anda tidak punya akses untuk mencatat ini.",
       "storeClosed": "Toko sedang tutup. Barang bawaan sales hanya bisa dicatat pada jam buka.",
       "exceedsOutstanding": "Jumlah terjual dan dikembalikan lebih banyak dari barang yang masih dibawa.",
       "closed": "Barang bawaan ini sudah selesai.",
-      "noOpenShift": "Buka shift di kasir dulu untuk menerima uang setoran.",
+      "noOpenShift": "Buka shift dulu di halaman Sales untuk menerima uang penjualan.",
       "noItems": "Tambahkan minimal satu barang.",
       "network": "Koneksi terputus. Coba lagi."
     },
     "dueDate": "Jatuh tempo (opsional)",
-    "reference": "No. referensi (opsional)"
+    "recordSold": "Catat terjual",
+    "recordReturn": "Catat pengembalian",
+    "sellTitle": "Catat barang terjual",
+    "sellDescription": "Isi berapa yang terjual, nama pembeli, dan cara bayarnya. Sisanya tetap tercatat dibawa.",
+    "returnTitle": "Catat barang dikembalikan",
+    "returnDescription": "Isi berapa yang dibawa kembali ke toko. Stoknya langsung bertambah.",
+    "saveSold": "Simpan barang terjual",
+    "saveReturned": "Simpan barang dikembalikan",
+    "nothingSold": "Isi jumlah terjual untuk minimal satu barang.",
+    "nothingReturned": "Isi jumlah dikembalikan untuk minimal satu barang.",
+    "tooManySold": "Jumlah terjual untuk {name} lebih dari {count} yang masih dibawa.",
+    "tooManyReturned": "Jumlah dikembalikan untuk {name} lebih dari {count} yang masih dibawa.",
+    "viewOnly": "Pengambilan dan pengembalian barang dicatat oleh petugas toko. Anda bisa melihat riwayatnya di sini.",
+    "methodQris": "QRIS",
+    "shiftTitle": "Shift saya",
+    "shiftSince": "Buka sejak {time} · kas seharusnya {cash}",
+    "shiftClose": "Tutup shift",
+    "shiftOpenDescription": "Buka shift untuk menerima uang dari barang yang terjual. Uang tunai yang Anda pegang dihitung saat tutup shift.",
+    "sellNeedsShift": "Buka shift dulu di halaman Sales untuk mencatat barang terjual."
+  },
+  "Cutting": {
+    "title": "Potong Roll",
+    "subtitle": "Catat roll yang dipotong: berapa meter yang dipotong dan jadi berapa potongan per ukuran.",
+    "filter": "Terapkan",
+    "search": "Cari",
+    "searchPlaceholder": "Nama, merk, motif, warna, atau SKU",
+    "reset": "Reset",
+    "listCaption": "Daftar roll",
+    "roll": "Roll",
+    "sku": "SKU",
+    "length": "Sisa panjang",
+    "actions": "Aksi",
+    "cut": "Potong",
+    "cutNamed": "Potong {name}",
+    "emptyTitle": "Belum ada roll",
+    "emptyDescription": "Roll muncul di sini setelah produk dan stok roll-nya dicatat.",
+    "noResultsTitle": "Tidak ada roll yang cocok",
+    "noResultsDescription": "Ubah kata kunci pencarian.",
+    "historyTitle": "Riwayat potong",
+    "historyEmpty": "Belum ada roll yang dipotong.",
+    "cutBy": "{time} · oleh {name}",
+    "pieceLine": "{count} pcs {size}",
+    "usedLine": "Dipotong {used}, sisa roll {left}",
+    "cutTitle": "Potong {name}",
+    "cutDescription": "Isi panjang roll yang dipotong, lalu jumlah potongan yang dihasilkan per ukuran.",
+    "rollNow": "Roll sekarang",
+    "used": "Dipotong",
+    "left": "Sisa",
+    "save": "Simpan potongan",
+    "nothingEntered": "Isi jumlah potongan untuk minimal satu ukuran.",
+    "saved": "Potongan dicatat. Dipotong {used}, sisa roll {left}.",
+    "errors": {
+      "invalid": "Ada isian yang belum benar. Coba periksa lagi.",
+      "insufficient": "Roll tidak cukup. Butuh {needed}, tersisa {available}.",
+      "notFound": "Roll tidak ditemukan atau sudah nonaktif.",
+      "network": "Koneksi terputus. Coba lagi."
+    },
+    "lengthLabel": "Panjang dipotong (m)",
+    "lengthHint": "Contoh 8 atau 7,5. Roll berkurang sepanjang ini.",
+    "piecesLabel": "Hasil potongan",
+    "piecesInStock": "Stok sekarang {count} pcs",
+    "lengthMissing": "Isi panjang roll yang dipotong, contoh 8 atau 7,5.",
+    "checkPieces": "Potongan ini biasanya butuh sekitar {expected}, lebih dari {length} yang dipotong. Coba cek lagi jumlahnya.",
+    "defectLabel": "Barang cacat",
+    "defectHint": "Semua potongan dari pemotongan ini dicatat sebagai barang cacat, dengan harga cacat.",
+    "defectPiecesLabel": "Hasil potongan cacat",
+    "defectInStock": "Stok cacat sekarang {count} pcs",
+    "defectChip": "Cacat",
+    "savedDefect": "Potongan cacat dicatat. Dipotong {used}, sisa roll {left}."
+  },
+  "Expenses": {
+    "title": "Pengeluaran harian",
+    "subtitle": "Uang makan, uang bensin, donasi, dan pengeluaran lain yang diambil dari kas laci. Mengurangi kas shift dan masuk ke rekap harian.",
+    "record": "Catat pengeluaran",
+    "recordTitle": "Catat pengeluaran",
+    "recordDescription": "Uang diambil dari kas laci shift Anda yang sedang buka.",
+    "filter": "Terapkan",
+    "day": "Tanggal",
+    "caption": "Pengeluaran pada tanggal ini",
+    "time": "Jam",
+    "category": "Jenis",
+    "recipient": "Karyawan penerima",
+    "recipientHint": "Wajib untuk uang makan dan uang bensin.",
+    "noRecipient": "Tanpa penerima",
+    "note": "Keterangan",
+    "noteHint": "Wajib untuk jenis Lainnya.",
+    "recordedBy": "Dicatat oleh",
+    "amount": "Jumlah",
+    "total": "Total",
+    "save": "Simpan pengeluaran",
+    "emptyTitle": "Belum ada pengeluaran",
+    "emptyDescription": "Pengeluaran yang dicatat pada tanggal ini akan tampil di sini.",
+    "categories": {
+      "MEAL": "Uang makan",
+      "FUEL": "Uang bensin",
+      "DONATION": "Donasi",
+      "OTHER": "Lainnya"
+    },
+    "errors": {
+      "noOpenShift": "Buka shift di kasir dulu. Pengeluaran diambil dari kas shift yang sedang buka.",
+      "invalidRecipient": "Pilih karyawan yang masih aktif."
+    }
+  },
+  "Home": {
+    "title": "Beranda",
+    "greeting": "Halo, {name}",
+    "subtitle": "{role} · {store} · {date}",
+    "hoursTitle": "Jam toko hari ini",
+    "hoursAlways": "Jam toko tidak dibatasi.",
+    "hoursToday": "Buka {open}–{close}.",
+    "hoursClosedToday": "Toko libur hari ini.",
+    "openNow": "Toko sedang buka.",
+    "closedNow": "Toko sedang tutup. Kasir dan pencatatan dibuka lagi pada jam buka.",
+    "afterHoursAllowed": "Toko sedang tutup, tapi akun Anda boleh bekerja di luar jam toko.",
+    "shiftTitle": "Shift kasir",
+    "shiftOpen": "Shift Anda buka sejak {time}.",
+    "shiftClosed": "Anda belum membuka shift hari ini.",
+    "toPos": "Ke kasir",
+    "openShift": "Buka shift di kasir",
+    "shortcutsTitle": "Menu Anda",
+    "noAccessTitle": "Belum ada menu untuk akun ini",
+    "noAccessDescription": "Minta Owner memberi akses halaman pada role Anda di Karyawan › Role.",
+    "toSales": "Ke menu Sales"
   }
 }

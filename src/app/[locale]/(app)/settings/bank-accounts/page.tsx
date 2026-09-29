@@ -1,9 +1,10 @@
-import { Landmark } from "lucide-react";
+import { Landmark, QrCode } from "lucide-react";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
 import { FormField } from "@/components/form/form-field";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import { Chip } from "@/components/ui/chip";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
   Table,
@@ -28,7 +29,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t("tabBankAccounts") };
 }
 
-/** Transfer destinations (FR-SET-05). */
+/** Transfer destinations and the QRIS account (FR-SET-05, FR-PAY-07). */
 export default async function BankAccountsPage({
   searchParams,
 }: PageProps<"/[locale]/settings/bank-accounts">) {
@@ -84,7 +85,14 @@ export default async function BankAccountsPage({
                     <TableCell className="tabular-nums">{account.accountNo}</TableCell>
                     <TableCell>{account.accountName}</TableCell>
                     <TableCell>
-                      <ActiveChip active={account.isActive} />
+                      <span className="flex flex-wrap gap-2">
+                        <ActiveChip active={account.isActive} />
+                        {account.isQris && account.isActive ? (
+                          <Chip tone="primary" icon={<QrCode aria-hidden="true" />}>
+                            {t("qrisChip")}
+                          </Chip>
+                        ) : null}
+                      </span>
                     </TableCell>
                   </TableRow>
                 ))}

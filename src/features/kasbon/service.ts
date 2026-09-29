@@ -150,7 +150,7 @@ export async function recordKasbonPayment(
           method: "TRANSFER",
           amount: transfer.amount,
           bankAccountId: transfer.bankAccountId,
-          reference: transfer.reference === "" ? null : transfer.reference,
+          reference: null,
         });
       }
       const labels = await findKasbonLabels(tx, kasbon.id);

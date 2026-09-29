@@ -66,7 +66,6 @@ async function sellable(session: Session) {
     {
       name: "Paket",
       price: 100_000,
-      cost: 0,
       unit: "pcs",
       trackStock: false,
       sku: `PKT-${crypto.randomUUID().slice(0, 8)}`,

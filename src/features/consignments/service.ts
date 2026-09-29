@@ -2,7 +2,7 @@ import "server-only";
 
 import { db, type Executor } from "@/db/client";
 import { uniqueViolationConstraint } from "@/db/errors";
-import { colorOf } from "@/features/catalog/schemas";
+import { variantSnapshotOf } from "@/features/catalog/schemas";
 import { type CheckoutFailure, checkout } from "@/features/checkout/service";
 import type { CheckoutInput } from "@/features/checkout/schemas";
 import { recordStockMovement } from "@/features/stock/service";
@@ -68,13 +68,23 @@ class SettleAbort extends Error {
 }
 
 /**
- * Own goods need `consignment:take`; anyone else's need
- * `consignment:manage` (FR-CSG-01, NFR-SEC-07).
+ * Who records what (FR-CSG-01, ADR-0024): `consignment:pickup` records
+ * goods taken out and `consignment:return` goods brought back, for any
+ * salesperson; a salesperson with `consignment:sell` records only what they
+ * sold themselves, and the Owner may do it for anyone.
  */
-function canActFor(session: Session, salespersonId: string): boolean {
-  return salespersonId === session.user.id
-    ? session.permissions.has("consignment:take") || session.permissions.has("consignment:manage")
-    : session.permissions.has("consignment:manage");
+function canSellFor(session: Session, salespersonId: string): boolean {
+  return (
+    session.role.isSystem ||
+    (salespersonId === session.user.id && session.permissions.has("consignment:sell"))
+  );
+}
+
+/** Pickup and return staff see every salesperson; salespeople see their own (FR-CSG-05). */
+function seesEveryone(session: Session): boolean {
+  return (
+    session.permissions.has("consignment:pickup") || session.permissions.has("consignment:return")
+  );
 }
 
 /**
@@ -91,7 +101,7 @@ export async function takeGoods(
   now = new Date(),
 ): Promise<TakeResult> {
   assertPermission(session, "page:consignments");
-  if (!canActFor(session, input.salespersonId)) return { ok: false, reason: "forbidden" };
+  if (!session.permissions.has("consignment:pickup")) return { ok: false, reason: "forbidden" };
   const earlier = await findBatchByKey(db, session.user.id, input.idempotencyKey);
   if (earlier) return { ok: true, consignmentId: earlier.consignmentId, replayed: true };
   if (await storeClosedFor(session, now)) return { ok: false, reason: "store-closed" };
@@ -137,7 +147,11 @@ export async function takeGoods(
             kind: "TAKE" as const,
             qty: quantities.get(variantId) ?? 0,
             nameSnapshot: variant?.productName ?? "",
-            variantSnapshot: colorOf(variant?.attributes)?.name ?? null,
+            variantSnapshot: variantSnapshotOf(
+              variant?.attributes,
+              variant?.size ?? null,
+              variant?.isDefect,
+            ),
             unitPrice: variant?.price ?? 0,
           };
         }),
@@ -308,8 +322,9 @@ async function recordSettlement(
 }
 
 /**
- * Settles what a salesperson sold and brings back (FR-CSG-03/04). Sold
- * goods become one sale for the named buyer, paid in full by cash or
+ * Settles what a salesperson sold and brings back (FR-CSG-03/04). The sold
+ * part needs the salesperson's own `consignment:sell`, the returned part
+ * `consignment:return` (ADR-0024). Sold goods become one sale for the named buyer, paid in full by cash or
  * transfer or put on store credit, in the actor's open shift like any POS
  * sale; it writes no second stock movement because the goods already left
  * at pickup. Returned goods go back on the shelf. Everything, sale
@@ -326,10 +341,18 @@ export async function settleGoods(
   assertPermission(session, "page:consignments");
   const consignment = await findConsignment(consignmentId);
   if (!consignment) return { ok: false, reason: "not-found" };
-  if (!canActFor(session, consignment.salespersonId)) return { ok: false, reason: "forbidden" };
+  const soldLines = input.lines.filter((line) => line.sold > 0);
+  if (soldLines.length > 0 && !canSellFor(session, consignment.salespersonId)) {
+    return { ok: false, reason: "forbidden" };
+  }
+  if (
+    input.lines.some((line) => line.returned > 0) &&
+    !session.permissions.has("consignment:return")
+  ) {
+    return { ok: false, reason: "forbidden" };
+  }
   if (await storeClosedFor(session, now)) return { ok: false, reason: "store-closed" };
 
-  const soldLines = input.lines.filter((line) => line.sold > 0);
   let closed = false;
   try {
     if (soldLines.length === 0) {
@@ -368,14 +391,15 @@ export async function settleGoods(
           ? []
           : payment.method === "CASH"
             ? [{ method: "CASH", amount: grandTotal }]
-            : [
-                {
-                  method: "TRANSFER",
-                  amount: grandTotal,
-                  bankAccountId: payment.bankAccountId,
-                  ...(payment.reference ? { reference: payment.reference } : {}),
-                },
-              ],
+            : payment.method === "QRIS"
+              ? [{ method: "QRIS", amount: grandTotal, sourceBank: payment.sourceBank }]
+              : [
+                  {
+                    method: "TRANSFER",
+                    amount: grandTotal,
+                    bankAccountId: payment.bankAccountId,
+                  },
+                ],
       ...(payment.method === "KASBON" && grandTotal > 0
         ? { kasbon: { note: payment.note, dueDate: payment.dueDate } }
         : {}),
@@ -400,10 +424,9 @@ export async function settleGoods(
 /** Open or recently closed consignments; salespeople only see their own (FR-CSG-05). */
 export async function getConsignments(session: Session, status: "OPEN" | "CLOSED") {
   assertPermission(session, "page:consignments");
-  const all = session.permissions.has("consignment:manage");
   return queryConsignments({
     status,
-    salespersonId: all ? null : session.user.id,
+    salespersonId: seesEveryone(session) ? null : session.user.id,
     limit: status === "OPEN" ? 200 : 50,
   });
 }
@@ -413,22 +436,13 @@ export async function getConsignment(session: Session, id: string) {
   assertPermission(session, "page:consignments");
   const consignment = await findConsignment(id);
   if (!consignment) return undefined;
-  if (
-    consignment.salespersonId !== session.user.id &&
-    !session.permissions.has("consignment:manage")
-  ) {
-    return undefined;
-  }
+  if (consignment.salespersonId !== session.user.id && !seesEveryone(session)) return undefined;
   const [balances, batches] = await Promise.all([consignmentBalances(db, id), listBatches(id)]);
   return { ...consignment, balances, batches };
 }
 
-/** Who the viewer may record a pickup for: everyone for managers, else only themselves. */
+/** Who the viewer may record a pickup for: every salesperson with `consignment:pickup`, else nobody. */
 export async function getSalespeopleFor(session: Session) {
   assertPermission(session, "page:consignments");
-  const people = await listSalespeople();
-  if (session.permissions.has("consignment:manage")) return people;
-  return session.permissions.has("consignment:take")
-    ? people.filter((person) => person.id === session.user.id)
-    : [];
+  return session.permissions.has("consignment:pickup") ? listSalespeople() : [];
 }

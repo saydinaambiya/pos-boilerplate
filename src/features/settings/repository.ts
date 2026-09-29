@@ -1,6 +1,6 @@
 import "server-only";
 
-import { asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 
 import { db, type Executor } from "@/db/client";
 import { bankAccounts, marketplaces } from "@/db/schema";
@@ -31,7 +31,7 @@ export async function insertBankAccount(executor: Executor, values: BankAccountI
 export async function updateBankAccountRow(
   executor: Executor,
   id: string,
-  values: Partial<BankAccountInput> & { isActive?: boolean },
+  values: Partial<BankAccountInput> & { isActive?: boolean; isQris?: boolean },
 ): Promise<void> {
   await executor.update(bankAccounts).set(values).where(eq(bankAccounts.id, id));
 }
@@ -63,4 +63,19 @@ export async function updateMarketplaceRow(
   values: Partial<MarketplaceInput> & { isActive?: boolean },
 ): Promise<void> {
   await executor.update(marketplaces).set(values).where(eq(marketplaces.id, id));
+}
+
+/** Clears the QRIS flag from every account, before one is set (FR-PAY-07). */
+export async function clearQrisAccount(executor: Executor) {
+  await executor.update(bankAccounts).set({ isQris: false }).where(eq(bankAccounts.isQris, true));
+}
+
+/** The active account QRIS payments settle into, if any (FR-PAY-07). */
+export async function findQrisAccount() {
+  const [row] = await db
+    .select()
+    .from(bankAccounts)
+    .where(and(eq(bankAccounts.isQris, true), eq(bankAccounts.isActive, true)))
+    .limit(1);
+  return row;
 }

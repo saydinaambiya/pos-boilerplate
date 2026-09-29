@@ -3,7 +3,7 @@ import "server-only";
 import { db } from "@/db/client";
 import { isUniqueViolation } from "@/db/errors";
 import { recordAudit } from "@/lib/audit/audit";
-import { assertPermission } from "@/lib/auth/authorize";
+import { assertAnyPermission, assertPermission } from "@/lib/auth/authorize";
 import type { Session } from "@/lib/auth/session";
 import type { RequestContext } from "@/lib/http/request-context";
 import { storeClosedFor } from "@/lib/settings/store-hours-guard";
@@ -22,11 +22,22 @@ import type { CloseShiftInput, OpenShiftInput } from "./schemas";
 
 export const SHIFT_PAGE_SIZE = 30;
 
+/**
+ * Who may keep a shift of their own: cashiers, and salespeople who take
+ * money for the goods they carry without using the cashier (ADR-0029).
+ */
+const SHIFT_HOLDERS = ["page:pos", "consignment:sell"] as const;
+
 type ShiftTotals = Awaited<ReturnType<typeof shiftTotals>>;
 
-/** Cash that should be in the drawer: float, cash sales and cash store-credit payments (FR-SHF-03). */
+/**
+ * Cash that should be in the drawer: float, cash sales and cash
+ * store-credit payments, less staff expenses paid out (FR-SHF-03, FR-EXP-03).
+ */
 function expectedCashOf(openingCash: number, totals: ShiftTotals): number {
-  return openingCash + (totals.byMethod.CASH ?? 0) + (totals.kasbonCollected.CASH ?? 0);
+  return (
+    openingCash + (totals.byMethod.CASH ?? 0) + (totals.kasbonCollected.CASH ?? 0) - totals.expenses
+  );
 }
 
 export type ShiftResult =
@@ -35,7 +46,7 @@ export type ShiftResult =
 
 /** The caller's open shift with live totals, or null (FR-SHF-01). */
 export async function getOpenShift(session: Session) {
-  assertPermission(session, "page:pos");
+  assertAnyPermission(session, SHIFT_HOLDERS);
   const shift = await findOpenShift(db, session.user.id);
   if (!shift) return null;
   const totals = await shiftTotals(db, shift.id);
@@ -61,7 +72,7 @@ export async function openShift(
   context: RequestContext,
   now = new Date(),
 ): Promise<ShiftResult> {
-  assertPermission(session, "page:pos");
+  assertAnyPermission(session, SHIFT_HOLDERS);
   if (await storeClosedFor(session, now)) return { ok: false, reason: "store-closed" };
   try {
     const id = await db.transaction(async (tx) => {
@@ -96,7 +107,7 @@ export async function closeShift(
   input: CloseShiftInput,
   context: RequestContext,
 ): Promise<ShiftResult> {
-  assertPermission(session, "page:pos");
+  assertAnyPermission(session, SHIFT_HOLDERS);
   return db.transaction(async (tx) => {
     const shift = await lockOpenShift(tx, session.user.id);
     if (!shift) return { ok: false, reason: "no-open-shift" } as const;

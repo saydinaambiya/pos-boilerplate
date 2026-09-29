@@ -1,215 +1,138 @@
-import { BadgeCheck, ChartColumn, NotebookPen, PackageCheck, TriangleAlert } from "lucide-react";
+import { Clock, KeyRound, ShoppingCart } from "lucide-react";
 import type { Metadata } from "next";
-import { getLocale, getTranslations } from "next-intl/server";
-
-import { onlineOrderStatuses } from "@/db/schema/online-orders";
+import { getFormatter, getTranslations } from "next-intl/server";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
-import { toneClasses } from "@/components/ui/tone";
-import { StockCell } from "@/features/catalog/components/stock-cell";
-import { countPendingForViewer } from "@/features/approvals/service";
-import { CapacityWidget } from "@/features/capacity/components/capacity-widget";
-import { getCapacity } from "@/features/capacity/service";
-import { getKasbonSummary } from "@/features/kasbon/service";
-import { statusChips } from "@/features/online-orders/components/order-status-chip";
-import { getOnlineOrderCounts } from "@/features/online-orders/service";
-import { finalStatuses } from "@/features/online-orders/transitions";
-import { getTodaySales } from "@/features/reports/service";
-import { getLowStock } from "@/features/stock/service";
+import { appConfig } from "@/config/app.config";
+import { navigation } from "@/config/navigation";
+import { getOpenShift } from "@/features/shifts/service";
 import { Link } from "@/i18n/navigation";
-import { requirePermission } from "@/lib/auth/guard";
-import { formatCurrency } from "@/lib/format/currency";
-import { variantLabel } from "@/lib/format/variant-label";
+import { requireSession } from "@/lib/auth/guard";
 import { readSetting } from "@/lib/settings/store";
-import { cn } from "@/lib/utils/cn";
+import { storeClosedFor } from "@/lib/settings/store-hours-guard";
+import { storeHoursState } from "@/lib/settings/store-hours";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations("Dashboard");
+  const t = await getTranslations("Home");
   return { title: t("title") };
 }
 
-export default async function DashboardPage() {
-  const [t, tOrders, locale, session, profile] = await Promise.all([
-    getTranslations("Dashboard"),
-    getTranslations("OnlineOrders"),
-    getLocale(),
-    requirePermission("page:dashboard"),
-    readSetting("store.profile"),
+/**
+ * Home for every signed-in account (ADR-0028): sign-in lands here, so a
+ * role without the dashboard still gets in. It greets the user, says
+ * whether the store is open today and whether they may work now, shows
+ * their shift when they use the cashier, and links to every page their
+ * role opens. Needs a session only.
+ */
+export default async function HomePage() {
+  const session = await requireSession();
+  const [t, tNav, format, hours, operations] = await Promise.all([
+    getTranslations("Home"),
+    getTranslations("Navigation"),
+    getFormatter(),
+    readSetting("store.hours"),
+    readSetting("operations"),
   ]);
-  const [lowStock, pendingApprovals, kasbon, today, orders, capacity] = await Promise.all([
-    session.permissions.has("page:stock") ? getLowStock(session, 5) : null,
-    countPendingForViewer(session),
-    getKasbonSummary(session),
-    getTodaySales(session),
-    getOnlineOrderCounts(session),
-    session.permissions.has("page:housekeeping") ? getCapacity(session) : null,
-  ]);
-  const money = (amount: number) => formatCurrency(amount, locale);
-  const profileIncomplete =
-    session.permissions.has("settings:manage") && (profile.address === "" || profile.phone === "");
+  const now = new Date();
+  const state = storeHoursState(hours, now, operations.timeZone);
+  const blocked = (await storeClosedFor(session, now)) !== null;
+  const usesPos = session.permissions.has("page:pos");
+  /** Salespeople keep their shift in the Sales menu instead (ADR-0029). */
+  const keepsShift = usesPos || session.permissions.has("consignment:sell");
+  const shiftHref = usesPos ? "/pos" : "/consignments";
+  const shift = keepsShift ? await getOpenShift(session) : null;
+  const shortcuts = navigation.filter(
+    (item) =>
+      item.href !== "/" &&
+      !item.diagnostics &&
+      item.permission !== undefined &&
+      session.permissions.has(item.permission),
+  );
 
   return (
     <>
       <PageHeader
-        title={t("title")}
-        description={t("subtitle")}
-        actions={
-          today && session.permissions.has("page:reports") ? (
-            <Button asChild variant="secondary">
-              <Link href="/reports">{t("viewReports")}</Link>
-            </Button>
-          ) : undefined
-        }
+        title={t("greeting", { name: session.user.name })}
+        description={t("subtitle", {
+          role: session.role.name,
+          store: appConfig.brand.storeName,
+          date: format.dateTime(now, { dateStyle: "full", timeZone: operations.timeZone }),
+        })}
       />
-      {today ? (
-        <section aria-label={t("todayCaption")} className="mb-6">
-          <dl className="grid gap-3 sm:grid-cols-3">
-            {[
-              { label: t("todaySales"), value: money(today.grandTotal) },
-              { label: t("todayTransactions"), value: String(today.count) },
-              { label: t("todayAverage"), value: money(today.average) },
-            ].map((stat) => (
-              <div
-                key={stat.label}
-                className="flex flex-col gap-1 rounded-card bg-surface p-5 shadow-card"
-              >
-                <dt className="text-sm text-ink-muted">{stat.label}</dt>
-                <dd className="text-2xl font-semibold text-ink tabular-nums">{stat.value}</dd>
-              </div>
-            ))}
-          </dl>
-        </section>
-      ) : null}
-      {orders ? (
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>{t("onlineTitle")}</CardTitle>
-            <Button asChild variant="ghost" size="sm">
-              <Link href="/online-orders">{t("onlineAll")}</Link>
-            </Button>
+      <div className="mb-6 grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader className="flex-col gap-1">
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="size-5 text-ink-muted" aria-hidden="true" />
+              {t("hoursTitle")}
+            </CardTitle>
+            <CardDescription>
+              {!hours.enabled
+                ? t("hoursAlways")
+                : state.today
+                  ? t("hoursToday", { open: state.today.open, close: state.today.close })
+                  : t("hoursClosedToday")}
+            </CardDescription>
           </CardHeader>
-          <ul aria-label={t("onlineTitle")} className="flex flex-wrap gap-2">
-            {onlineOrderStatuses
-              .filter((status) => !finalStatuses.includes(status))
-              .map((status) => {
-                const Icon = statusChips[status].icon;
-                return (
-                  <li key={status}>
-                    <Link
-                      href={{ pathname: "/online-orders", query: { status } }}
-                      className="inline-flex min-h-11 items-center gap-2 rounded-full border border-border px-4 text-sm font-medium text-ink"
-                    >
-                      <Icon className="size-4" aria-hidden="true" />
-                      {tOrders(`statuses.${status}`)}
-                      <span className="tabular-nums">{orders[status]}</span>
-                    </Link>
-                  </li>
-                );
-              })}
-          </ul>
+          <p className="text-sm font-medium text-ink">
+            {blocked ? t("closedNow") : state.open ? t("openNow") : t("afterHoursAllowed")}
+          </p>
         </Card>
-      ) : null}
-      {profileIncomplete ? (
-        <Card
-          role="status"
-          className={cn(
-            "mb-6 flex flex-col gap-3 sm:flex-row sm:items-center",
-            toneClasses.warning,
-          )}
-        >
-          <TriangleAlert className="size-6 shrink-0" aria-hidden="true" />
-          <div className="flex flex-1 flex-col gap-1">
-            <CardTitle className="text-base text-inherit">{t("profileIncompleteTitle")}</CardTitle>
-            <CardDescription className="text-inherit">
-              {t("profileIncompleteDescription")}
-            </CardDescription>
-          </div>
-          <Button asChild variant="secondary">
-            <Link href="/settings">{t("profileIncompleteAction")}</Link>
-          </Button>
-        </Card>
-      ) : null}
-      {pendingApprovals > 0 ? (
-        <Card
-          role="status"
-          className={cn("mb-6 flex flex-col gap-3 sm:flex-row sm:items-center", toneClasses.info)}
-        >
-          <BadgeCheck className="size-6 shrink-0" aria-hidden="true" />
-          <div className="flex flex-1 flex-col gap-1">
-            <CardTitle className="text-base text-inherit">{t("pendingApprovalsTitle")}</CardTitle>
-            <CardDescription className="text-inherit">
-              {t("pendingApprovalsDescription", { count: pendingApprovals })}
-            </CardDescription>
-          </div>
-          <Button asChild variant="secondary">
-            <Link href="/approvals">{t("pendingApprovalsAction")}</Link>
-          </Button>
-        </Card>
-      ) : null}
-      {kasbon && kasbon.count > 0 ? (
-        <Card
-          role="status"
-          className={cn(
-            "mb-6 flex flex-col gap-3 sm:flex-row sm:items-center",
-            kasbon.overdue > 0 ? toneClasses.warning : toneClasses.neutral,
-          )}
-        >
-          <NotebookPen className="size-6 shrink-0" aria-hidden="true" />
-          <div className="flex flex-1 flex-col gap-1">
-            <CardTitle className="text-base text-inherit">{t("kasbonTitle")}</CardTitle>
-            <CardDescription className="text-inherit">
-              {t("kasbonDescription", {
-                amount: formatCurrency(kasbon.total, locale),
-                count: kasbon.count,
-                overdue: kasbon.overdue,
-              })}
-            </CardDescription>
-          </div>
-          <Button asChild variant="secondary">
-            <Link href="/kasbon">{t("kasbonAction")}</Link>
-          </Button>
-        </Card>
-      ) : null}
-      {capacity ? <CapacityWidget capacity={capacity} /> : null}
-      {lowStock ? (
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>{t("lowStockTitle")}</CardTitle>
-            <Button asChild variant="ghost" size="sm">
-              <Link href={{ pathname: "/stock", query: { low: "1" } }}>{t("lowStockAll")}</Link>
+        {keepsShift ? (
+          <Card>
+            <CardHeader className="flex-col gap-1">
+              <CardTitle className="flex items-center gap-2">
+                <ShoppingCart className="size-5 text-ink-muted" aria-hidden="true" />
+                {t("shiftTitle")}
+              </CardTitle>
+              <CardDescription>
+                {shift
+                  ? t("shiftOpen", {
+                      time: format.dateTime(shift.openedAt, { timeStyle: "short" }),
+                    })
+                  : t("shiftClosed")}
+              </CardDescription>
+            </CardHeader>
+            <Button asChild variant={shift ? "secondary" : "primary"} className="self-start">
+              <Link href={shiftHref}>
+                {usesPos ? (shift ? t("toPos") : t("openShift")) : t("toSales")}
+              </Link>
             </Button>
-          </CardHeader>
-          {lowStock.length === 0 ? (
-            <p className="flex items-center gap-2 text-sm text-ink-muted">
-              <PackageCheck className="size-4" aria-hidden="true" />
-              {t("lowStockEmpty")}
-            </p>
-          ) : (
-            <ul aria-label={t("lowStockCaption")} className="flex flex-col divide-y divide-border">
-              {lowStock.map((item) => (
-                <li key={item.variantId} className="flex items-center justify-between gap-3 py-2">
-                  <Link
-                    href={`/stock/${item.variantId}`}
-                    className="min-w-0 truncate text-sm font-medium text-ink underline-offset-4 hover:underline"
-                  >
-                    {variantLabel(item.productName, item.colorName)}
-                  </Link>
-                  <StockCell trackStock stockQty={item.stockQty} minStock={item.minStock} />
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-      ) : null}
+          </Card>
+        ) : null}
+      </div>
+
       <Card>
-        <EmptyState
-          icon={<ChartColumn aria-hidden="true" />}
-          title={t("emptyTitle")}
-          description={t("emptyDescription")}
-        />
+        <CardHeader>
+          <CardTitle>{t("shortcutsTitle")}</CardTitle>
+        </CardHeader>
+        {shortcuts.length === 0 ? (
+          <EmptyState
+            icon={<KeyRound aria-hidden="true" />}
+            title={t("noAccessTitle")}
+            description={t("noAccessDescription")}
+          />
+        ) : (
+          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            {shortcuts.map((item) => {
+              const Icon = item.icon;
+              return (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    className="flex min-h-20 flex-col items-start justify-between gap-2 rounded-card border border-border p-4 text-sm font-medium text-ink hover:bg-surface-muted focus-visible:outline-2 focus-visible:outline-primary"
+                  >
+                    <Icon className="size-5 text-primary" aria-hidden="true" />
+                    {tNav(item.label)}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </Card>
     </>
   );

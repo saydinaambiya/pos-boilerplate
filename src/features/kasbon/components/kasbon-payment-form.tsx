@@ -6,7 +6,6 @@ import { useId, useState, useTransition } from "react";
 import { useGlobalPending } from "@/components/feedback/loading-indicator";
 import { type ActionResult, ResultDialog } from "@/components/feedback/result-dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { MoneyInput } from "@/components/ui/money-input";
 import { Select } from "@/components/ui/select";
 import { toneClasses } from "@/components/ui/tone";
@@ -50,7 +49,6 @@ export function KasbonPaymentForm({
   const [transferText, setTransferText] = useState("");
   const [receivedText, setReceivedText] = useState("");
   const [bankAccountId, setBankAccountId] = useState(bankAccounts[0]?.id ?? "");
-  const [reference, setReference] = useState("");
   const [result, setResult] = useState<ActionResult | null>(null);
   const [pending, startTransition] = useTransition();
   useGlobalPending(pending);
@@ -84,15 +82,13 @@ export function KasbonPaymentForm({
       try {
         const response = await recordKasbonPaymentAction(locale, kasbonId, {
           cash,
-          transfer:
-            transfer > 0 ? { amount: transfer, bankAccountId, reference: reference.trim() } : null,
+          transfer: transfer > 0 ? { amount: transfer, bankAccountId } : null,
         });
         setResult({ status: response.ok ? "success" : "error", message: response.message });
         if (response.ok) {
           setAmountText("");
           setTransferText("");
           setReceivedText("");
-          setReference("");
           router.refresh();
         }
       } catch {
@@ -201,19 +197,6 @@ export function KasbonPaymentForm({
               />
             </div>
           )}
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor={`${id}-reference`} className="text-sm font-medium text-ink">
-              {t("reference")}
-            </label>
-            <Input
-              id={`${id}-reference`}
-              value={reference}
-              onChange={(event) => {
-                setReference(event.target.value);
-              }}
-              maxLength={60}
-            />
-          </div>
         </div>
       ) : null}
 

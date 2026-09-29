@@ -1,5 +1,6 @@
 import { expect, test } from "./fixtures";
 import {
+  addPiece,
   cashierAtPos,
   createStockedProduct,
   expectResult,
@@ -31,7 +32,7 @@ test.describe("void through approvals (FR-POS-09, FR-APR)", () => {
   test("a cashier sells and requests a void with a reason", async ({ browser }) => {
     const page = await cashierAtPos(browser);
     await page.getByRole("searchbox", { name: "Cari produk" }).fill(product);
-    await page.getByRole("button", { name: new RegExp(product) }).click();
+    await addPiece(page, product);
     await page.keyboard.press("F2");
     const payment = page.getByRole("dialog", { name: "Pembayaran" });
     await payment.getByLabel("Nama pelanggan").fill("Pembeli E2E");
@@ -56,7 +57,7 @@ test.describe("void through approvals (FR-POS-09, FR-APR)", () => {
   });
 
   test("the owner sees the pending request and approves it", async ({ page }) => {
-    await page.goto("/id");
+    await page.goto("/id/dashboard");
     await expect(page.getByText("Menunggu persetujuan")).toBeVisible();
     await expect(
       page
@@ -78,6 +79,8 @@ test.describe("void through approvals (FR-POS-09, FR-APR)", () => {
     await page.goto(saleUrl);
     await expect(page.getByText("Transaksi ini sudah dibatalkan (void).")).toBeVisible();
     await page.goto(`/id/stock?q=${sku}`);
-    await expect(page.getByRole("row", { name: new RegExp(product) })).toContainText("5");
+    await expect(
+      page.getByRole("row", { name: new RegExp(`${product} · Red · 93cm x 47cm`) }),
+    ).toContainText("5");
   });
 });

@@ -1,6 +1,6 @@
 import { accounts } from "./accounts";
 import { expect, test } from "./fixtures";
-import { choose, expectResult, fillProductDetails } from "./helpers";
+import { choose, expectResult, fillProductDetails, pick } from "./helpers";
 
 /** Unique names per run: the E2E database is not truncated between runs. */
 const run = Date.now().toString(36);
@@ -19,20 +19,38 @@ test.describe("brands & products (FR-CAT-02, FR-PRD)", () => {
     await expect(page.getByRole("link", { name: `Ubah ${brand}` })).toBeVisible();
   });
 
-  test("creates a product with inline validation", async ({ page }) => {
+  test("creates a roll product with inline validation (FR-PRD-06, FR-ROL-02)", async ({ page }) => {
     await page.goto("/id/products?new=1");
     const dialog = page.getByRole("dialog", { name: "Produk baru" });
     await page.getByLabel("Nama produk").fill(`Kopi Susu ${run}`);
     await page.getByLabel("SKU").fill(sku);
     await page.getByRole("button", { name: "Simpan produk" }).click();
     await expectResult(page, /./, "error");
-    await expect(dialog.getByText("Wajib diisi.")).toHaveCount(3);
+    await expect(dialog.getByText("Wajib diisi.")).toHaveCount(4);
+    await expect(dialog.getByLabel("Harga modal")).toHaveCount(0);
 
     await choose(dialog, "Merk", brand);
-    await dialog.getByLabel("Motif").fill("Mihrab");
-    await choose(dialog, "Ukuran", "100 × 70 cm");
+    await dialog.getByLabel("Motif", { exact: true }).click();
+    const list = page.getByRole("listbox");
+    await list.hover();
+    await page.mouse.wheel(0, 400);
+    await expect.poll(() => list.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+    expect(await list.evaluate((element) => getComputedStyle(element).scrollbarWidth)).toBe("none");
+    await page.keyboard.press("Escape");
+    await pick(dialog, "Motif", "Catur", "catur");
+    await pick(dialog, "Nama warna", "Navy", "na");
+    await expect(dialog.getByLabel("Motif", { exact: true })).toHaveText("Catur");
+    await dialog.getByLabel("Ketebalan (mm)").fill("2,5");
+    for (const [size, price] of [
+      ["93cm x 47cm", "9.000"],
+      ["100cm x 70cm", "10.000"],
+      ["50cm x 140cm", "11.000"],
+      ["100cm x 140cm", "20.000"],
+    ] as const) {
+      await dialog.getByLabel(`Harga ${size}`).fill(price);
+      await dialog.getByLabel(`Harga cacat ${size}`).fill("5.000");
+    }
     await page.getByLabel("Harga jual").fill("abc");
-    await page.getByLabel("Harga modal").fill("7.000");
     await page.getByLabel("SKU").fill(sku);
     await page.getByRole("button", { name: "Simpan produk" }).click();
     await expectResult(page, /./, "error");
@@ -47,17 +65,19 @@ test.describe("brands & products (FR-CAT-02, FR-PRD)", () => {
     await page.getByLabel("Cari").fill(sku.toLowerCase());
     await expect(page).toHaveURL(new RegExp(`q=${sku.toLowerCase()}`));
     const row = page.getByRole("row", { name: new RegExp(`Kopi Susu ${run}`) });
-    await expect(row).toContainText(/Rp\s18\.000/);
-    await expect(row).toContainText(/Rp\s11\.000/);
+    await expect(row).toContainText(/Rp\s18\.000 \/ m/);
     await expect(row.getByText("Stok menipis")).toBeVisible();
     await expect(row).toContainText(brand);
-    await expect(row).toContainText("Mihrab");
-    await expect(row).toContainText("100 × 70 cm");
+    await expect(row).toContainText("3D Catur");
+    await expect(row).toContainText("2,5mm");
+    await expect(row).toContainText("Roll · dipotong per ukuran");
 
-    await page.goto("/id/products?q=mihrab");
+    await page.goto(`/id/products?q=${encodeURIComponent(`kopi susu ${run}`)}`);
     await expect(page.getByRole("row", { name: new RegExp(`Kopi Susu ${run}`) })).toBeVisible();
-    await page.goto("/id/products?size=50x140");
-    await expect(page.getByRole("row", { name: new RegExp(`Kopi Susu ${run}`) })).toHaveCount(0);
+
+    await row.getByRole("link").first().click();
+    await expect(page.getByLabel("Harga 100cm x 140cm")).toHaveValue("20.000");
+    await expect(page.getByLabel("Ketebalan (mm)")).toHaveValue("2,5");
   });
 
   test("rejects a duplicate SKU", async ({ page }) => {

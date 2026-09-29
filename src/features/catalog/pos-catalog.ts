@@ -23,7 +23,8 @@ function groupProducts(rows: Awaited<ReturnType<typeof queryPosCatalog>>): PosPr
         brandId: row.brandId,
         brandName: row.brandName,
         motif: row.motif,
-        size: row.size,
+        thickness: row.thickness,
+        isRoll: row.isRoll,
         unit: row.unit,
         trackStock: row.trackStock,
         hasVariants: row.hasVariants,
@@ -39,9 +40,26 @@ function groupProducts(rows: Awaited<ReturnType<typeof queryPosCatalog>>): PosPr
       hex: color?.hex ?? null,
       price: row.price,
       stockQty: row.stockQty,
+      parentId: row.parentId,
+      size: row.size,
+      isDefect: row.isDefect,
     });
   }
   return [...byId.values()];
+}
+
+/**
+ * Only whole pieces leave the store with salespeople or marketplace orders;
+ * rolls are cut at the POS (FR-ROL-04, ADR-0023).
+ */
+function withoutRolls(products: PosProduct[]): PosProduct[] {
+  return products
+    .map((product) =>
+      product.isRoll
+        ? { ...product, variants: product.variants.filter((variant) => variant.parentId !== null) }
+        : product,
+    )
+    .filter((product) => product.variants.length > 0);
 }
 
 /** Terminal preload; `truncated` tells the client to search on the server instead. */
@@ -68,12 +86,16 @@ export async function getPosBrands(session: Session) {
   return brands.filter((brand) => brand.productCount > 0).map(({ id, name }) => ({ id, name }));
 }
 
-/** Product search for entering marketplace orders (FR-ONL-01); needs no POS access. */
+/**
+ * Product search for entering marketplace orders (FR-ONL-01); needs no POS
+ * access.
+ */
 export async function searchOrderCatalog(session: Session, term: string) {
   assertPermission(session, "page:online-orders");
   const search = term.trim().slice(0, 60);
   if (search === "") return [];
-  return groupProducts(await queryPosCatalog({ limit: SEARCH_ROWS, search }));
+  const rows = await queryPosCatalog({ limit: SEARCH_ROWS, search });
+  return withoutRolls(groupProducts(rows));
 }
 
 /** Product search for goods a salesperson takes out (FR-CSG-02); needs no POS access. */
@@ -81,5 +103,5 @@ export async function searchConsignmentCatalog(session: Session, term: string) {
   assertPermission(session, "page:consignments");
   const search = term.trim().slice(0, 60);
   if (search === "") return [];
-  return groupProducts(await queryPosCatalog({ limit: SEARCH_ROWS, search }));
+  return withoutRolls(groupProducts(await queryPosCatalog({ limit: SEARCH_ROWS, search })));
 }

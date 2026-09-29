@@ -25,10 +25,10 @@ import { NewProductDialog } from "@/features/catalog/components/new-product-dial
 import { StockCell } from "@/features/catalog/components/stock-cell";
 import { productFilters } from "@/features/catalog/schemas";
 import { getBrands, listProducts } from "@/features/catalog/service";
-import { formatSize, PRODUCT_SIZES } from "@/features/catalog/sizes";
 import { Link } from "@/i18n/navigation";
 import { requirePermission } from "@/lib/auth/guard";
 import { formatCurrency } from "@/lib/format/currency";
+import { formatMeters, formatThickness } from "@/lib/format/length";
 import { firstParam as first, keptQuery } from "@/lib/utils/search-params";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -37,8 +37,10 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * Product list with search and brand and size filters
- * (FR-PRD-01/02/04/06); `?new=1` opens the create dialog (ADR-0018).
+ * Product list with search and a brand filter, showing motif and
+ * thickness in their own columns (FR-PRD-01/02/04/06). Roll prices are per
+ * meter and roll stock shows meters and cut pieces (FR-ROL-01); `?new=1`
+ * opens the create dialog (ADR-0018).
  */
 export default async function ProductsPage({ searchParams }: PageProps<"/[locale]/products">) {
   const session = await requirePermission("page:products");
@@ -46,7 +48,6 @@ export default async function ProductsPage({ searchParams }: PageProps<"/[locale
   const filters = productFilters.parse({
     q: first(raw.q) ?? "",
     brand: first(raw.brand),
-    size: first(raw.size),
     status: first(raw.status) ?? "active",
     page: first(raw.page) ?? "1",
   });
@@ -58,20 +59,14 @@ export default async function ProductsPage({ searchParams }: PageProps<"/[locale
     getBrands(session),
     listProducts(session, filters),
   ]);
-  const canSeeCost = session.permissions.has("product:view-cost");
   const canUpdate = session.permissions.has("product:update");
   const canCreate = session.permissions.has("product:create") && brands.length > 0;
   const noBrands = brands.length === 0;
   const kept = keptQuery(raw, ["new"]);
-  const filtered =
-    filters.q !== "" ||
-    filters.brand !== undefined ||
-    filters.size !== undefined ||
-    filters.status !== "active";
+  const filtered = filters.q !== "" || filters.brand !== undefined || filters.status !== "active";
   const query = (pageNumber: number) => ({
     ...(filters.q ? { q: filters.q } : {}),
     ...(filters.brand ? { brand: filters.brand } : {}),
-    ...(filters.size ? { size: filters.size } : {}),
     ...(filters.status === "active" ? {} : { status: filters.status }),
     ...(pageNumber > 1 ? { page: String(pageNumber) } : {}),
   });
@@ -120,19 +115,6 @@ export default async function ProductsPage({ searchParams }: PageProps<"/[locale
                 options={[
                   { value: "", label: t("allBrands") },
                   ...brands.map((brand) => ({ value: brand.id, label: brand.name })),
-                ]}
-              />
-            )}
-          </Field>
-          <Field label={t("size")}>
-            {(control) => (
-              <Select
-                {...control}
-                name="size"
-                defaultValue={filters.size ?? ""}
-                options={[
-                  { value: "", label: t("allSizes") },
-                  ...PRODUCT_SIZES.map((size) => ({ value: size, label: formatSize(size) })),
                 ]}
               />
             )}
@@ -186,15 +168,10 @@ export default async function ProductsPage({ searchParams }: PageProps<"/[locale
               <TableRow>
                 <TableHead>{t("name")}</TableHead>
                 <TableHead>{t("brand")}</TableHead>
-                <TableHead>{t("size")}</TableHead>
+                <TableHead>{t("motif")}</TableHead>
+                <TableHead>{t("thickness")}</TableHead>
                 <TableHead>{t("sku")}</TableHead>
                 <TableHead className="text-right">{t("price")}</TableHead>
-                {canSeeCost ? (
-                  <>
-                    <TableHead className="text-right">{t("cost")}</TableHead>
-                    <TableHead className="text-right">{t("margin")}</TableHead>
-                  </>
-                ) : null}
                 <TableHead>{t("stock")}</TableHead>
                 <TableHead>{t("status")}</TableHead>
               </TableRow>
@@ -215,37 +192,38 @@ export default async function ProductsPage({ searchParams }: PageProps<"/[locale
                       product.name
                     )}
                     <span className="block text-xs font-normal text-ink-muted">
-                      {product.motif ? `${product.motif} · ${product.unit}` : product.unit}
+                      {product.isRoll ? t("rollProduct") : product.unit}
                     </span>
                   </TableCell>
                   <TableCell>{product.brandName ?? "—"}</TableCell>
-                  <TableCell className="whitespace-nowrap">
-                    {product.size ? formatSize(product.size) : "—"}
+                  <TableCell>{product.motif ?? "—"}</TableCell>
+                  <TableCell className="whitespace-nowrap tabular-nums">
+                    {product.thickness ? formatThickness(product.thickness, locale) : "—"}
                   </TableCell>
                   <TableCell className="text-ink-muted">
                     {product.hasVariants
                       ? tVariants("variantCount", { count: product.variantCount })
                       : product.sku}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {formatCurrency(product.price, locale)}
+                  <TableCell className="text-right whitespace-nowrap tabular-nums">
+                    {product.isRoll
+                      ? t("perMeter", { price: formatCurrency(product.price, locale) })
+                      : formatCurrency(product.price, locale)}
                   </TableCell>
-                  {canSeeCost && product.cost !== null ? (
-                    <>
-                      <TableCell className="text-right tabular-nums">
-                        {formatCurrency(product.cost, locale)}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {formatCurrency(product.price - product.cost, locale)}
-                      </TableCell>
-                    </>
-                  ) : null}
                   <TableCell>
                     <StockCell
                       trackStock={product.trackStock}
                       stockQty={product.stockQty}
                       minStock={product.minStock}
                       low={product.lowStockVariants > 0}
+                      label={
+                        product.isRoll
+                          ? t("rollStock", {
+                              meters: formatMeters(product.stockQty, locale),
+                              pieces: product.pieceStock,
+                            })
+                          : undefined
+                      }
                     />
                   </TableCell>
                   <TableCell>
@@ -285,11 +263,7 @@ export default async function ProductsPage({ searchParams }: PageProps<"/[locale
         ) : null}
       </Card>
       {canCreate && first(raw.new) === "1" ? (
-        <NewProductDialog
-          brands={brands}
-          canSeeCost={canSeeCost}
-          closeHref={{ pathname: "/products", query: kept }}
-        />
+        <NewProductDialog brands={brands} closeHref={{ pathname: "/products", query: kept }} />
       ) : null}
     </>
   );

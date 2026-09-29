@@ -2,6 +2,7 @@ import "server-only";
 
 import { and, asc, desc, eq, inArray, isNull, like, type SQL, sql } from "drizzle-orm";
 
+import { isRollRowSql, variantCostSql, variantPriceSql } from "@/features/catalog/pricing-sql";
 import { db, type Executor } from "@/db/client";
 import {
   marketplaces,
@@ -40,13 +41,11 @@ export async function findOrderableVariants(executor: Executor, variantIds: read
       productName: products.name,
       trackStock: products.trackStock,
       attributes: productVariants.attributes,
-      price: sql<number>`coalesce(${productVariants.priceOverride}, ${products.price})`.mapWith(
-        Number,
-      ),
-      cost: sql<number>`coalesce(${productVariants.costOverride}, ${products.cost})`.mapWith(
-        Number,
-      ),
-      sellable: sql<boolean>`${products.isActive} AND ${productVariants.isActive}`,
+      size: productVariants.size,
+      isDefect: productVariants.isDefect,
+      price: variantPriceSql,
+      cost: variantCostSql,
+      sellable: sql<boolean>`${products.isActive} AND ${productVariants.isActive} AND NOT ${isRollRowSql}`,
     })
     .from(productVariants)
     .innerJoin(products, eq(products.id, productVariants.productId))
@@ -216,6 +215,7 @@ export async function findOrderDetail(orderId: string) {
         variantSnapshot: onlineOrderItems.variantSnapshot,
         qty: onlineOrderItems.qty,
         unitPrice: onlineOrderItems.unitPrice,
+        storePrice: onlineOrderItems.storePrice,
         lineTotal: onlineOrderItems.lineTotal,
         returnCondition: onlineOrderItems.returnCondition,
       })
