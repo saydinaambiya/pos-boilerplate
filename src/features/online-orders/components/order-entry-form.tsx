@@ -13,7 +13,7 @@ import { Select } from "@/components/ui/select";
 import type { Locale } from "@/config/locales";
 import { ColorSwatch } from "@/features/catalog/components/color-swatch";
 import type { PosProduct, PosVariant } from "@/features/catalog/pos-types";
-import { productDetailsLine } from "@/features/catalog/sizes";
+import { defectWord, formatSize, productDetailsLine } from "@/features/catalog/sizes";
 import { useRouter } from "@/i18n/navigation";
 import { formatCurrency } from "@/lib/format/currency";
 import { parseRupiah } from "@/lib/format/rupiah-input";
@@ -23,23 +23,43 @@ import { createOnlineOrderAction, searchOrderCatalogAction } from "../actions";
 interface Line {
   variantId: string;
   label: string;
-  price: number;
+  /** Store price, shown for comparison (FR-ONL-08). */
+  storePrice: number;
+  /** Marketplace price as typed. */
+  priceText: string;
   qty: number;
 }
+
+const priceOf = (line: Line) => parseRupiah(line.priceText);
 
 interface OrderEntryFormProps {
   locale: Locale;
   marketplaces: readonly { id: string; name: string }[];
 }
 
-function variantLabel(product: PosProduct, variant: PosVariant) {
-  return variant.colorName ? `${product.name} — ${variant.colorName}` : product.name;
+/** Colour and, for a piece cut from a roll, its size and defect flag (ADR-0023, FR-ROL-05). */
+function variantName(variant: PosVariant, locale: string): string | null {
+  return (
+    [
+      variant.colorName,
+      variant.size ? formatSize(variant.size) : null,
+      variant.isDefect ? defectWord(locale) : null,
+    ]
+      .filter(Boolean)
+      .join(" · ") || null
+  );
+}
+
+function variantLabel(product: PosProduct, variant: PosVariant, locale: string) {
+  const name = variantName(variant, locale);
+  return name ? `${product.name} — ${name}` : product.name;
 }
 
 /**
  * Entry form for a marketplace order (FR-ONL-01): marketplace, order code,
- * items picked per variant from a server-side search, shipping fee and
- * note. The total shown is a preview; the server prices the order.
+ * items picked per variant from a server-side search with the marketplace
+ * price typed per line (FR-ONL-08), shipping fee and note. The store price
+ * shows beside each price for comparison.
  */
 export function OrderEntryForm({ locale, marketplaces }: OrderEntryFormProps) {
   const t = useTranslations("OnlineOrders");
@@ -72,7 +92,7 @@ export function OrderEntryForm({ locale, marketplaces }: OrderEntryFormProps) {
 
   const money = (amount: number) => formatCurrency(amount, locale);
   const shippingFee = shippingText.trim() === "" ? 0 : parseRupiah(shippingText);
-  const itemsTotal = lines.reduce((sum, line) => sum + line.price * line.qty, 0);
+  const itemsTotal = lines.reduce((sum, line) => sum + (priceOf(line) ?? 0) * line.qty, 0);
   const visible = term.trim().length >= 2 ? results : [];
 
   const add = (product: PosProduct, variant: PosVariant) => {
@@ -87,8 +107,9 @@ export function OrderEntryForm({ locale, marketplaces }: OrderEntryFormProps) {
         ...current,
         {
           variantId: variant.id,
-          label: variantLabel(product, variant),
-          price: variant.price,
+          label: variantLabel(product, variant, locale),
+          storePrice: variant.price,
+          priceText: "",
           qty: 1,
         },
       ];
@@ -102,6 +123,12 @@ export function OrderEntryForm({ locale, marketplaces }: OrderEntryFormProps) {
     );
   };
 
+  const setPrice = (variantId: string, priceText: string) => {
+    setLines((current) =>
+      current.map((line) => (line.variantId === variantId ? { ...line, priceText } : line)),
+    );
+  };
+
   const submit = () => {
     if (pending) return;
     if (orderCode.trim() === "") {
@@ -110,6 +137,11 @@ export function OrderEntryForm({ locale, marketplaces }: OrderEntryFormProps) {
     }
     if (lines.length === 0) {
       setError({ message: t("errorNoItems"), field: "lines" });
+      return;
+    }
+    const unpriced = lines.find((line) => priceOf(line) === null);
+    if (unpriced) {
+      setError({ message: t("errorPriceRequired", { name: unpriced.label }), field: "lines" });
       return;
     }
     if (shippingFee === null) {
@@ -122,7 +154,11 @@ export function OrderEntryForm({ locale, marketplaces }: OrderEntryFormProps) {
         const result = await createOnlineOrderAction(locale, {
           marketplaceId,
           orderCode,
-          lines: lines.map((line) => ({ variantId: line.variantId, qty: line.qty })),
+          lines: lines.map((line) => ({
+            variantId: line.variantId,
+            qty: line.qty,
+            unitPrice: priceOf(line) ?? 0,
+          })),
           shippingFee,
           note,
         });
@@ -219,9 +255,9 @@ export function OrderEntryForm({ locale, marketplaces }: OrderEntryFormProps) {
               <li key={product.id} className="rounded-control border border-border p-2">
                 <p className="mb-1 text-sm font-medium text-ink">
                   {product.name}
-                  {productDetailsLine(product) ? (
+                  {productDetailsLine(product, locale) ? (
                     <span className="block text-xs font-normal text-ink-muted">
-                      {productDetailsLine(product)}
+                      {productDetailsLine(product, locale)}
                     </span>
                   ) : null}
                 </p>
@@ -231,7 +267,7 @@ export function OrderEntryForm({ locale, marketplaces }: OrderEntryFormProps) {
                       key={variant.id}
                       size="sm"
                       variant="secondary"
-                      aria-label={t("addItem", { name: variantLabel(product, variant) })}
+                      aria-label={t("addItem", { name: variantLabel(product, variant, locale) })}
                       onClick={() => {
                         add(product, variant);
                       }}
@@ -245,7 +281,7 @@ export function OrderEntryForm({ locale, marketplaces }: OrderEntryFormProps) {
                           className="size-4"
                         />
                       ) : null}
-                      {variant.colorName ?? t("addPlain")}
+                      {variantName(variant, locale) ?? t("addPlain")}
                       <span className="text-ink-muted tabular-nums">{money(variant.price)}</span>
                     </Button>
                   ))}
@@ -262,9 +298,19 @@ export function OrderEntryForm({ locale, marketplaces }: OrderEntryFormProps) {
                 <span className="min-w-0 flex-1 text-sm [overflow-wrap:anywhere] text-ink">
                   {line.label}
                   <span className="block text-xs text-ink-muted tabular-nums">
-                    {money(line.price)}
+                    {t("storePrice", { price: money(line.storePrice) })}
                   </span>
                 </span>
+                <MoneyInput
+                  aria-label={t("priceOf", { name: line.label })}
+                  value={line.priceText}
+                  onValueChange={(value) => {
+                    setPrice(line.variantId, value);
+                  }}
+                  placeholder={t("pricePlaceholder")}
+                  maxLength={20}
+                  className="w-32 tabular-nums"
+                />
                 <span className="flex items-center gap-1">
                   <Button
                     size="icon"
@@ -298,7 +344,7 @@ export function OrderEntryForm({ locale, marketplaces }: OrderEntryFormProps) {
                   </Button>
                 </span>
                 <span className="w-28 text-right text-sm font-medium tabular-nums">
-                  {money(line.price * line.qty)}
+                  {money((priceOf(line) ?? 0) * line.qty)}
                 </span>
                 <Button
                   size="icon"

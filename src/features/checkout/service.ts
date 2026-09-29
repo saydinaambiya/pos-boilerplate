@@ -11,10 +11,11 @@ import { openKasbon, resolveKasbonCustomer } from "@/features/kasbon/service";
 import { recordStockMovement } from "@/features/stock/service";
 import { consumeVoucher, resolveVoucher } from "@/features/vouchers/service";
 import { recordAudit } from "@/lib/audit/audit";
-import { assertPermission } from "@/lib/auth/authorize";
+import { assertAnyPermission, assertPermission } from "@/lib/auth/authorize";
 import type { Session } from "@/lib/auth/session";
 import type { RequestContext } from "@/lib/http/request-context";
 import { calculateSale, type CartLine, type VoucherRule } from "@/lib/money/calculate";
+import { cutPrice } from "@/lib/money/cut";
 import { readSetting } from "@/lib/settings/store";
 import { storeClosedFor } from "@/lib/settings/store-hours-guard";
 
@@ -130,9 +131,12 @@ async function replay(
  *    or leave a remainder that becomes store credit (FR-PAY-05).
  * 5. Takes a gap-free invoice number, writes sale, lines, payments, and
  *    `SALE` stock movements (variants locked in id order to avoid deadlocks).
+ *    A custom cut is priced from the roll's price per meter and takes its
+ *    length off the roll (FR-ROL-04).
  *
  * Any failure rolls everything back, including the invoice number. With
- * `consignment` the sale settles goods already taken out (FR-CSG-04).
+ * `consignment` the sale settles goods already taken out (FR-CSG-04); a
+ * salesperson may do that without cashier access (ADR-0029).
  */
 export async function checkout(
   session: Session,
@@ -141,7 +145,8 @@ export async function checkout(
   now = new Date(),
   consignment?: ConsignmentSale,
 ): Promise<CheckoutResult> {
-  assertPermission(session, "page:pos");
+  if (consignment) assertAnyPermission(session, ["page:pos", "consignment:sell"]);
+  else assertPermission(session, "page:pos");
   const consignmentId = consignment?.consignmentId ?? null;
   const replayed = await replay(session.user.id, input, now, consignmentId);
   if (replayed) return replayed;
@@ -171,9 +176,24 @@ export async function checkout(
       if (variantIds.some((id) => !variants.get(id)?.sellable)) {
         throw new CheckoutAbort({ ok: false, reason: "invalid-items" });
       }
+      if (
+        input.lines.some(
+          (line) =>
+            (variants.get(line.variantId)?.isRoll ?? false) !== (line.lengthCm !== undefined),
+        )
+      ) {
+        throw new CheckoutAbort({ ok: false, reason: "invalid-items" });
+      }
+      const priced = input.lines.map((line) => {
+        const variant = variants.get(line.variantId);
+        return {
+          unitPrice: cutPrice(variant?.price ?? 0, line.lengthCm),
+          unitCost: cutPrice(variant?.cost ?? 0, line.lengthCm),
+        };
+      });
 
-      const cart: CartLine[] = input.lines.map((line) => ({
-        unitPrice: variants.get(line.variantId)?.price ?? 0,
+      const cart: CartLine[] = input.lines.map((line, index) => ({
+        unitPrice: priced[index]?.unitPrice ?? 0,
         qty: line.qty,
         discount: line.discount ?? null,
       }));
@@ -247,9 +267,10 @@ export async function checkout(
             nameSnapshot: variant?.productName ?? "",
             variantSnapshot: colorOf(variant?.attributes)?.name ?? null,
             detailsSnapshot: variant ? productDetailsLine(variant) || null : null,
-            unitPrice: variant?.price ?? 0,
-            unitCost: variant?.cost ?? 0,
+            unitPrice: priced[index]?.unitPrice ?? 0,
+            unitCost: priced[index]?.unitCost ?? 0,
             qty: line.qty,
+            lengthCm: line.lengthCm ?? null,
             discountType: line.discount?.type ?? null,
             discountValue: line.discount
               ? line.discount.type === "percent"
@@ -279,7 +300,8 @@ export async function checkout(
 
       const quantities = new Map<string, number>();
       for (const line of consignment ? [] : input.lines) {
-        quantities.set(line.variantId, (quantities.get(line.variantId) ?? 0) + line.qty);
+        const units = line.qty * (line.lengthCm ?? 1);
+        quantities.set(line.variantId, (quantities.get(line.variantId) ?? 0) + units);
       }
       for (const variantId of [...quantities.keys()].sort()) {
         if (!variants.get(variantId)?.trackStock) continue;

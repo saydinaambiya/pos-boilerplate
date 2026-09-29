@@ -141,6 +141,48 @@
       "when": 1790604106915,
       "tag": "0019_drop_categories",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1790652351089,
+      "tag": "0020_roll_stock",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1790652425669,
+      "tag": "0021_drop_product_size",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1790669918653,
+      "tag": "0022_qris_and_online_prices",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1790674854310,
+      "tag": "0023_defect_pieces",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1790686031267,
+      "tag": "0024_cash_expenses",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1790689250339,
+      "tag": "0025_sales_without_cashier",
+      "breakpoints": true
     }
   ]
 }

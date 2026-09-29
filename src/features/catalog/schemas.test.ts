@@ -3,7 +3,14 @@ import { describe, expect, it } from "vitest";
 import { changedFields } from "@/lib/audit/diff";
 import { parseRupiah } from "@/lib/validation/money";
 
-import { colorOf, hexColor, newProductInput, productFilters, productInput } from "./schemas";
+import {
+  colorOf,
+  hexColor,
+  newProductInput,
+  productFilters,
+  productInput,
+  variantSnapshotOf,
+} from "./schemas";
 
 describe("parseRupiah (PRD §5)", () => {
   it("accepts grouping in either locale and an Rp prefix", () => {
@@ -42,37 +49,74 @@ describe("productInput (FR-PRD-01, NFR-SEC-02)", () => {
   });
 });
 
-describe("newProductInput (FR-PRD-06)", () => {
+describe("newProductInput (FR-PRD-06, FR-ROL-02)", () => {
+  const sizePrices = { "93x47": 150000, "100x70": 180000, "50x140": 175000, "100x140": 320000 };
   const valid = {
-    name: "Sajadah Turki",
+    name: "Karpet Turki",
     brandId: "0199a000-0000-7000-8000-000000000002",
-    motif: "  Mihrab  ",
-    size: "93x47",
-    price: 150000,
+    colorName: "Red",
+    motif: "3D Catur",
+    thickness: 2.5,
+    sizePrices,
+    defectSizePrices: sizePrices,
+    price: 300000,
     unit: "pcs",
     trackStock: true,
-    sku: "SJD-9347",
-    minStock: 0,
+    sku: "KRP-TRK",
+    minStock: 1000,
   };
 
-  it("accepts a product with brand, motif and a known size", () => {
-    expect(newProductInput.parse(valid)).toMatchObject({ motif: "Mihrab", size: "93x47" });
+  it("accepts a roll with brand, motif, thickness and a price per size", () => {
+    expect(newProductInput.parse(valid)).toMatchObject({ motif: "3D Catur", thickness: 2.5 });
+    expect(newProductInput.safeParse({ ...valid, colorName: "Merah" }).success).toBe(false);
+    for (const motif of ["Mihrab", "3D", "Catur"]) {
+      expect(newProductInput.safeParse({ ...valid, motif }).success, motif).toBe(false);
+    }
   });
 
-  it("requires brand, motif and size and only knows the fixed sizes", () => {
-    for (const field of ["brandId", "motif", "size"] as const) {
+  it("requires brand and motif, a positive thickness and every size price", () => {
+    for (const field of ["brandId", "motif"] as const) {
       const result = newProductInput.safeParse({ ...valid, [field]: "" });
       expect(result.error?.issues[0]?.code, field).toBe("too_small");
     }
-    expect(newProductInput.safeParse({ ...valid, size: "90x40" }).success).toBe(false);
+    for (const thickness of [0, -1, 1.005, Number.NaN, null]) {
+      expect(newProductInput.safeParse({ ...valid, thickness }).success, String(thickness)).toBe(
+        false,
+      );
+    }
+    const missing: Partial<typeof sizePrices> = { ...sizePrices };
+    delete missing["100x140"];
+    expect(newProductInput.safeParse({ ...valid, sizePrices: missing }).success).toBe(false);
+    expect(
+      newProductInput.safeParse({ ...valid, sizePrices: { ...sizePrices, "90x40": 1 } }).success,
+    ).toBe(false);
+  });
+
+  it("keeps room in a roll SKU for the piece suffix", () => {
+    expect(newProductInput.safeParse({ ...valid, sku: "A".repeat(32) }).success).toBe(true);
+    expect(newProductInput.safeParse({ ...valid, sku: "A".repeat(33) }).success).toBe(false);
+  });
+
+  it("requires a defect price for every size (FR-ROL-05)", () => {
+    expect(newProductInput.safeParse({ ...valid, defectSizePrices: undefined }).success).toBe(
+      false,
+    );
   });
 
   it("lets older products keep the details empty when edited", () => {
-    expect(productInput.parse({ ...valid, brandId: "", motif: "", size: "" })).toMatchObject({
-      brandId: null,
-      motif: null,
-      size: null,
-    });
+    expect(
+      productInput.parse({
+        name: valid.name,
+        price: valid.price,
+        unit: valid.unit,
+        trackStock: valid.trackStock,
+        sku: valid.sku,
+        minStock: valid.minStock,
+        brandId: "",
+        motif: "",
+        thickness: null,
+      }),
+    ).toMatchObject({ brandId: null, motif: null, thickness: null });
   });
 });
 
@@ -82,14 +126,12 @@ describe("productFilters", () => {
       productFilters.parse({
         q: "  kopi ",
         brand: "x",
-        size: "1x1",
         status: "deleted",
         page: "-2",
       }),
     ).toEqual({
       q: "kopi",
       brand: undefined,
-      size: undefined,
       status: "active",
       page: 1,
     });
@@ -119,5 +161,14 @@ describe("colour variants (FR-VAR-03)", () => {
     });
     expect(colorOf({})).toBeNull();
     expect(colorOf({ color: { name: "X", hex: "javascript:1" } })).toBeNull();
+  });
+
+  it("names a piece by its colour, size and defect flag (ADR-0023, FR-ROL-05)", () => {
+    expect(variantSnapshotOf({ color: { name: "Red" } }, "93x47", true)).toBe(
+      "Red · 93cm x 47cm · Cacat",
+    );
+    expect(variantSnapshotOf({ color: { name: "Merah" } }, "93x47")).toBe("Merah · 93cm x 47cm");
+    expect(variantSnapshotOf({}, "100x140")).toBe("100cm x 140cm");
+    expect(variantSnapshotOf({}, null)).toBeNull();
   });
 });

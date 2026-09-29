@@ -1,0 +1,1 @@
+DELETE FROM "role_permissions" USING "roles" WHERE "roles"."id" = "role_permissions"."role_id" AND lower("roles"."name") = 'sales' AND "role_permissions"."permission" = 'page:pos' AND EXISTS (SELECT 1 FROM "role_permissions" AS "sell" WHERE "sell"."role_id" = "roles"."id" AND "sell"."permission" = 'consignment:sell');

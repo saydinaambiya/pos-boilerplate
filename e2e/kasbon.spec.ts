@@ -1,5 +1,5 @@
 import { expect, test } from "./fixtures";
-import { cashierAtPos, createStockedProduct, grantEmployeePermission } from "./helpers";
+import { addPiece, cashierAtPos, createStockedProduct, grantEmployeePermission } from "./helpers";
 
 /** Unique names per run: the E2E database is not truncated between runs. */
 const run = Date.now().toString(36).toUpperCase();
@@ -32,7 +32,7 @@ test.describe("store credit with approved installments (FR-PAY-05, FR-KSB)", () 
   test("a cashier puts the remainder of a sale on store credit", async ({ browser }) => {
     const page = await cashierAtPos(browser);
     await page.getByRole("searchbox", { name: "Cari produk" }).fill(product);
-    await page.getByRole("button", { name: new RegExp(product) }).click();
+    await addPiece(page, product);
     await page.keyboard.press("F2");
 
     const payment = page.getByRole("dialog", { name: "Pembayaran" });

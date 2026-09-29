@@ -19,9 +19,12 @@ import { LOCALE_FIELD } from "@/i18n/form-locale";
 import { Link } from "@/i18n/navigation";
 import type { Session } from "@/lib/auth/session";
 import { formatCurrency } from "@/lib/format/currency";
+import { formatMeters } from "@/lib/format/length";
 
 import { createVariantAction, enableVariantsAction, moveVariantAction } from "../variant-actions";
+import { formatSize } from "../sizes";
 import { getVariants } from "../variant-service";
+import { ColorField } from "./catalog-choices";
 import { ColorSwatch } from "./color-swatch";
 import { StockCell } from "./stock-cell";
 import { VariantFields } from "./variant-fields";
@@ -35,47 +38,50 @@ interface VariantsSectionProps {
     stockQty: number;
     trackStock: boolean;
     hasVariants: boolean;
+    isRoll: boolean;
   };
 }
 
-/** Colour variants of a product: enable, list, reorder and add (FR-VAR-01..08). */
+/**
+ * Colour variants of a product: enable, list, reorder and add
+ * (FR-VAR-01..08). On a roll product each colour is a roll in meters with
+ * its cut pieces listed per size (FR-ROL-01).
+ */
 export async function VariantsSection({ session, product }: VariantsSectionProps) {
-  const [t, locale] = await Promise.all([getTranslations("Variants"), getLocale()]);
-  const canSeeCost = session.permissions.has("product:view-cost");
+  const [t, tCatalog, locale] = await Promise.all([
+    getTranslations("Variants"),
+    getTranslations("Catalog"),
+    getLocale(),
+  ]);
 
   if (!product.hasVariants) {
     return (
       <Card className="max-w-2xl">
         <CardHeader className="flex-col gap-1">
           <CardTitle>{t("enableTitle")}</CardTitle>
-          <CardDescription>{t("enableDescription", { stock: product.stockQty })}</CardDescription>
+          <CardDescription>
+            {product.isRoll
+              ? t("enableRollDescription")
+              : t("enableDescription", { stock: product.stockQty })}
+          </CardDescription>
         </CardHeader>
         <ActionForm action={enableVariantsAction.bind(null, product.id)} locale={locale}>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <FormField name="colorName" label={t("colorName")} maxLength={40} />
-            <FormField
-              name="hex"
-              label={t("hex")}
-              hint={t("hexHint")}
-              maxLength={7}
-              spellCheck={false}
-            />
-          </div>
+          <ColorField />
           <div className="grid gap-4 sm:grid-cols-2">
             <FormField
               name="sku"
               label={t("sku")}
               defaultValue={`${product.sku}-`}
-              maxLength={40}
+              maxLength={product.isRoll ? 32 : 40}
               autoCapitalize="characters"
               spellCheck={false}
             />
             <FormField
               name="minStock"
-              label={t("minStock")}
+              label={product.isRoll ? t("rollMinStock") : t("minStock")}
               defaultValue="0"
-              inputMode="numeric"
-              maxLength={7}
+              inputMode={product.isRoll ? "decimal" : "numeric"}
+              maxLength={9}
             />
           </div>
           <SubmitButton variant="secondary" className="self-start">
@@ -156,8 +162,10 @@ export async function VariantsSection({ session, product }: VariantsSectionProps
                   </span>
                 </TableCell>
                 <TableCell className="text-ink-muted">{variant.sku}</TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {formatCurrency(variant.priceOverride ?? product.price, locale)}
+                <TableCell className="text-right whitespace-nowrap tabular-nums">
+                  {product.isRoll
+                    ? tCatalog("perMeter", { price: formatCurrency(product.price, locale) })
+                    : formatCurrency(variant.priceOverride ?? product.price, locale)}
                   {variant.priceOverride === null ? (
                     <span className="block text-xs text-ink-muted">{t("inherited")}</span>
                   ) : null}
@@ -171,8 +179,26 @@ export async function VariantsSection({ session, product }: VariantsSectionProps
                       trackStock={product.trackStock}
                       stockQty={variant.stockQty}
                       minStock={variant.minStock}
+                      label={product.isRoll ? formatMeters(variant.stockQty, locale) : undefined}
                     />
                   </Link>
+                  {variant.pieces.length > 0 ? (
+                    <ul className="mt-1 flex flex-col text-xs text-ink-muted">
+                      {variant.pieces.map((piece) => (
+                        <li key={piece.id}>
+                          <Link
+                            href={`/stock/${piece.id}`}
+                            className="inline-flex min-h-6 items-center tabular-nums underline-offset-4 hover:underline"
+                          >
+                            {t(piece.isDefect ? "defectPieceStock" : "pieceStock", {
+                              size: piece.size ? formatSize(piece.size) : piece.sku,
+                              count: piece.stockQty,
+                            })}
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
                 </TableCell>
                 <TableCell>
                   {variant.isActive ? (
@@ -195,7 +221,7 @@ export async function VariantsSection({ session, product }: VariantsSectionProps
         <h3 className="mb-4 text-base font-semibold text-ink">{t("addTitle")}</h3>
         <ActionForm action={createVariantAction.bind(null, product.id)} locale={locale}>
           <VariantFields
-            canSeeCost={canSeeCost}
+            roll={product.isRoll}
             withInitialStock={product.trackStock && session.permissions.has("stock:adjust")}
           />
           <SubmitButton className="self-start">{t("add")}</SubmitButton>

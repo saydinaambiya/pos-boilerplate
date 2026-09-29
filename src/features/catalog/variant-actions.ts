@@ -12,13 +12,17 @@ import type { Session } from "@/lib/auth/session";
 import { formText } from "@/lib/http/form-data";
 import { currentRequestContext } from "@/lib/http/request-context";
 import { fieldErrors, type FormState, submittedValues } from "@/lib/validation/form-state";
+import { parseMetersToCm } from "@/lib/format/length";
 import { parseRupiah } from "@/lib/validation/money";
 
-import { enableVariantsInput, newVariantInput, variantInput } from "./schemas";
+import { colorHex } from "./options";
+import { enableVariantsInput, newVariantInput, rollSkuSchema, variantInput } from "./schemas";
+import { getProduct } from "./service";
 import {
   changeVariantStatus,
   createVariant,
   enableVariants,
+  getVariant,
   moveVariant,
   updateVariant,
   type VariantResult,
@@ -32,24 +36,33 @@ const moveDirection = z.enum(["up", "down"]);
 const integer = (value: string) =>
   /^\d{1,7}$/.test(value.trim()) ? Number(value.trim()) : Number.NaN;
 
+/** Stock quantities: pieces, or on a roll meters stored as cm (ADR-0023). */
+const quantity = (value: string, roll: boolean) =>
+  roll ? (parseMetersToCm(value || "0") ?? Number.NaN) : integer(value || "0");
+
+/** A roll colour's SKU leaves room for its pieces' size suffix. */
+const rollSku = { sku: rollSkuSchema };
+
 /** Empty means "inherit from the product" (FR-VAR-02). */
 const override = (value: string) =>
   value.trim() === "" ? null : (parseRupiah(value) ?? Number.NaN);
 
-const hex = (value: string) => {
-  const trimmed = value.trim();
-  return trimmed === "" ? "" : trimmed.startsWith("#") ? trimmed : `#${trimmed}`;
-};
+/**
+ * Colour from the form: a listed colour with its swatch filled in, or on an
+ * edit the stored colour kept as it was. Anything else reads as empty, so
+ * validation asks for a choice (FR-VAR-01/03, ADR-0026).
+ */
+function chosenColor(formData: FormData, current?: { name: string; hex?: string | undefined }) {
+  const name = formText(formData, "colorName");
+  const listed = colorHex(name);
+  const kept = current?.name === name;
+  return {
+    colorName: listed !== undefined || kept ? name : "",
+    hex: listed ?? (kept ? (current.hex ?? "") : ""),
+  };
+}
 
-const FIELDS = [
-  "colorName",
-  "hex",
-  "sku",
-  "minStock",
-  "priceOverride",
-  "costOverride",
-  "initialStock",
-] as const;
+const FIELDS = ["colorName", "sku", "minStock", "priceOverride", "initialStock"] as const;
 
 async function translations(locale: Locale) {
   return Promise.all([
@@ -79,15 +92,17 @@ async function failure(
   }
 }
 
-function variantFields(formData: FormData, session: Session) {
-  const canSeeCost = session.permissions.has("product:view-cost");
+function variantFields(
+  formData: FormData,
+  session: Session,
+  roll: boolean,
+  current?: { name: string; hex?: string | undefined },
+) {
   return {
-    colorName: formText(formData, "colorName"),
-    hex: hex(formText(formData, "hex")),
+    ...chosenColor(formData, current),
     sku: formText(formData, "sku"),
-    minStock: integer(formText(formData, "minStock") || "0"),
-    priceOverride: override(formText(formData, "priceOverride")),
-    ...(canSeeCost ? { costOverride: override(formText(formData, "costOverride")) } : {}),
+    minStock: quantity(formText(formData, "minStock"), roll),
+    priceOverride: roll ? null : override(formText(formData, "priceOverride")),
   };
 }
 
@@ -109,12 +124,13 @@ export async function enableVariantsAction(
   formData: FormData,
 ): Promise<FormState> {
   const { locale, session, validId, values } = await start(productId, formData);
-  if (!validId) return failure({ ok: false, reason: "not-found" }, locale);
-  const parsed = enableVariantsInput.safeParse({
-    colorName: formText(formData, "colorName"),
-    hex: hex(formText(formData, "hex")),
+  const product = validId ? await getProduct(session, productId) : undefined;
+  if (!product) return failure({ ok: false, reason: "not-found" }, locale);
+  const schema = product.isRoll ? enableVariantsInput.extend(rollSku) : enableVariantsInput;
+  const parsed = schema.safeParse({
+    ...chosenColor(formData),
     sku: formText(formData, "sku"),
-    minStock: integer(formText(formData, "minStock") || "0"),
+    minStock: quantity(formText(formData, "minStock"), product.isRoll),
   });
   if (!parsed.success) {
     const [, tv] = await translations(locale);
@@ -139,10 +155,12 @@ export async function createVariantAction(
   formData: FormData,
 ): Promise<FormState> {
   const { locale, session, validId, values } = await start(productId, formData);
-  if (!validId) return failure({ ok: false, reason: "not-found" }, locale);
-  const parsed = newVariantInput.safeParse({
-    ...variantFields(formData, session),
-    initialStock: integer(formText(formData, "initialStock") || "0"),
+  const product = validId ? await getProduct(session, productId) : undefined;
+  if (!product) return failure({ ok: false, reason: "not-found" }, locale);
+  const schema = product.isRoll ? newVariantInput.extend(rollSku) : newVariantInput;
+  const parsed = schema.safeParse({
+    ...variantFields(formData, session, product.isRoll),
+    initialStock: quantity(formText(formData, "initialStock"), product.isRoll),
   });
   if (!parsed.success) {
     const [, tv] = await translations(locale);
@@ -167,8 +185,12 @@ export async function updateVariantAction(
   formData: FormData,
 ): Promise<FormState> {
   const { locale, session, validId, values } = await start(variantId, formData);
-  if (!validId) return failure({ ok: false, reason: "not-found" }, locale);
-  const parsed = variantInput.safeParse(variantFields(formData, session));
+  const variant = validId ? await getVariant(session, variantId) : undefined;
+  if (!variant) return failure({ ok: false, reason: "not-found" }, locale);
+  const schema = variant.isRoll ? variantInput.extend(rollSku) : variantInput;
+  const parsed = schema.safeParse(
+    variantFields(formData, session, variant.isRoll, variant.color ?? undefined),
+  );
   if (!parsed.success) {
     const [, tv] = await translations(locale);
     return { status: "error", errors: fieldErrors(parsed.error, tv), values };

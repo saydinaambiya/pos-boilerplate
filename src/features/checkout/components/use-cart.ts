@@ -7,10 +7,20 @@ import type { ItemDiscount } from "@/lib/money/calculate";
 export interface CartItem {
   variantId: string;
   name: string;
+  /** Colour plus size or cut length, as shown in the cart. */
   colorName: string | null;
   unitPrice: number;
   qty: number;
+  /** Custom cut off a roll, in cm per unit (FR-ROL-04). */
+  lengthCm?: number;
   discount: ItemDiscount | null;
+}
+
+/** Cart line identity: a variant, or a variant cut to one length (FR-ROL-04). */
+export function cartLineKey(item: { variantId: string; lengthCm?: number | undefined }): string {
+  return item.lengthCm === undefined
+    ? item.variantId
+    : `${item.variantId}@${String(item.lengthCm)}`;
 }
 
 const EMPTY = "[]";
@@ -54,7 +64,9 @@ function isCartItem(value: unknown): value is CartItem {
     typeof item.unitPrice === "number" &&
     typeof item.qty === "number" &&
     Number.isInteger(item.qty) &&
-    item.qty > 0
+    item.qty > 0 &&
+    (item.lengthCm === undefined ||
+      (typeof item.lengthCm === "number" && Number.isInteger(item.lengthCm) && item.lengthCm > 0))
   );
 }
 
@@ -92,7 +104,8 @@ export function useCart(storageKey: string) {
     add: useCallback(
       (item: Omit<CartItem, "qty" | "discount">, maxQty: number | null) => {
         update((current) => {
-          const existing = current.find((line) => line.variantId === item.variantId);
+          const key = cartLineKey(item);
+          const existing = current.find((line) => cartLineKey(line) === key);
           if (!existing)
             return maxQty === 0 ? current : [...current, { ...item, qty: 1, discount: null }];
           if (maxQty !== null && existing.qty >= maxQty) return current;
@@ -102,26 +115,26 @@ export function useCart(storageKey: string) {
       [update],
     ),
     setQty: useCallback(
-      (variantId: string, qty: number) => {
+      (key: string, qty: number) => {
         update((current) =>
           qty <= 0
-            ? current.filter((line) => line.variantId !== variantId)
-            : current.map((line) => (line.variantId === variantId ? { ...line, qty } : line)),
+            ? current.filter((line) => cartLineKey(line) !== key)
+            : current.map((line) => (cartLineKey(line) === key ? { ...line, qty } : line)),
         );
       },
       [update],
     ),
     setDiscount: useCallback(
-      (variantId: string, discount: ItemDiscount | null) => {
+      (key: string, discount: ItemDiscount | null) => {
         update((current) =>
-          current.map((line) => (line.variantId === variantId ? { ...line, discount } : line)),
+          current.map((line) => (cartLineKey(line) === key ? { ...line, discount } : line)),
         );
       },
       [update],
     ),
     remove: useCallback(
-      (variantId: string) => {
-        update((current) => current.filter((line) => line.variantId !== variantId));
+      (key: string) => {
+        update((current) => current.filter((line) => cartLineKey(line) !== key));
       },
       [update],
     ),

@@ -18,6 +18,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ConsignmentMessages } from "@/features/consignments/components/consignment-messages";
+import { SalesShiftPanel } from "@/features/consignments/components/sales-shift-panel";
 import { TakeForm } from "@/features/consignments/components/take-form";
 import { getConsignments, getSalespeopleFor } from "@/features/consignments/service";
 import { Link } from "@/i18n/navigation";
@@ -53,6 +54,9 @@ export default async function ConsignmentsPage({
   const money = (amount: number) => formatCurrency(amount, locale);
   const when = (date: Date) => format.dateTime(date, { dateStyle: "medium", timeStyle: "short" });
   const kept = status === "CLOSED" ? { status: "closed" } : {};
+  /** Salespeople without the cashier keep their shift here (ADR-0029). */
+  const sellsOwn =
+    session.permissions.has("consignment:sell") && !session.permissions.has("page:pos");
 
   return (
     <>
@@ -72,6 +76,11 @@ export default async function ConsignmentsPage({
           ) : null
         }
       />
+      {sellsOwn ? (
+        <div className="mb-6">
+          <SalesShiftPanel session={session} closing={firstParam(params.closeShift) === "1"} />
+        </div>
+      ) : null}
       <SectionTabs
         label={t("tabsLabel")}
         current={status}

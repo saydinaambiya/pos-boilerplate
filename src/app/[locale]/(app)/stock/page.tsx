@@ -1,6 +1,6 @@
 import { Boxes } from "lucide-react";
 import type { Metadata } from "next";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 
 import { FilterForm } from "@/components/form/filter-form";
 import { Button } from "@/components/ui/button";
@@ -23,14 +23,19 @@ import { stockFilters } from "@/features/stock/schemas";
 import { getStockLevels } from "@/features/stock/service";
 import { Link } from "@/i18n/navigation";
 import { requirePermission } from "@/lib/auth/guard";
-import { variantLabel } from "@/lib/format/variant-label";
+import { formatMeters } from "@/lib/format/length";
+import { stockItemLabel } from "@/lib/format/variant-label";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Stock");
   return { title: t("title") };
 }
 
-/** Stock per variant with search and a low-stock filter (FR-STK-01, FR-STK-07). */
+/**
+ * Stock per variant with search, a low-stock and a defect filter
+ * (FR-STK-01, FR-STK-07, FR-ROL-05): each roll in meters followed by its
+ * pieces, defect pieces flagged (ADR-0023).
+ */
 export default async function StockPage({ searchParams }: PageProps<"/[locale]/stock">) {
   const session = await requirePermission("page:stock");
   const raw = await searchParams;
@@ -38,13 +43,21 @@ export default async function StockPage({ searchParams }: PageProps<"/[locale]/s
   const filters = stockFilters.parse({
     q: first(raw.q) ?? "",
     low: first(raw.low),
+    defect: first(raw.defect),
     page: first(raw.page) ?? "1",
   });
-  const [t, page] = await Promise.all([getTranslations("Stock"), getStockLevels(session, filters)]);
-  const filtered = filters.q !== "" || filters.low !== undefined;
+  const [t, locale, page] = await Promise.all([
+    getTranslations("Stock"),
+    getLocale(),
+    getStockLevels(session, filters),
+  ]);
+  const amount = (level: { isRoll: boolean }, value: number) =>
+    level.isRoll ? formatMeters(value, locale) : String(value);
+  const filtered = filters.q !== "" || filters.low !== undefined || filters.defect !== undefined;
   const query = (pageNumber: number) => ({
     ...(filters.q ? { q: filters.q } : {}),
     ...(filters.low ? { low: filters.low } : {}),
+    ...(filters.defect ? { defect: filters.defect } : {}),
     ...(pageNumber > 1 ? { page: String(pageNumber) } : {}),
   });
 
@@ -54,7 +67,7 @@ export default async function StockPage({ searchParams }: PageProps<"/[locale]/s
       <Card className="mb-6">
         <FilterForm
           applyLabel={t("filter")}
-          className="grid gap-4 sm:grid-cols-[1fr_auto_auto] sm:items-end"
+          className="grid gap-4 sm:grid-cols-[1fr_auto_auto_auto] sm:items-end"
         >
           <Field label={t("search")}>
             {(control) => (
@@ -77,6 +90,16 @@ export default async function StockPage({ searchParams }: PageProps<"/[locale]/s
               className="size-5 accent-primary"
             />
             {t("lowOnly")}
+          </label>
+          <label className="flex min-h-11 items-center gap-3 text-sm text-ink">
+            <input
+              type="checkbox"
+              name="defect"
+              value="1"
+              defaultChecked={filters.defect !== undefined}
+              className="size-5 accent-primary"
+            />
+            {t("defectOnly")}
           </label>
           {filtered ? (
             <Button asChild variant="ghost">
@@ -105,28 +128,40 @@ export default async function StockPage({ searchParams }: PageProps<"/[locale]/s
               </TableRow>
             </TableHeader>
             <TableBody>
-              {page.levels.map((level) => (
-                <TableRow key={level.variantId}>
-                  <TableCell className="font-medium">
-                    <Link
-                      href={`/stock/${level.variantId}`}
-                      aria-label={t("open", {
-                        name: variantLabel(level.productName, level.colorName),
-                      })}
-                      className="underline-offset-4 hover:underline"
-                    >
-                      {variantLabel(level.productName, level.colorName)}
-                    </Link>
-                    <span className="block text-xs font-normal text-ink-muted">{level.unit}</span>
-                  </TableCell>
-                  <TableCell className="text-ink-muted">{level.sku}</TableCell>
-                  <TableCell>{level.brandName ?? "—"}</TableCell>
-                  <TableCell>
-                    <StockCell trackStock stockQty={level.stockQty} minStock={level.minStock} />
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">{level.minStock}</TableCell>
-                </TableRow>
-              ))}
+              {page.levels.map((level) => {
+                const name = stockItemLabel(level, t("defect"));
+                const piece = level.parentId !== null;
+                return (
+                  <TableRow key={level.variantId}>
+                    <TableCell className="font-medium">
+                      <Link
+                        href={`/stock/${level.variantId}`}
+                        aria-label={t("open", { name })}
+                        className="underline-offset-4 hover:underline"
+                      >
+                        {name}
+                      </Link>
+                      <span className="block text-xs font-normal text-ink-muted">
+                        {level.isRoll ? "m" : piece ? "pcs" : level.unit}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-ink-muted">{level.sku}</TableCell>
+                    <TableCell>{level.brandName ?? "—"}</TableCell>
+                    <TableCell>
+                      <StockCell
+                        trackStock
+                        stockQty={level.stockQty}
+                        minStock={level.minStock}
+                        low={level.stockQty <= level.minStock && (!piece || level.minStock > 0)}
+                        label={amount(level, level.stockQty)}
+                      />
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {amount(level, level.minStock)}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         )}

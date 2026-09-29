@@ -46,7 +46,6 @@ async function sellable() {
     {
       name: "Paket",
       price: 100_000,
-      cost: 0,
       unit: "pcs",
       trackStock: false,
       sku: `PKT-${crypto.randomUUID().slice(0, 8)}`,
@@ -311,7 +310,7 @@ describe("store credit payments (FR-KSB-03..05, BR-12, BR-13)", () => {
         kasbon.id,
         {
           cash: 0,
-          transfer: { amount: 10_000, bankAccountId: crypto.randomUUID(), reference: "" },
+          transfer: { amount: 10_000, bankAccountId: crypto.randomUUID() },
         },
         testContext(),
       ),
@@ -327,7 +326,7 @@ describe("store credit payments (FR-KSB-03..05, BR-12, BR-13)", () => {
       await recordKasbonPayment(
         session,
         kasbon.id,
-        { cash: 0, transfer: { amount: 10_000, bankAccountId: bank.id, reference: "TRX-1" } },
+        { cash: 0, transfer: { amount: 10_000, bankAccountId: bank.id } },
         testContext(),
       ),
     ).toEqual({ ok: true, status: "PENDING" });
@@ -355,7 +354,7 @@ describe("split installments (FR-KSB-03, BR-12)", () => {
       await recordKasbonPayment(
         session,
         kasbon.id,
-        { cash: 30_000, transfer: { amount: 80_000, bankAccountId: bank.id, reference: "" } },
+        { cash: 30_000, transfer: { amount: 80_000, bankAccountId: bank.id } },
         testContext(),
       ),
     ).toEqual({ ok: false, reason: "exceeds-balance", available: 100_000 });
@@ -363,7 +362,7 @@ describe("split installments (FR-KSB-03, BR-12)", () => {
       await recordKasbonPayment(
         session,
         kasbon.id,
-        { cash: 30_000, transfer: { amount: 50_000, bankAccountId: bank.id, reference: "TRX" } },
+        { cash: 30_000, transfer: { amount: 50_000, bankAccountId: bank.id } },
         testContext(),
       ),
     ).toEqual({ ok: true, status: "PENDING" });

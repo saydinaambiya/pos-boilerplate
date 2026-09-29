@@ -4,14 +4,16 @@ import { db } from "@/db/client";
 import { isUniqueViolation } from "@/db/errors";
 import { recordAudit } from "@/lib/audit/audit";
 import { changedFields } from "@/lib/audit/diff";
-import { assertPermission } from "@/lib/auth/authorize";
+import { assertAnyPermission, assertPermission } from "@/lib/auth/authorize";
 import type { Session } from "@/lib/auth/session";
 import type { RequestContext } from "@/lib/http/request-context";
 import type { SettingKey, SettingValue } from "@/lib/settings/schemas";
 import { readSetting, writeSetting } from "@/lib/settings/store";
 
 import {
+  clearQrisAccount,
   findBankAccount,
+  findQrisAccount,
   findMarketplace,
   insertBankAccount,
   insertMarketplace,
@@ -128,7 +130,7 @@ export async function changeBankAccountStatus(
   if (!current) return { ok: false, reason: "not-found" };
   if (current.isActive === isActive) return { ok: true, id };
   await db.transaction(async (tx) => {
-    await updateBankAccountRow(tx, id, { isActive });
+    await updateBankAccountRow(tx, id, isActive ? { isActive } : { isActive, isQris: false });
     await recordAudit(
       tx,
       {
@@ -141,6 +143,44 @@ export async function changeBankAccountStatus(
     );
   });
   return { ok: true, id };
+}
+
+/**
+ * Makes an active account the one QRIS account, or clears it with `null`
+ * (FR-PAY-07, ADR-0025). A deactivated account also stops receiving QRIS.
+ */
+export async function setQrisAccount(
+  session: Session,
+  id: string | null,
+  context: RequestContext,
+): Promise<MasterDataResult> {
+  assertPermission(session, "settings:manage");
+  const target = id === null ? null : await findBankAccount(id);
+  if (id !== null && !target?.isActive) return { ok: false, reason: "not-found" };
+  await db.transaction(async (tx) => {
+    await clearQrisAccount(tx);
+    if (target) await updateBankAccountRow(tx, target.id, { isQris: true });
+    await recordAudit(
+      tx,
+      {
+        actorId: session.user.id,
+        action: target ? "bank-account.qris-set" : "bank-account.qris-cleared",
+        entity: "bank-account",
+        entityId: target?.id ?? null,
+      },
+      context,
+    );
+  });
+  return { ok: true, id: target?.id ?? "" };
+}
+
+/** The QRIS account offered at checkout, filled in automatically (FR-PAY-07). */
+export async function getQrisAccount(session: Session) {
+  assertAnyPermission(session, ["page:pos", "consignment:sell"]);
+  const account = await findQrisAccount();
+  return account
+    ? { label: `${account.bankName} · ${account.accountNo} · ${account.accountName}` }
+    : null;
 }
 
 export async function getMarketplaces(session: Session) {
@@ -240,9 +280,12 @@ export async function changeMarketplaceStatus(
   return { ok: true, id };
 }
 
-/** Active transfer destinations offered at checkout (FR-PAY-04); needs only POS access. */
+/**
+ * Active transfer destinations offered at checkout (FR-PAY-04); needs only
+ * POS access, or recording sold goods as a salesperson (ADR-0029).
+ */
 export async function getCheckoutBankAccounts(session: Session) {
-  assertPermission(session, "page:pos");
+  assertAnyPermission(session, ["page:pos", "consignment:sell"]);
   return activeBankAccountOptions();
 }
 

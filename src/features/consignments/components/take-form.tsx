@@ -13,7 +13,7 @@ import { toneClasses } from "@/components/ui/tone";
 import type { Locale } from "@/config/locales";
 import { ColorSwatch } from "@/features/catalog/components/color-swatch";
 import type { PosProduct, PosVariant } from "@/features/catalog/pos-types";
-import { productDetailsLine } from "@/features/catalog/sizes";
+import { defectWord, formatSize, productDetailsLine } from "@/features/catalog/sizes";
 import { useRouter } from "@/i18n/navigation";
 import { formatCurrency } from "@/lib/format/currency";
 import { cn } from "@/lib/utils/cn";
@@ -34,8 +34,22 @@ interface TakeFormProps {
   defaultSalespersonId: string;
 }
 
-function variantLabel(product: PosProduct, variant: PosVariant) {
-  return variant.colorName ? `${product.name} — ${variant.colorName}` : product.name;
+/** Colour and, for a piece cut from a roll, its size and defect flag (ADR-0023, FR-ROL-05). */
+function variantName(variant: PosVariant, locale: string): string | null {
+  return (
+    [
+      variant.colorName,
+      variant.size ? formatSize(variant.size) : null,
+      variant.isDefect ? defectWord(locale) : null,
+    ]
+      .filter(Boolean)
+      .join(" · ") || null
+  );
+}
+
+function variantLabel(product: PosProduct, variant: PosVariant, locale: string) {
+  const name = variantName(variant, locale);
+  return name ? `${product.name} — ${name}` : product.name;
 }
 
 /**
@@ -85,7 +99,7 @@ export function TakeForm({ locale, salespeople, defaultSalespersonId }: TakeForm
             ...current,
             {
               variantId: variant.id,
-              label: variantLabel(product, variant),
+              label: variantLabel(product, variant, locale),
               price: variant.price,
               qty: 1,
             },
@@ -173,9 +187,9 @@ export function TakeForm({ locale, salespeople, defaultSalespersonId }: TakeForm
               <li key={product.id} className="rounded-control border border-border p-2">
                 <p className="mb-1 text-sm font-medium text-ink">
                   {product.name}
-                  {productDetailsLine(product) ? (
+                  {productDetailsLine(product, locale) ? (
                     <span className="block text-xs font-normal text-ink-muted">
-                      {productDetailsLine(product)}
+                      {productDetailsLine(product, locale)}
                     </span>
                   ) : null}
                 </p>
@@ -185,7 +199,7 @@ export function TakeForm({ locale, salespeople, defaultSalespersonId }: TakeForm
                       key={variant.id}
                       size="sm"
                       variant="secondary"
-                      aria-label={t("addItem", { name: variantLabel(product, variant) })}
+                      aria-label={t("addItem", { name: variantLabel(product, variant, locale) })}
                       onClick={() => {
                         add(product, variant);
                       }}
@@ -199,7 +213,7 @@ export function TakeForm({ locale, salespeople, defaultSalespersonId }: TakeForm
                           className="size-4"
                         />
                       ) : null}
-                      {variant.colorName ?? t("addPlain")}
+                      {variantName(variant, locale) ?? t("addPlain")}
                       {product.trackStock ? (
                         <span className="text-ink-muted tabular-nums">
                           {t("inStock", { count: variant.stockQty })}

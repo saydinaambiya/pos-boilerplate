@@ -17,6 +17,12 @@ import {
   emptyCustomerDraft,
   type CustomerDraft,
 } from "@/features/checkout/components/customer-fields";
+import {
+  emptySourceBank,
+  SourceBankField,
+  type SourceBankDraft,
+  sourceBankOf,
+} from "@/features/checkout/components/source-bank-field";
 import { useRouter } from "@/i18n/navigation";
 import { formatCurrency } from "@/lib/format/currency";
 import { calculateSale, type TaxRules } from "@/lib/money/calculate";
@@ -24,7 +30,7 @@ import { cn } from "@/lib/utils/cn";
 
 import { settleGoodsAction } from "../actions";
 
-type Method = "CASH" | "TRANSFER" | "KASBON";
+type Method = "CASH" | "TRANSFER" | "QRIS" | "KASBON";
 
 export interface OutstandingItem {
   variantId: string;
@@ -36,9 +42,13 @@ export interface OutstandingItem {
 interface SettleFormProps {
   locale: Locale;
   consignmentId: string;
+  /** Sales record what they sold; the shop floor records what came back (ADR-0024). */
+  mode: "sell" | "return";
   items: readonly OutstandingItem[];
   tax: TaxRules;
   bankAccounts: readonly { id: string; label: string }[];
+  /** The store's QRIS account; null hides QRIS (FR-PAY-07). */
+  qrisAccount: { label: string } | null;
   canKasbon: boolean;
   /** Store-local date, the earliest due date. */
   today: string;
@@ -50,13 +60,16 @@ const toQty = (text: string) => {
 };
 
 /**
- * Settlement form (FR-CSG-03/04): per outstanding item how many were sold
- * and how many come back, the buyer (FR-POS-11) and how the sold part is
- * paid. The total is a preview; the server prices the sale.
+ * Settlement form (FR-CSG-03/04). In `sell` mode the salesperson enters
+ * how many of each item were sold, the buyer (FR-POS-11) and how it is
+ * paid; the total is a preview and the server prices the sale. In `return`
+ * mode the shop floor enters how many came back.
  */
 export function SettleForm(props: SettleFormProps) {
-  const { locale, items } = props;
+  const { locale, items, mode } = props;
+  const field = mode === "sell" ? "sold" : "returned";
   const t = useTranslations("Consignments");
+  const tPos = useTranslations("Pos");
   const id = useId();
   const router = useRouter();
   const showResult = useShowResult();
@@ -66,7 +79,7 @@ export function SettleForm(props: SettleFormProps) {
   const [customer, setCustomer] = useState<CustomerDraft>(emptyCustomerDraft);
   const [method, setMethod] = useState<Method>("CASH");
   const [bankAccountId, setBankAccountId] = useState(props.bankAccounts[0]?.id ?? "");
-  const [reference, setReference] = useState("");
+  const [source, setSource] = useState<SourceBankDraft>(emptySourceBank);
   const [kasbonNote, setKasbonNote] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [note, setNote] = useState("");
@@ -106,22 +119,32 @@ export function SettleForm(props: SettleFormProps) {
   const methods: readonly { value: Method; label: string }[] = [
     { value: "CASH", label: t("methodCash") },
     { value: "TRANSFER", label: t("methodTransfer") },
+    ...(props.qrisAccount ? [{ value: "QRIS" as const, label: t("methodQris") }] : []),
     ...(props.canKasbon ? [{ value: "KASBON" as const, label: t("methodKasbon") }] : []),
   ];
 
   const submit = () => {
     if (pending) return;
-    const entered = lines.filter((line) => line.sold + line.returned > 0);
+    const entered = lines.filter((line) => line[field] > 0);
     if (entered.length === 0) {
-      setError(t("nothingEntered"));
+      setError(t(mode === "sell" ? "nothingSold" : "nothingReturned"));
       return;
     }
-    const over = entered.find((line) => line.sold + line.returned > line.item.outstanding);
+    const over = entered.find((line) => line[field] > line.item.outstanding);
     if (over) {
-      setError(t("tooMany", { name: over.item.label, count: over.item.outstanding }));
+      setError(
+        t(mode === "sell" ? "tooManySold" : "tooManyReturned", {
+          name: over.item.label,
+          count: over.item.outstanding,
+        }),
+      );
       return;
     }
-    if (hasSale && Object.values(customerErrors).some(Boolean)) {
+    if (
+      hasSale &&
+      (Object.values(customerErrors).some(Boolean) ||
+        (method === "QRIS" && sourceBankOf(source) === ""))
+    ) {
       setShowErrors(true);
       setError(null);
       return;
@@ -129,18 +152,20 @@ export function SettleForm(props: SettleFormProps) {
     setError(null);
     const payment =
       method === "TRANSFER"
-        ? { method, bankAccountId, reference: reference.trim() }
-        : method === "KASBON"
-          ? { method, note: kasbonNote, dueDate: dueDate === "" ? null : dueDate }
-          : { method };
+        ? { method, bankAccountId }
+        : method === "QRIS"
+          ? { method, sourceBank: sourceBankOf(source) }
+          : method === "KASBON"
+            ? { method, note: kasbonNote, dueDate: dueDate === "" ? null : dueDate }
+            : { method };
     startTransition(async () => {
       try {
         const result = await settleGoodsAction(locale, props.consignmentId, {
           idempotencyKey: idempotencyKey.current,
           lines: entered.map((line) => ({
             variantId: line.item.variantId,
-            sold: line.sold,
-            returned: line.returned,
+            sold: mode === "sell" ? line.sold : 0,
+            returned: mode === "return" ? line.returned : 0,
           })),
           customer: hasSale ? { name: customer.name, phone: customer.phone } : null,
           payment: hasSale ? payment : { method: "CASH" },
@@ -169,46 +194,31 @@ export function SettleForm(props: SettleFormProps) {
     >
       <ul className="flex flex-col divide-y divide-border">
         {lines.map(({ item }) => (
-          <li key={item.variantId} className="grid gap-2 py-3 sm:grid-cols-[1fr_6rem_6rem]">
+          <li key={item.variantId} className="grid gap-2 py-3 sm:grid-cols-[1fr_6rem]">
             <span className="text-sm [overflow-wrap:anywhere] text-ink">
               {item.label}
               <span className="block text-xs text-ink-muted tabular-nums">
-                {`${money(item.price)} · ${t("outstandingOf", { count: item.outstanding })}`}
+                {mode === "sell"
+                  ? `${money(item.price)} · ${t("outstandingOf", { count: item.outstanding })}`
+                  : t("outstandingOf", { count: item.outstanding })}
               </span>
             </span>
             <div className="flex flex-col gap-1">
               <label
-                htmlFor={`${id}-${item.variantId}-sold`}
+                htmlFor={`${id}-${item.variantId}-${field}`}
                 className="text-xs font-medium text-ink-muted"
               >
-                <span aria-hidden="true">{t("sold")}</span>
-                <span className="sr-only">{t("soldOf", { name: item.label })}</span>
+                <span aria-hidden="true">{t(field)}</span>
+                <span className="sr-only">
+                  {t(mode === "sell" ? "soldOf" : "returnedOf", { name: item.label })}
+                </span>
               </label>
               <Input
-                id={`${id}-${item.variantId}-sold`}
+                id={`${id}-${item.variantId}-${field}`}
                 inputMode="numeric"
-                value={quantities[item.variantId]?.sold ?? ""}
+                value={quantities[item.variantId]?.[field] ?? ""}
                 onChange={(event) => {
-                  set(item.variantId, "sold", event.target.value);
-                }}
-                placeholder="0"
-                className="text-center tabular-nums"
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label
-                htmlFor={`${id}-${item.variantId}-returned`}
-                className="text-xs font-medium text-ink-muted"
-              >
-                <span aria-hidden="true">{t("returned")}</span>
-                <span className="sr-only">{t("returnedOf", { name: item.label })}</span>
-              </label>
-              <Input
-                id={`${id}-${item.variantId}-returned`}
-                inputMode="numeric"
-                value={quantities[item.variantId]?.returned ?? ""}
-                onChange={(event) => {
-                  set(item.variantId, "returned", event.target.value);
+                  set(item.variantId, field, event.target.value);
                 }}
                 placeholder="0"
                 className="text-center tabular-nums"
@@ -237,7 +247,7 @@ export function SettleForm(props: SettleFormProps) {
             <div
               className={cn(
                 "grid gap-1 rounded-card bg-surface-muted p-1",
-                methods.length > 2 ? "grid-cols-3" : "grid-cols-2",
+                methods.length === 3 ? "grid-cols-3" : "grid-cols-2",
               )}
             >
               {methods.map((option) => (
@@ -279,19 +289,14 @@ export function SettleForm(props: SettleFormProps) {
                   }))}
                 />
               </div>
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor={`${id}-reference`} className="text-sm font-medium text-ink">
-                  {t("reference")}
-                </label>
-                <Input
-                  id={`${id}-reference`}
-                  value={reference}
-                  onChange={(event) => {
-                    setReference(event.target.value);
-                  }}
-                  maxLength={60}
-                />
-              </div>
+            </div>
+          ) : null}
+          {method === "QRIS" && props.qrisAccount ? (
+            <div className="flex flex-col gap-3">
+              <p className="rounded-control bg-surface-muted px-3 py-2 text-sm text-ink">
+                {tPos("qrisAccount", { account: props.qrisAccount.label })}
+              </p>
+              <SourceBankField draft={source} onChange={setSource} showError={showErrors} />
             </div>
           ) : null}
           {method === "KASBON" ? (
@@ -324,9 +329,7 @@ export function SettleForm(props: SettleFormProps) {
             </div>
           ) : null}
         </>
-      ) : (
-        <p className="text-sm text-ink-muted">{t("noSold")}</p>
-      )}
+      ) : null}
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor={`${id}-note`} className="text-sm font-medium text-ink">
@@ -348,7 +351,7 @@ export function SettleForm(props: SettleFormProps) {
         </p>
       ) : null}
       <Button type="submit" disabled={pending} aria-busy={pending} className="self-start">
-        {t("saveSettle")}
+        {t(mode === "sell" ? "saveSold" : "saveReturned")}
       </Button>
     </form>
   );

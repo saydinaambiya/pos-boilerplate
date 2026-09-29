@@ -48,7 +48,15 @@ async function buildDocument(sale: SaleDetail, locale: Locale): Promise<InvoiceD
     voided: sale.status === "VOIDED",
     items: sale.items.map((item) => ({
       name: variantLabel(item.nameSnapshot, item.variantSnapshot),
-      details: item.detailsSnapshot,
+      details:
+        [
+          item.detailsSnapshot,
+          item.lengthCm === null
+            ? null
+            : `${locale === "en" ? "Cut" : "Potong"} ${String(item.lengthCm)}cm`,
+        ]
+          .filter(Boolean)
+          .join(" · ") || null,
       qty: item.qty,
       unitPrice: item.unitPrice,
       discount: item.discountAmount,
@@ -70,7 +78,9 @@ async function buildDocument(sale: SaleDetail, locale: Locale): Promise<InvoiceD
         label:
           payment.method === "TRANSFER" && payment.bankName
             ? t("transferTo", { bank: payment.bankName })
-            : t(`methods.${payment.method}`),
+            : payment.method === "QRIS"
+              ? t("qrisFrom", { source: payment.sourceBank ?? "—" })
+              : t(`methods.${payment.method}`),
         amount: payment.amount,
       }))
       .concat(

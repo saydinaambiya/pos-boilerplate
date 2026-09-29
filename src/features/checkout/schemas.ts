@@ -9,8 +9,15 @@ const itemDiscount = z.union([
   z.object({ type: z.literal("amount"), value: rupiah.min(1) }).strict(),
 ]);
 
-/** Methods the POS settles directly; a remainder can go on store credit instead (FR-PAY-05). */
-export const posPaymentMethods = ["CASH", "TRANSFER"] as const;
+/**
+ * Methods the POS settles directly; a remainder can go on store credit
+ * instead (FR-PAY-05). QRIS settles into the store's QRIS account
+ * (FR-PAY-07).
+ */
+export const posPaymentMethods = ["CASH", "TRANSFER", "QRIS"] as const;
+
+/** Bank or e-wallet a QRIS payment came from; required for QRIS (FR-PAY-07). */
+export const sourceBank = plainText(40);
 
 /**
  * Checkout request (FR-POS-01..08, FR-PAY-01..04). Prices and totals are
@@ -27,6 +34,8 @@ export const checkoutInput = z
           .object({
             variantId: z.uuid(),
             qty: z.int().min(1).max(9999),
+            /** Custom cut off a roll, in cm per unit (FR-ROL-04); only on roll variants. */
+            lengthCm: z.int().min(1).max(100_000).optional(),
             discount: itemDiscount.nullable().optional(),
           })
           .strict(),
@@ -40,9 +49,13 @@ export const checkoutInput = z
             method: z.enum(posPaymentMethods),
             amount: z.int().min(1).max(MAX_RUPIAH),
             bankAccountId: z.uuid().optional(),
-            reference: plainText(60, 0).optional(),
+            sourceBank: sourceBank.optional(),
           })
-          .strict(),
+          .strict()
+          .refine((payment) => (payment.method === "QRIS") === (payment.sourceBank !== undefined), {
+            path: ["sourceBank"],
+            error: "required",
+          }),
       )
       .max(4),
     /** Buyer of the sale (FR-POS-11). */

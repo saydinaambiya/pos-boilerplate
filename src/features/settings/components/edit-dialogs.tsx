@@ -1,14 +1,17 @@
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import type { ComponentProps } from "react";
 import { z } from "zod";
 
+import { ConfirmAction } from "@/components/form/confirm-action";
 import { FormField } from "@/components/form/form-field";
+import { DialogSection } from "@/components/ui/dialog";
 import { RouteDialog } from "@/components/ui/route-dialog";
 import type { Session } from "@/lib/auth/session";
 
 import {
   setBankAccountStatusAction,
   setMarketplaceStatusAction,
+  setQrisAccountAction,
   updateBankAccountAction,
   updateMarketplaceAction,
 } from "../actions";
@@ -22,12 +25,16 @@ interface EditDialogProps {
   closeHref: ComponentProps<typeof RouteDialog>["closeHref"];
 }
 
-/** Edit or deactivate a bank account in a dialog (FR-SET-05, ADR-0018). */
+/**
+ * Edit or deactivate a bank account in a dialog (FR-SET-05, ADR-0018); an
+ * active account can be made the one QRIS account (FR-PAY-07).
+ */
 export async function EditBankAccountDialog({ session, id, closeHref }: EditDialogProps) {
   if (!z.uuid().safeParse(id).success) return null;
-  const [t, tCommon, account] = await Promise.all([
+  const [t, tCommon, locale, account] = await Promise.all([
     getTranslations("Settings"),
     getTranslations("Common"),
+    getLocale(),
     getBankAccount(session, id),
   ]);
   if (!account) return null;
@@ -55,6 +62,28 @@ export async function EditBankAccountDialog({ session, id, closeHref }: EditDial
           maxLength={80}
         />
       </SettingsForm>
+      {account.isActive ? (
+        <DialogSection
+          title={t("qrisSection")}
+          description={account.isQris ? t("qrisIsSet") : t("qrisNotSet")}
+        >
+          <div>
+            <ConfirmAction
+              action={setQrisAccountAction.bind(null, account.id, !account.isQris)}
+              locale={locale}
+              variant="secondary"
+              labels={{
+                trigger: account.isQris ? t("qrisClear") : t("qrisMake"),
+                title: account.isQris ? t("qrisClearTitle") : t("qrisMakeTitle"),
+                description: account.isQris ? t("qrisClearDescription") : t("qrisMakeDescription"),
+                confirm: account.isQris ? t("qrisClear") : t("qrisMake"),
+                cancel: tCommon("cancel"),
+                close: tCommon("close"),
+              }}
+            />
+          </div>
+        </DialogSection>
+      ) : null}
       <RecordStatus
         name={`${account.bankName} ${account.accountNo}`}
         isActive={account.isActive}

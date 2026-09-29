@@ -8,7 +8,11 @@ import {
 import { rupiah } from "@/lib/validation/money";
 import { plainText } from "@/lib/validation/text";
 
-/** A manually entered marketplace order (FR-ONL-01); prices come from the catalogue. */
+/**
+ * A manually entered marketplace order (FR-ONL-01). Items come from stock,
+ * but each line carries the marketplace price typed by staff, since it
+ * differs from the store price (FR-ONL-08).
+ */
 export const createOnlineOrderInput = z
   .object({
     marketplaceId: z.uuid(),
@@ -20,7 +24,11 @@ export const createOnlineOrderInput = z
       .regex(/^[A-Za-z0-9._/-]+$/)
       .transform((value) => value.toUpperCase()),
     lines: z
-      .array(z.object({ variantId: z.uuid(), qty: z.int().min(1).max(9999) }).strict())
+      .array(
+        z
+          .object({ variantId: z.uuid(), qty: z.int().min(1).max(9999), unitPrice: rupiah })
+          .strict(),
+      )
       .min(1)
       .max(100),
     shippingFee: rupiah,

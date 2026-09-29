@@ -17,3 +17,12 @@ export class ForbiddenError extends Error {
 export function assertPermission(session: Session, permission: Permission): void {
   if (!session.permissions.has(permission)) throw new ForbiddenError(permission);
 }
+
+/** Like `assertPermission`, satisfied by any one of `permissions`. */
+export function assertAnyPermission(session: Session, permissions: readonly Permission[]): void {
+  const [first] = permissions;
+  if (first === undefined) throw new Error("No permission given");
+  if (!permissions.some((permission) => session.permissions.has(permission))) {
+    throw new ForbiddenError(first);
+  }
+}

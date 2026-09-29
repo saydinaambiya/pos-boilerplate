@@ -3,7 +3,7 @@ import "server-only";
 import { and, desc, eq, isNull, ne, type SQL, sql } from "drizzle-orm";
 
 import { db, type Executor } from "@/db/client";
-import { kasbons, payments, sales, shifts, users } from "@/db/schema";
+import { cashExpenses, kasbons, payments, sales, shifts, users } from "@/db/schema";
 
 const shiftColumns = {
   id: shifts.id,
@@ -85,7 +85,8 @@ export async function closeShiftRow(
 /**
  * Per-shift figures (FR-SHF-03/04): settled payments per method on
  * non-voided sales, sale and void counts, store credit given, and store
- * credit payments taken in this shift. A payment still awaiting approval
+ * credit payments taken in this shift, and cash paid out as staff expenses
+ * (FR-EXP-03). A payment still awaiting approval
  * counts because the money is already in hand; a rejected one does not
  * (FR-KSB-03/04).
  */
@@ -129,7 +130,13 @@ export async function shiftTotals(executor: Executor, shiftId: string) {
     .where(and(eq(payments.shiftId, shiftId), ne(payments.status, "FAILED")))
     .groupBy(payments.method);
 
+  const [spent] = await executor
+    .select({ total: sql<number>`coalesce(sum(${cashExpenses.amount}), 0)`.mapWith(Number) })
+    .from(cashExpenses)
+    .where(eq(cashExpenses.shiftId, shiftId));
+
   return {
+    expenses: spent?.total ?? 0,
     kasbonIssued: credit?.total ?? 0,
     kasbonCollected: Object.fromEntries(collected.map((row) => [row.method, row.total])) as Partial<
       Record<(typeof collected)[number]["method"], number>

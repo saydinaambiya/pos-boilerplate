@@ -47,7 +47,6 @@ async function setup() {
     {
       name: "Kaos",
       price: 50_000,
-      cost: 20_000,
       unit: "pcs",
       trackStock: true,
       sku: "KAOS-1",
@@ -166,7 +165,7 @@ describe("housekeeping (FR-HK-01..07)", () => {
       {
         marketplaceId: shopee.id,
         orderCode: "OLD-1",
-        lines: [{ variantId, qty: 1 }],
+        lines: [{ variantId, qty: 1, unitPrice: 50_000 }],
         shippingFee: 0,
         note: "",
       },

@@ -5,6 +5,7 @@ import { and, asc, desc, eq, gte, isNotNull, lt, ne, notInArray, sql } from "dri
 import { db } from "@/db/client";
 import {
   brands,
+  cashExpenses,
   kasbons,
   onlineOrderItems,
   onlineOrders,
@@ -114,6 +115,31 @@ export async function salesByDay(window: ReportWindow) {
     .where(counted(window))
     .groupBy(sql`1`)
     .orderBy(sql`1`);
+}
+
+/** Staff expenses paid from the drawer per store day (FR-EXP-02, FR-RPT-01). */
+export async function expensesByDay(window: ReportWindow) {
+  const day = sql<string>`to_char((${cashExpenses.createdAt} at time zone ${window.timeZone})::date, 'YYYY-MM-DD')`;
+  return db
+    .select({ day, total: num(sql`sum(${cashExpenses.amount})`) })
+    .from(cashExpenses)
+    .where(and(gte(cashExpenses.createdAt, window.start), lt(cashExpenses.createdAt, window.end)))
+    .groupBy(sql`1`)
+    .orderBy(sql`1`);
+}
+
+/** Staff expenses per kind in the range (FR-EXP-02). */
+export async function expensesByCategory(window: ReportWindow) {
+  return db
+    .select({
+      category: cashExpenses.category,
+      count: sql<number>`count(*)`.mapWith(Number),
+      total: num(sql`sum(${cashExpenses.amount})`),
+    })
+    .from(cashExpenses)
+    .where(and(gte(cashExpenses.createdAt, window.start), lt(cashExpenses.createdAt, window.end)))
+    .groupBy(cashExpenses.category)
+    .orderBy(cashExpenses.category);
 }
 
 /** Settled POS payments per method (FR-RPT-01). */

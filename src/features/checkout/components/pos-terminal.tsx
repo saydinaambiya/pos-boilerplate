@@ -18,16 +18,17 @@ import {
 import { Input } from "@/components/ui/input";
 import type { Locale } from "@/config/locales";
 import type { PosProduct, PosVariant } from "@/features/catalog/pos-types";
-import { productDetailsLine } from "@/features/catalog/sizes";
+import { formatSize, productDetailsLine } from "@/features/catalog/sizes";
 import { Link } from "@/i18n/navigation";
 import { formatCurrency } from "@/lib/format/currency";
+import { cutPrice } from "@/lib/money/cut";
 import { calculateSale, type TaxRules, type VoucherRule } from "@/lib/money/calculate";
 import { cn } from "@/lib/utils/cn";
 
 import { checkVoucherAction, searchPosCatalogAction } from "../actions";
 import { CartPanel } from "./cart-panel";
 import { PaymentDialog } from "./payment-dialog";
-import { useCart } from "./use-cart";
+import { cartLineKey, useCart } from "./use-cart";
 import { VariantPicker } from "./variant-picker";
 
 interface PosTerminalProps {
@@ -43,6 +44,8 @@ interface PosTerminalProps {
   canKasbon: boolean;
   today: string;
   bankAccounts: readonly { id: string; label: string }[];
+  /** The store's QRIS account; null when none is set (FR-PAY-07). */
+  qrisAccount: { label: string } | null;
 }
 
 interface Completed {
@@ -51,6 +54,13 @@ interface Completed {
   change: number | null;
   tendered: number | null;
   kasbonTotal: number;
+}
+
+/** What a grid tile sells: pieces of a roll product, else every variant (FR-ROL-04). */
+function sellables(product: PosProduct): PosVariant[] {
+  return product.isRoll
+    ? product.variants.filter((variant) => variant.parentId !== null)
+    : product.variants;
 }
 
 function matches(product: PosProduct, term: string) {
@@ -75,7 +85,8 @@ function isTyping(target: EventTarget | null) {
 
 /**
  * The POS screen (FR-POS-01..05, FR-POS-10): product grid with search and
- * brand filter, colour picker, cart and payment. The preview uses the
+ * brand filter, colour picker (with sizes and custom cuts for rolls,
+ * FR-ROL-04), cart and payment. The preview uses the
  * same `calculateSale` as the server, which recomputes on checkout.
  */
 export function PosTerminal(props: PosTerminalProps) {
@@ -109,7 +120,7 @@ export function PosTerminal(props: PosTerminalProps) {
     () =>
       cart.items.map((item) => {
         const known = variantIndex.get(item.variantId);
-        return known ? { ...item, unitPrice: known.variant.price } : item;
+        return known ? { ...item, unitPrice: cutPrice(known.variant.price, item.lengthCm) } : item;
       }),
     [cart.items, variantIndex],
   );
@@ -151,12 +162,13 @@ export function PosTerminal(props: PosTerminalProps) {
   }, [props.catalog, props.truncated, remote, brand, term]);
 
   const maxQty = useCallback(
-    (variantId: string) => {
-      const known = variantIndex.get(variantId);
+    (key: string) => {
+      const line = items.find((item) => cartLineKey(item) === key);
+      const known = variantIndex.get(line?.variantId ?? key);
       if (!known?.product.trackStock || allowNegativeStock) return null;
-      return Math.max(known.variant.stockQty, 0);
+      return Math.max(Math.floor(known.variant.stockQty / (line?.lengthCm ?? 1)), 0);
     },
-    [variantIndex, allowNegativeStock],
+    [items, variantIndex, allowNegativeStock],
   );
 
   const isSelectable = useCallback(
@@ -166,24 +178,36 @@ export function PosTerminal(props: PosTerminalProps) {
   );
 
   const addVariant = useCallback(
-    (product: PosProduct, variant: PosVariant) => {
+    (product: PosProduct, variant: PosVariant, lengthCm?: number) => {
+      const described = [
+        variant.colorName,
+        variant.size ? formatSize(variant.size) : null,
+        variant.isDefect ? t("defect") : null,
+        lengthCm === undefined ? null : t("cutLabel", { length: String(lengthCm) }),
+      ]
+        .filter(Boolean)
+        .join(" · ");
+      const line = {
+        variantId: variant.id,
+        name: product.name,
+        colorName: described === "" ? null : described,
+        unitPrice: cutPrice(variant.price, lengthCm),
+        ...(lengthCm === undefined ? {} : { lengthCm }),
+      };
       cart.add(
-        {
-          variantId: variant.id,
-          name: product.name,
-          colorName: variant.colorName,
-          unitPrice: variant.price,
-        },
-        maxQty(variant.id),
+        line,
+        !product.trackStock || allowNegativeStock
+          ? null
+          : Math.max(Math.floor(variant.stockQty / (lengthCm ?? 1)), 0),
       );
       setPicking(null);
     },
-    [cart, maxQty],
+    [cart, allowNegativeStock, t],
   );
 
   const pick = (product: PosProduct) => {
     const [only] = product.variants;
-    if (!product.hasVariants && only) addVariant(product, only);
+    if (!product.hasVariants && !product.isRoll && only) addVariant(product, only);
     else setPicking(product);
   };
 
@@ -292,13 +316,17 @@ export function PosTerminal(props: PosTerminalProps) {
           ) : (
             <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
               {visible.map((product) => {
-                const prices = product.variants.map((variant) => variant.price);
+                const prices = sellables(product).map((variant) => variant.price);
                 const low = Math.min(...prices);
                 const high = Math.max(...prices);
                 const selectable = product.variants.some((variant) =>
                   isSelectable(product, variant),
                 );
-                const stock = product.variants.reduce((sum, variant) => sum + variant.stockQty, 0);
+                const stock = sellables(product).reduce(
+                  (sum, variant) => sum + variant.stockQty,
+                  0,
+                );
+                const colors = product.variants.filter((variant) => variant.parentId === null);
                 return (
                   <li key={product.id}>
                     <button
@@ -312,9 +340,9 @@ export function PosTerminal(props: PosTerminalProps) {
                       <span className="line-clamp-2 font-medium [overflow-wrap:anywhere] text-ink">
                         {product.name}
                       </span>
-                      {productDetailsLine(product) ? (
+                      {productDetailsLine(product, locale) ? (
                         <span className="line-clamp-1 text-xs [overflow-wrap:anywhere] text-ink-muted">
-                          {productDetailsLine(product)}
+                          {productDetailsLine(product, locale)}
                         </span>
                       ) : null}
                       <span className="text-sm font-semibold tabular-nums">
@@ -322,12 +350,14 @@ export function PosTerminal(props: PosTerminalProps) {
                       </span>
                       <span className="mt-auto text-xs text-ink-muted">
                         {product.hasVariants
-                          ? t("colorCount", { count: product.variants.length })
-                          : product.trackStock
-                            ? stock > 0
-                              ? t("stockLeft", { count: stock })
-                              : t("outOfStock")
-                            : product.unit}
+                          ? t("colorCount", { count: colors.length })
+                          : product.isRoll
+                            ? t("stockLeft", { count: stock })
+                            : product.trackStock
+                              ? stock > 0
+                                ? t("stockLeft", { count: stock })
+                                : t("outOfStock")
+                              : product.unit}
                       </span>
                     </button>
                   </li>
@@ -365,6 +395,7 @@ export function PosTerminal(props: PosTerminalProps) {
         product={picking}
         locale={locale}
         isSelectable={isSelectable}
+        allowNegativeStock={allowNegativeStock}
         onPick={addVariant}
         onClose={() => {
           setPicking(null);
@@ -380,10 +411,12 @@ export function PosTerminal(props: PosTerminalProps) {
           items.map((item) => ({
             variantId: item.variantId,
             qty: item.qty,
+            ...(item.lengthCm === undefined ? {} : { lengthCm: item.lengthCm }),
             discount: item.discount,
           }))
         }
         bankAccounts={props.bankAccounts}
+        qrisAccount={props.qrisAccount}
         canKasbon={props.canKasbon}
         today={props.today}
         voucherCode={voucher?.code ?? null}

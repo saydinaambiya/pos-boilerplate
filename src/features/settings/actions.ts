@@ -24,6 +24,7 @@ import {
   changeBankAccountStatus,
   changeMarketplaceStatus,
   createBankAccount,
+  setQrisAccount,
   createMarketplace,
   type MasterDataResult,
   updateBankAccount,
@@ -239,6 +240,25 @@ export async function setBankAccountStatusAction(
   revalidatePath("/", "layout");
   const tf = await getTranslations({ locale, namespace: "Feedback" });
   return { status: "success", message: tf(isActive ? "activated" : "deactivated") };
+}
+
+/** Makes an account the QRIS account, or clears it, behind a confirmation (FR-PAY-07). */
+export async function setQrisAccountAction(
+  id: string,
+  isQris: boolean,
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const locale = localeFromForm(formData);
+  const session = await requirePermission("settings:manage", locale);
+  if (!recordId.safeParse(id).success || typeof isQris !== "boolean") {
+    return masterDataFailure({ ok: false, reason: "not-found" }, locale);
+  }
+  const result = await setQrisAccount(session, isQris ? id : null, await currentRequestContext());
+  if (!result.ok) return masterDataFailure(result, locale);
+  revalidatePath("/", "layout");
+  const t = await getTranslations({ locale, namespace: "Settings" });
+  return { status: "success", message: t(isQris ? "qrisSet" : "qrisCleared") };
 }
 
 async function saveMarketplace(id: string | null, formData: FormData): Promise<FormState> {

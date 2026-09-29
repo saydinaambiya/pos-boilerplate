@@ -2,6 +2,7 @@ import "server-only";
 
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 
+import { isRollRowSql, variantPriceSql } from "@/features/catalog/pricing-sql";
 import { db, type Executor } from "@/db/client";
 import {
   consignmentBatches,
@@ -96,10 +97,10 @@ export async function findTakeableVariants(executor: Executor, variantIds: reado
       productName: products.name,
       attributes: productVariants.attributes,
       trackStock: products.trackStock,
-      price: sql<number>`coalesce(${productVariants.priceOverride}, ${products.price})`.mapWith(
-        Number,
-      ),
-      sellable: sql<boolean>`${products.isActive} AND ${productVariants.isActive}`,
+      size: productVariants.size,
+      isDefect: productVariants.isDefect,
+      price: variantPriceSql,
+      sellable: sql<boolean>`${products.isActive} AND ${productVariants.isActive} AND NOT ${isRollRowSql}`,
     })
     .from(productVariants)
     .innerJoin(products, eq(products.id, productVariants.productId))
@@ -131,9 +132,7 @@ export async function consignmentBalances(executor: Executor, consignmentId: str
           Number,
         ),
       trackStock: products.trackStock,
-      price: sql<number>`coalesce(${productVariants.priceOverride}, ${products.price})`.mapWith(
-        Number,
-      ),
+      price: variantPriceSql,
     })
     .from(consignmentItems)
     .innerJoin(productVariants, eq(productVariants.id, consignmentItems.variantId))
@@ -143,6 +142,10 @@ export async function consignmentBalances(executor: Executor, consignmentId: str
       consignmentItems.variantId,
       products.trackStock,
       productVariants.priceOverride,
+      productVariants.size,
+      productVariants.isDefect,
+      products.sizePrices,
+      products.defectSizePrices,
       products.price,
     );
   return rows
@@ -242,7 +245,7 @@ export async function listBatches(consignmentId: string) {
 
 /**
  * Active accounts that may carry goods: the Owner and roles holding
- * `consignment:take` (FR-CSG-01).
+ * `consignment:sell` (FR-CSG-01).
  */
 export async function listSalespeople() {
   return db
@@ -251,7 +254,7 @@ export async function listSalespeople() {
     .innerJoin(roles, eq(roles.id, users.roleId))
     .leftJoin(
       rolePermissions,
-      and(eq(rolePermissions.roleId, roles.id), eq(rolePermissions.permission, "consignment:take")),
+      and(eq(rolePermissions.roleId, roles.id), eq(rolePermissions.permission, "consignment:sell")),
     )
     .where(
       and(

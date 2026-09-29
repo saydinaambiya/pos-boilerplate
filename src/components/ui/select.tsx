@@ -141,7 +141,7 @@ export function Select({
             sideOffset={4}
             className="z-50 max-h-(--radix-select-content-available-height) min-w-(--radix-select-trigger-width) overflow-hidden rounded-control border border-border bg-surface text-ink shadow-card"
           >
-            <SelectPrimitive.Viewport className="p-1" {...nonceProps()}>
+            <SelectPrimitive.Viewport className="scrollbar-none p-1" {...nonceProps()}>
               {options.map((option) => (
                 <SelectPrimitive.Item
                   key={option.value}

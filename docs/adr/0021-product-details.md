@@ -1,6 +1,6 @@
 # ADR-0021: Product brand, motif and size
 
-- Status: Accepted
+- Status: Accepted; size per product superseded by [ADR-0023](./0023-roll-stock.md)
 - Date: 2026-09-28
 - Requirements: PRD FR-PRD-04, FR-PRD-06, FR-CAT-02, §3.16; BRD BR-28, Q-09, Q-10
 

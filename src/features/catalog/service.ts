@@ -8,6 +8,7 @@ import { assertPermission } from "@/lib/auth/authorize";
 import type { Session } from "@/lib/auth/session";
 import type { RequestContext } from "@/lib/http/request-context";
 
+import { colorHex } from "./options";
 import {
   countProductsOfBrand,
   deleteBrandRow,
@@ -21,7 +22,13 @@ import {
   updateBrandRow,
   updateProductWithDefaultVariant,
 } from "./repository";
-import type { BrandInput, ProductDetailsInput, ProductFilters, ProductInput } from "./schemas";
+import type {
+  BrandInput,
+  ProductDetailsInput,
+  ProductFilters,
+  ProductInput,
+  SizePrices,
+} from "./schemas";
 
 export const PRODUCT_PAGE_SIZE = 50;
 
@@ -31,14 +38,6 @@ export type CatalogResult =
       ok: false;
       reason: "not-found" | "name-taken" | "sku-taken" | "invalid-brand" | "in-use";
     };
-
-/** Blanks cost data for viewers without `product:view-cost` (FR-PRD-02). */
-function withCostVisibility<T extends { cost: number }>(
-  session: Session,
-  row: T,
-): Omit<T, "cost"> & { cost: number | null } {
-  return session.permissions.has("product:view-cost") ? row : { ...row, cost: null };
-}
 
 export async function getBrands(session: Session) {
   assertPermission(session, "page:products");
@@ -133,43 +132,73 @@ export async function deleteBrand(
   return { ok: true, id };
 }
 
-/** Product list with search and filters (FR-PRD-04); cost hidden per FR-PRD-02. */
+/** Product list with search and filters (FR-PRD-04). */
 export async function listProducts(session: Session, filters: ProductFilters) {
   assertPermission(session, "page:products");
   const rows = await queryProducts(filters, PRODUCT_PAGE_SIZE);
   return {
-    products: rows.slice(0, PRODUCT_PAGE_SIZE).map((row) => withCostVisibility(session, row)),
+    products: rows.slice(0, PRODUCT_PAGE_SIZE),
     hasNextPage: rows.length > PRODUCT_PAGE_SIZE,
   };
 }
 
 export async function getProduct(session: Session, id: string) {
   assertPermission(session, "page:products");
-  const row = await findProduct(id);
-  return row ? withCostVisibility(session, row) : undefined;
+  return findProduct(id);
 }
 
 /**
  * Creates a product with its hidden default variant in one transaction
- * (FR-PRD-01, §3.1.1). The create form requires brand, motif and size
- * (`newProductInput`, FR-PRD-06).
+ * (FR-PRD-01, §3.1.1). Given size prices it is a roll product: the default
+ * variant is a roll with a piece per size (FR-ROL-01). Given a colour, that
+ * roll is the product's first colour instead of a hidden default. The create form
+ * requires that, plus brand, motif and thickness (`newProductInput`,
+ * FR-PRD-06).
  */
 export async function createProduct(
   session: Session,
-  input: ProductInput,
+  input: ProductInput & { colorName?: string },
   context: RequestContext,
 ): Promise<CatalogResult> {
   assertPermission(session, "product:create");
   if (input.brandId && !(await findBrand(input.brandId))) {
     return { ok: false, reason: "invalid-brand" };
   }
-  const canSeeCost = session.permissions.has("product:view-cost");
-  const { sku, minStock, cost, brandId = null, motif = null, size = null, ...product } = input;
-  const values = { ...product, brandId, motif, size, cost: canSeeCost ? (cost ?? 0) : 0 };
+  const {
+    sku,
+    minStock,
+    brandId = null,
+    motif = null,
+    thickness = null,
+    sizePrices = null,
+    defectSizePrices = null,
+    colorName,
+    ...product
+  } = input;
+  const isRoll = sizePrices !== null;
+  const hex = colorName === undefined ? undefined : colorHex(colorName);
+  const color =
+    colorName === undefined
+      ? null
+      : { color: hex ? { name: colorName, hex } : { name: colorName } };
+  const values = {
+    ...product,
+    brandId,
+    motif,
+    thickness,
+    sizePrices,
+    defectSizePrices: isRoll ? defectSizePrices : null,
+    isRoll,
+    trackStock: isRoll || product.trackStock,
+  };
 
   try {
     const id = await db.transaction(async (tx) => {
-      const created = await insertProductWithDefaultVariant(tx, values, { sku, minStock });
+      const created = await insertProductWithDefaultVariant(
+        tx,
+        { ...values, hasVariants: color !== null },
+        { sku, minStock, ...(color ? { attributes: color } : {}) },
+      );
       await recordAudit(
         tx,
         {
@@ -177,7 +206,7 @@ export async function createProduct(
           action: "product.created",
           entity: "product",
           entityId: created,
-          diff: { ...values, sku, minStock },
+          diff: { ...values, sku, minStock, ...(colorName ? { color: colorName } : {}) },
         },
         context,
       );
@@ -192,8 +221,8 @@ export async function createProduct(
 
 /**
  * Updates a product and, while it has no colour variants, its default
- * variant's SKU and minimum stock. Without `product:view-cost` the stored
- * cost is kept, since the editor never saw it (FR-PRD-02).
+ * variant's SKU and minimum stock. Whether a product is a roll never
+ * changes; a roll always tracks stock (ADR-0023).
  */
 export async function updateProduct(
   session: Session,
@@ -207,22 +236,24 @@ export async function updateProduct(
   if (input.brandId && input.brandId !== current.brandId && !(await findBrand(input.brandId))) {
     return { ok: false, reason: "invalid-brand" };
   }
-  const canSeeCost = session.permissions.has("product:view-cost");
   const {
     sku = current.sku,
     minStock = current.minStock,
-    cost,
     brandId = current.brandId,
     motif = current.motif,
-    size = current.size,
+    thickness = current.thickness,
+    sizePrices = current.sizePrices as SizePrices | null,
+    defectSizePrices = current.defectSizePrices as SizePrices | null,
     ...product
   } = input;
   const values = {
     ...product,
     brandId,
     motif,
-    size,
-    cost: canSeeCost ? (cost ?? current.cost) : current.cost,
+    thickness,
+    sizePrices: current.isRoll ? sizePrices : null,
+    defectSizePrices: current.isRoll ? defectSizePrices : null,
+    trackStock: current.isRoll || product.trackStock,
   };
   const defaultVariant = current.hasVariants ? null : { sku, minStock };
 

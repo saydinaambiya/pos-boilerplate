@@ -54,7 +54,6 @@ export const kasbonPaymentInput = z
       .object({
         amount: z.int().min(1).max(MAX_RUPIAH),
         bankAccountId: z.uuid(),
-        reference: plainText(60, 0),
       })
       .strict()
       .nullable(),

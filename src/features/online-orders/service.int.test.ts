@@ -56,7 +56,6 @@ async function stocked(stock: number) {
     {
       name: `Kaos ${String(seq)}`,
       price: 25_000,
-      cost: 10_000,
       unit: "pcs",
       trackStock: true,
       sku: `KAOS-${String(seq)}`,
@@ -87,13 +86,14 @@ function order(
   variantId: string,
   qty = 2,
   code = "ORD-1",
+  unitPrice = 25_000,
 ) {
   return createOnlineOrder(
     session,
     {
       marketplaceId,
       orderCode: code,
-      lines: [{ variantId, qty }],
+      lines: [{ variantId, qty, unitPrice }],
       shippingFee: 12_000,
       note: "",
     },
@@ -119,19 +119,24 @@ function move(
 beforeEach(resetDatabase);
 
 describe("entering marketplace orders (FR-ONL-01/02, BR-05)", () => {
-  it("takes stock on save and prices from the catalogue", async () => {
+  it("takes stock on save with the typed price and keeps the store price", async () => {
     const shopee = await marketplace();
     const variantId = await stocked(5);
-    const created = await order(await cashier(), shopee, variantId, 2, "abc-123");
+    const created = await order(await cashier(), shopee, variantId, 2, "abc-123", 21_500);
     if (!created.ok) throw new Error(created.reason);
 
     const [stored] = await db.select().from(onlineOrders).where(eq(onlineOrders.id, created.id));
     expect(stored).toMatchObject({
       orderCode: "ABC-123",
       status: "PROCESSING",
-      itemsTotal: 50_000,
+      itemsTotal: 43_000,
       shippingFee: 12_000,
     });
+    const [item] = await db
+      .select()
+      .from(onlineOrderItems)
+      .where(eq(onlineOrderItems.orderId, created.id));
+    expect(item).toMatchObject({ unitPrice: 21_500, storePrice: 25_000, lineTotal: 43_000 });
     expect(await stockOf(variantId)).toBe(3);
     const [movement] = await db
       .select()
@@ -245,8 +250,8 @@ describe("order status changes (FR-ONL-03, PRD §4.2)", () => {
         marketplaceId: shopee,
         orderCode: "RET-1",
         lines: [
-          { variantId: good, qty: 1 },
-          { variantId: damaged, qty: 2 },
+          { variantId: good, qty: 1, unitPrice: 25_000 },
+          { variantId: damaged, qty: 2, unitPrice: 25_000 },
         ],
         shippingFee: 0,
         note: "",

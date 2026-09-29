@@ -19,14 +19,24 @@ export const settings = pgTable(
 );
 
 /** Destination accounts for bank transfers (FR-SET-05). */
-export const bankAccounts = pgTable("bank_accounts", {
-  id: id(),
-  bankName: text().notNull(),
-  accountNo: text().notNull(),
-  accountName: text().notNull(),
-  isActive: boolean().notNull().default(true),
-  ...timestamps,
-});
+export const bankAccounts = pgTable(
+  "bank_accounts",
+  {
+    id: id(),
+    bankName: text().notNull(),
+    accountNo: text().notNull(),
+    accountName: text().notNull(),
+    isActive: boolean().notNull().default(true),
+    /** The one account QRIS payments settle into (FR-PAY-07). */
+    isQris: boolean().notNull().default(false),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("bank_accounts_one_qris_key")
+      .on(table.isQris)
+      .where(sql`${table.isQris}`),
+  ],
+);
 
 /** Marketplaces that online orders come from (FR-SET-06). */
 export const marketplaces = pgTable(

@@ -12,7 +12,7 @@ import { listSellingCashiers, querySales, summarizeSales } from "./repository";
 
 export const SALE_PAGE_SIZE = 50;
 
-export const saleHistoryMethods = ["CASH", "TRANSFER", "KASBON"] as const;
+export const saleHistoryMethods = ["CASH", "TRANSFER", "QRIS", "KASBON"] as const;
 
 /** Query string of the transaction history (FR-POS-10, FR-HK-04). */
 export const saleHistoryQuery = z.object({

@@ -90,7 +90,10 @@ export const onlineOrderItems = pgTable(
     nameSnapshot: text().notNull(),
     variantSnapshot: text(),
     qty: integer().notNull(),
+    /** Marketplace price typed by staff (FR-ONL-08). */
     unitPrice: money().notNull(),
+    /** Store price at entry, kept for comparison (FR-ONL-08). */
+    storePrice: money(),
     unitCost: money().notNull().default(0),
     lineTotal: money().notNull(),
     returnCondition: returnCondition(),

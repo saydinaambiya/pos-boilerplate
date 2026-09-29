@@ -33,7 +33,6 @@ async function variant() {
     {
       name: "Kopi",
       price: 20_000,
-      cost: 5000,
       unit: "cup",
       trackStock: false,
       sku: "KOPI-1",

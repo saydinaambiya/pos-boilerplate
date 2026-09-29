@@ -3,7 +3,15 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import { DEFAULT_EMPLOYEE_ROLE, type Permission } from "@/config/permissions";
 import { db } from "@/db/client";
-import { onlineOrders, productVariants, rolePermissions, roles, sales } from "@/db/schema";
+import { recordExpense } from "@/features/expenses/service";
+import {
+  cashExpenses,
+  onlineOrders,
+  productVariants,
+  rolePermissions,
+  roles,
+  sales,
+} from "@/db/schema";
 import { createBrand, createProduct } from "@/features/catalog/service";
 import { checkout } from "@/features/checkout/service";
 import { requestVoid } from "@/features/checkout/void-service";
@@ -39,7 +47,6 @@ async function product(name: string, brandId?: string) {
     {
       name,
       price: 50_000,
-      cost: 20_000,
       unit: "pcs",
       trackStock: false,
       sku: `SKU-${name}`,
@@ -93,19 +100,26 @@ describe("sales report (FR-RPT-01..04)", () => {
       grandTotal: 150_000,
       netSales: 150_000,
       average: 75_000,
-      cogs: 60_000,
-      grossProfit: 90_000,
+      expenses: 0,
+      balance: 150_000,
     });
-    expect(report.products.map((row) => [row.name, row.qty, row.revenue, row.margin])).toEqual([
-      ["Kaos", 2, 100_000, 60_000],
-      ["Topi", 1, 50_000, 30_000],
+    expect(report.products.map((row) => [row.name, row.qty, row.revenue])).toEqual([
+      ["Kaos", 2, 100_000],
+      ["Topi", 1, 50_000],
     ]);
     expect(report.methods.find((row) => row.method === "CASH")).toMatchObject({
       count: 2,
       total: 150_000,
     });
     expect(report.daily).toEqual([
-      { day: "2026-09-26", count: 2, grandTotal: 150_000, net: 150_000 },
+      {
+        day: "2026-09-26",
+        count: 2,
+        grandTotal: 150_000,
+        net: 150_000,
+        expenses: 0,
+        balance: 150_000,
+      },
     ]);
     expect(report.employees).toHaveLength(1);
     expect(report.brands.map((row) => [row.name, row.qty, row.revenue])).toEqual([
@@ -116,37 +130,53 @@ describe("sales report (FR-RPT-01..04)", () => {
     expect(csv[2]?.startsWith("Tanpa merk,")).toBe(true);
   });
 
-  it("hides cost and margin without report:view-profit (FR-RPT-02)", async () => {
+  it("reports sales results only, without cost or profit (ADR-0027)", async () => {
     await grant("report:view");
     const session = await cashier();
     await openShift(session, { openingCash: 0 }, testContext());
     await sell(session, await product("Kaos"), 1, 50_000);
 
     const report = await getSalesReport(session, RANGE, NOW);
-    expect(report.profit).toBe(false);
-    expect(report.summary.grossProfit).toBeNull();
-    expect(report.summary.cogs).toBeNull();
-    expect(report.products[0]).toMatchObject({ cogs: null, margin: null });
-    const csv = [...reportCsv(report, "products", "id")].join("");
-    expect(csv).not.toContain("Modal");
-    expect(csv.split("\r\n")[0]).toBe("Produk,Qty,Diskon item,Penjualan");
-
-    await grant("report:view-profit");
-    const withProfit = await getSalesReport(await cashier(), RANGE, NOW);
-    expect([...reportCsv(withProfit, "products", "id")][0]).toContain("Modal,Margin");
+    expect(report.summary).not.toHaveProperty("grossProfit");
+    expect(report.products[0]).not.toHaveProperty("margin");
+    expect([...reportCsv(report, "products", "id")][0]).toBe(
+      "Produk,Qty,Diskon item,Penjualan\r\n",
+    );
   });
 
-  it("keeps the cost at sale time when the product cost changes later", async () => {
+  it("subtracts staff expenses from the day's sales (FR-EXP-02)", async () => {
     const session = await owner();
-    await openShift(session, { openingCash: 0 }, testContext());
-    const kaos = await product("Kaos");
-    await sell(session, kaos, 1, 50_000);
-    const [variant] = await db.select().from(productVariants).where(eq(productVariants.id, kaos));
-    await db
-      .update(productVariants)
-      .set({ costOverride: 45_000 })
-      .where(eq(productVariants.id, variant?.id ?? ""));
-    expect((await getSalesReport(session, RANGE, NOW)).summary.cogs).toBe(20_000);
+    await openShift(session, { openingCash: 100_000 }, testContext());
+    await sell(session, await product("Kaos"), 2, 100_000);
+    const kasir = await cashier();
+    const meal = await recordExpense(
+      session,
+      { category: "MEAL", recipientId: kasir.user.id, amount: 25_000, note: "" },
+      testContext(),
+    );
+    const donation = await recordExpense(
+      session,
+      { category: "DONATION", recipientId: null, amount: 10_000, note: "Masjid" },
+      testContext(),
+    );
+    if (!meal.ok || !donation.ok) throw new Error("expense expected");
+    await db.update(cashExpenses).set({ createdAt: NOW });
+
+    const report = await getSalesReport(session, RANGE, NOW);
+    expect(report.summary).toMatchObject({
+      grandTotal: 100_000,
+      expenses: 35_000,
+      balance: 65_000,
+    });
+    expect(report.daily).toEqual([
+      expect.objectContaining({ day: "2026-09-26", expenses: 35_000, balance: 65_000 }),
+    ]);
+    expect(report.expenses.map((row) => [row.category, row.count, row.total])).toEqual([
+      ["MEAL", 1, 25_000],
+      ["DONATION", 1, 10_000],
+    ]);
+    const csv = [...reportCsv(report, "expenses", "id")].join("").split("\r\n");
+    expect(csv[1]).toBe("Uang makan,1,25000");
   });
 
   it("separates PPN and service, and counts marketplace orders", async () => {
@@ -174,7 +204,7 @@ describe("sales report (FR-RPT-01..04)", () => {
       {
         marketplaceId: shopee.id,
         orderCode: "SHP-1",
-        lines: [{ variantId: kaos, qty: 2 }],
+        lines: [{ variantId: kaos, qty: 2, unitPrice: 50_000 }],
         shippingFee: 9000,
         note: "",
       },

@@ -30,7 +30,7 @@ async function completedSale(
     name?: string;
     qty?: number;
     price?: number;
-    details?: { brandId: string; motif: string; size: "93x47" };
+    details?: { brandId: string; motif: string; thickness: number };
   } = {},
 ) {
   const session = await owner();
@@ -39,7 +39,6 @@ async function completedSale(
     {
       name: options.name ?? "Kopi Susu",
       price: options.price ?? 18_000,
-      cost: 0,
       unit: "cup",
       trackStock: false,
       sku: "KOPI",
@@ -106,13 +105,13 @@ describe("invoice document (FR-INV-04/05)", () => {
     expect(invoiceLabels("en", en).ppn).toBe("VAT 0%");
   });
 
-  it("prints brand, motif and size as frozen at sale time (FR-PRD-06)", async () => {
+  it("prints brand, motif and thickness as frozen at sale time (FR-PRD-06)", async () => {
     const session = await owner();
     const brand = await createBrand(session, { name: "Turkiye" }, testContext());
     if (!brand.ok) throw new Error(brand.reason);
     const { saleId, productId } = await completedSale({
       name: "Sajadah",
-      details: { brandId: brand.id, motif: "Mihrab", size: "93x47" },
+      details: { brandId: brand.id, motif: "Mihrab", thickness: 8 },
     });
     await updateProduct(
       session,
@@ -128,9 +127,7 @@ describe("invoice document (FR-INV-04/05)", () => {
     );
 
     const document = await getInvoiceDocument(session, saleId, "id");
-    expect(document?.items).toMatchObject([
-      { name: "Sajadah", details: "Turkiye · Mihrab · 93 × 47 cm" },
-    ]);
+    expect(document?.items).toMatchObject([{ name: "Sajadah", details: "Turkiye · Mihrab · 8mm" }]);
     if (!document) throw new Error("document expected");
     const labels = invoiceLabels("id", document);
     for (const size of invoiceSizes) {

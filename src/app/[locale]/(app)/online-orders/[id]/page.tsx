@@ -102,6 +102,14 @@ export default async function OnlineOrderPage({
                   <TableRow key={item.id}>
                     <TableCell className="[overflow-wrap:anywhere]">
                       {variantLabel(item.nameSnapshot, item.variantSnapshot)}
+                      <span className="block text-xs text-ink-muted tabular-nums">
+                        {item.storePrice === null || item.storePrice === item.unitPrice
+                          ? money(item.unitPrice)
+                          : t("priceVsStore", {
+                              price: money(item.unitPrice),
+                              store: money(item.storePrice),
+                            })}
+                      </span>
                       {item.returnCondition ? (
                         <span className="block text-xs text-ink-muted">
                           {t(`conditions.${item.returnCondition}`)}

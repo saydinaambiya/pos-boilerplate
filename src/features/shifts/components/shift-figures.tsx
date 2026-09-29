@@ -16,6 +16,7 @@ interface ShiftFiguresProps {
     variance: number | null;
     totals: {
       byMethod: Partial<Record<(typeof paymentMethods)[number], number>>;
+      expenses: number;
       kasbonIssued: number;
       kasbonCollected: Partial<Record<(typeof paymentMethods)[number], number>>;
       salesCount: number;
@@ -73,6 +74,7 @@ export async function ShiftFigures({ shift }: ShiftFiguresProps) {
           `${t("voids")}: ${String(shift.totals.voidCount)}`,
         )}
         {stat(t("revenue"), money(shift.totals.revenue))}
+        {stat(t("expenses"), money(shift.totals.expenses), t("expensesHint"))}
         {stat(t("expectedCash"), money(shift.expectedCash), t("expectedHint"))}
         {shift.countedCash !== null ? stat(t("countedCashShort"), money(shift.countedCash)) : null}
         {shift.variance !== null

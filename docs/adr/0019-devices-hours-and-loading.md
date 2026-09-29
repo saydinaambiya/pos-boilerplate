@@ -1,6 +1,6 @@
 # ADR-0019: Device limit, store hours, buyer name and global loading
 
-- Status: Accepted
+- Status: Accepted; store-hours exemption widened by [ADR-0024](./0024-consignment-roles.md)
 - Date: 2026-09-28
 - Requirements: PRD FR-AUTH-09/10, FR-SET-07/09, FR-POS-11, FR-UX-08, FR-UI-06; BRD BR-24..26, Q-05, Q-06
 

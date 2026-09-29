@@ -14,9 +14,11 @@ import {
   stockMovements,
 } from "@/db/schema";
 import { createProduct } from "@/features/catalog/service";
+import { checkout } from "@/features/checkout/service";
 import { requestVoid } from "@/features/checkout/void-service";
 import { openShift } from "@/features/shifts/service";
 import { receiveStock } from "@/features/stock/service";
+import { ForbiddenError } from "@/lib/auth/authorize";
 import type { Session } from "@/lib/auth/session";
 import { fixtures, resetDatabase } from "@/test/database";
 import { signIn, testContext } from "@/test/sessions";
@@ -49,7 +51,6 @@ async function product(stock: number) {
     {
       name: `Barang ${String(seq)}`,
       price: 10_000,
-      cost: 6_000,
       unit: "pcs",
       trackStock: true,
       sku: `CSG-${String(seq)}`,
@@ -71,12 +72,13 @@ async function stockOf(variantId: string) {
   return row?.stockQty;
 }
 
-function take(session: Session, variantId: string, qty: number, now = MONDAY) {
+/** The store records goods `salesperson` takes; pickups are not the salesperson's job (ADR-0024). */
+async function take(salesperson: Session, variantId: string, qty: number, now = MONDAY) {
   return takeGoods(
-    session,
+    await owner(),
     {
       idempotencyKey: crypto.randomUUID(),
-      salespersonId: session.user.id,
+      salespersonId: salesperson.user.id,
       lines: [{ variantId, qty }],
       note: "",
     },
@@ -100,7 +102,7 @@ function consignmentId(result: Awaited<ReturnType<typeof take>>) {
 
 beforeEach(async () => {
   await resetDatabase();
-  await grant("page:consignments", "consignment:take");
+  await grant("page:consignments", "consignment:sell");
 });
 
 describe("taking goods out (FR-CSG-01/02)", () => {
@@ -129,6 +131,7 @@ describe("taking goods out (FR-CSG-01/02)", () => {
 
   it("refuses more than the stock and replays a retried pickup", async () => {
     const session = await salesperson();
+    const store = await owner();
     const variantId = await product(4);
     expect(await take(session, variantId, 5)).toEqual({
       ok: false,
@@ -143,44 +146,35 @@ describe("taking goods out (FR-CSG-01/02)", () => {
       lines: [{ variantId, qty: 2 }],
       note: "",
     };
-    const first = await takeGoods(session, input, testContext(), MONDAY);
-    const again = await takeGoods(session, input, testContext(), MONDAY);
+    const first = await takeGoods(store, input, testContext(), MONDAY);
+    const again = await takeGoods(store, input, testContext(), MONDAY);
     expect(again).toEqual({ ...first, replayed: true });
     expect(await stockOf(variantId)).toBe(2);
   });
 
-  it("needs consignment:manage to act for someone else", async () => {
+  it("lets only pickup staff record pickups, for any salesperson (ADR-0024)", async () => {
     const session = await salesperson();
     const colleague = await other();
     const variantId = await product(5);
-    const result = await takeGoods(
-      session,
-      {
-        idempotencyKey: crypto.randomUUID(),
-        salespersonId: colleague.user.id,
-        lines: [{ variantId, qty: 1 }],
-        note: "",
-      },
-      testContext(),
-      MONDAY,
-    );
-    expect(result).toEqual({ ok: false, reason: "forbidden" });
+    const pickup = (actor: Session, salespersonId: string) =>
+      takeGoods(
+        actor,
+        {
+          idempotencyKey: crypto.randomUUID(),
+          salespersonId,
+          lines: [{ variantId, qty: 1 }],
+          note: "",
+        },
+        testContext(),
+        MONDAY,
+      );
+    expect(await pickup(session, session.user.id)).toEqual({ ok: false, reason: "forbidden" });
 
-    const manager = await owner();
-    const byOwner = await takeGoods(
-      manager,
-      {
-        idempotencyKey: crypto.randomUUID(),
-        salespersonId: session.user.id,
-        lines: [{ variantId, qty: 1 }],
-        note: "",
-      },
-      testContext(),
-      MONDAY,
-    );
-    expect(byOwner.ok).toBe(true);
-    expect(await getConsignments(colleague, "OPEN")).toEqual([]);
-    expect(await getConsignments(manager, "OPEN")).toHaveLength(1);
+    await grant("consignment:pickup");
+    expect((await pickup(await salesperson(), colleague.user.id)).ok).toBe(true);
+    expect((await pickup(await owner(), session.user.id)).ok).toBe(true);
+    expect(await getConsignments(await salesperson(), "OPEN")).toHaveLength(2);
+    expect(await stockOf(variantId)).toBe(3);
   });
 });
 
@@ -192,15 +186,33 @@ describe("settling goods (FR-CSG-03/04)", () => {
     const variantId = await product(20);
     const id = consignmentId(await take(session, variantId, 10));
 
+    expect(
+      await settleGoods(
+        session,
+        id,
+        settlement([{ variantId, sold: 4, returned: 2 }]),
+        testContext(),
+        TUESDAY,
+      ),
+    ).toEqual({ ok: false, reason: "forbidden" });
     const result = await settleGoods(
       session,
       id,
-      settlement([{ variantId, sold: 4, returned: 2 }]),
+      settlement([{ variantId, sold: 4, returned: 0 }]),
       testContext(),
       TUESDAY,
     );
     if (!result.ok) throw new Error(result.reason);
     expect(result.closed).toBe(false);
+    expect(await stockOf(variantId)).toBe(10);
+    const returned = await settleGoods(
+      await owner(),
+      id,
+      settlement([{ variantId, sold: 0, returned: 2 }]),
+      testContext(),
+      TUESDAY,
+    );
+    expect(returned).toEqual({ ok: true, saleId: null, invoiceNo: null, closed: false });
     expect(await stockOf(variantId)).toBe(12);
 
     const [sale] = await db
@@ -220,10 +232,14 @@ describe("settling goods (FR-CSG-03/04)", () => {
 
     const detail = await getConsignment(session, id);
     expect(detail?.balances).toMatchObject([{ taken: 10, sold: 4, returned: 2, outstanding: 4 }]);
-    expect(detail?.batches[0]).toMatchObject({ kind: "SETTLE", invoiceNo: result.invoiceNo });
+    expect(detail?.batches.find((batch) => batch.invoiceNo)).toMatchObject({
+      kind: "SETTLE",
+      invoiceNo: result.invoiceNo,
+    });
 
+    await grant("consignment:return");
     const rest = await settleGoods(
-      session,
+      await salesperson(),
       id,
       settlement([{ variantId, sold: 0, returned: 4 }]),
       testContext(),
@@ -245,9 +261,10 @@ describe("settling goods (FR-CSG-03/04)", () => {
     const variantId = await product(10);
     const id = consignmentId(await take(session, variantId, 3));
 
+    await grant("consignment:return");
     expect(
       await settleGoods(
-        session,
+        await salesperson(),
         id,
         settlement([{ variantId, sold: 3, returned: 1 }]),
         testContext(),
@@ -295,6 +312,45 @@ describe("settling goods (FR-CSG-03/04)", () => {
     expect(kasbon).toMatchObject({ total: 20_000, balance: 20_000 });
   });
 
+  it("lets a salesperson without the cashier keep a shift and sell only carried goods (ADR-0029)", async () => {
+    const [role] = await db.select().from(roles).where(eq(roles.name, DEFAULT_EMPLOYEE_ROLE.name));
+    await db
+      .delete(rolePermissions)
+      .where(
+        and(eq(rolePermissions.roleId, role?.id ?? ""), eq(rolePermissions.permission, "page:pos")),
+      );
+    const session = await salesperson();
+    expect(session.permissions.has("page:pos")).toBe(false);
+    const opened = await openShift(session, { openingCash: 0 }, testContext(), MONDAY);
+    expect(opened.ok).toBe(true);
+    const variantId = await product(10);
+    const id = consignmentId(await take(session, variantId, 3));
+
+    const result = await settleGoods(
+      session,
+      id,
+      settlement([{ variantId, sold: 2, returned: 0 }]),
+      testContext(),
+      TUESDAY,
+    );
+    expect(result).toMatchObject({ ok: true, closed: false });
+    expect(await stockOf(variantId)).toBe(7);
+
+    await expect(
+      checkout(
+        session,
+        {
+          idempotencyKey: crypto.randomUUID(),
+          lines: [{ variantId, qty: 1 }],
+          payments: [{ method: "CASH", amount: 10_000 }],
+          customer: { name: "Pembeli", phone: null },
+        },
+        testContext(),
+        TUESDAY,
+      ),
+    ).rejects.toThrow(ForbiddenError);
+  });
+
   it("never voids a settlement sale (FR-CSG-06)", async () => {
     await grant("page:pos", "sale:void");
     const session = await salesperson();
@@ -314,7 +370,7 @@ describe("settling goods (FR-CSG-03/04)", () => {
     ).toEqual({ ok: false, reason: "not-voidable" });
   });
 
-  it("hides other salespeople's consignments without consignment:manage", async () => {
+  it("hides other salespeople's consignments from salespeople", async () => {
     const session = await salesperson();
     const variantId = await product(5);
     const id = consignmentId(await take(session, variantId, 1));
@@ -328,5 +384,41 @@ describe("settling goods (FR-CSG-03/04)", () => {
         TUESDAY,
       ),
     ).toEqual({ ok: false, reason: "forbidden" });
+    expect(
+      await settleGoods(
+        await other(),
+        id,
+        settlement([{ variantId, sold: 1, returned: 0 }]),
+        testContext(),
+        TUESDAY,
+      ),
+    ).toEqual({ ok: false, reason: "forbidden" });
+  });
+
+  it("lets return staff see every salesperson and record returns only", async () => {
+    const session = await salesperson();
+    const variantId = await product(5);
+    const id = consignmentId(await take(session, variantId, 2));
+    await grant("consignment:return");
+    const floor = await other();
+    expect(await getConsignment(floor, id)).toBeDefined();
+    expect(
+      await settleGoods(
+        floor,
+        id,
+        settlement([{ variantId, sold: 1, returned: 0 }]),
+        testContext(),
+        TUESDAY,
+      ),
+    ).toEqual({ ok: false, reason: "forbidden" });
+    expect(
+      await settleGoods(
+        floor,
+        id,
+        settlement([{ variantId, sold: 0, returned: 2 }]),
+        testContext(),
+        TUESDAY,
+      ),
+    ).toEqual({ ok: true, saleId: null, invoiceNo: null, closed: true });
   });
 });

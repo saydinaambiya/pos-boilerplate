@@ -4,7 +4,7 @@ import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 
 import { expect, test } from "./fixtures";
-import { cashierAtPos, expectResult, fillProductDetails } from "./helpers";
+import { addPiece, cashierAtPos, choose, createStockedProduct, expectResult } from "./helpers";
 
 /** Unique names per run: the E2E database is not truncated between runs. */
 const run = Date.now().toString(36);
@@ -27,20 +27,8 @@ test.describe("POS terminal and checkout (FR-POS, FR-PAY)", () => {
   test.skip(({ isMobile }) => isMobile, "stateful POS flows run once, on desktop");
   test.describe.configure({ mode: "serial" });
 
-  test("prepares a product with stock", async ({ page }) => {
-    await page.goto("/id/products?new=1");
-    await page.getByLabel("Nama produk").fill(product);
-    await fillProductDetails(page.getByRole("dialog"));
-    await page.getByLabel("Harga jual").fill("8000");
-    await page.getByLabel("SKU").fill(sku);
-    await page.getByRole("button", { name: "Simpan produk" }).click();
-    await expect(page).toHaveURL(/\/id\/products$/);
-
-    await page.goto(`/id/stock?q=${sku}`);
-    await page.getByRole("link", { name: `Buka stok ${product}` }).click();
-    await page.getByLabel("Jumlah").first().fill("10");
-    await page.getByRole("button", { name: "Tambah stok" }).click();
-    await expectResult(page, "Stok diperbarui: +10 → 10.");
+  test("prepares a roll product with cut pieces", async ({ page }) => {
+    await createStockedProduct(page, { name: product, sku, price: "8000", stock: "10" });
   });
 
   test("sells with cash, keeps the cart across reloads and shows the change", async ({
@@ -56,7 +44,7 @@ test.describe("POS terminal and checkout (FR-POS, FR-PAY)", () => {
     await brandChips.getByRole("button", { name: "Merk Uji" }).click();
     await expect(page.getByRole("button", { name: new RegExp(product) })).toBeVisible();
     await brandChips.getByRole("button", { name: "Semua" }).click();
-    await page.getByRole("button", { name: new RegExp(product) }).click();
+    await addPiece(page, product);
     await cart.getByRole("button", { name: `Tambah ${product}` }).click();
     await cart.getByRole("button", { name: `Tambah ${product}` }).click();
     await expect(cart.getByLabel(`Jumlah ${product}`)).toHaveValue("3");
@@ -98,7 +86,7 @@ test.describe("POS terminal and checkout (FR-POS, FR-PAY)", () => {
     await expect(page.getByTestId("invoice")).toContainText(rupiah(100_000 - total));
     await expect(page.getByTestId("invoice")).toContainText("Tunai diterima");
     await expect(page.getByTestId("invoice")).toContainText(`Pembeli ${run}`);
-    await expect(page.getByTestId("invoice")).toContainText("Merk Uji · Polos · 93 × 47 cm");
+    await expect(page.getByTestId("invoice")).toContainText("Merk Uji · Nappa · 2mm · 93cm x 47cm");
     const saleId = /invoices\/([0-9a-f-]+)/.exec(page.url())?.[1] ?? "";
     await page.goto(`/id/pos/sales/${saleId}`);
     await expect(page).toHaveURL(new RegExp(`/id/pos/sales\\?view=${saleId}$`));
@@ -130,7 +118,7 @@ test.describe("POS terminal and checkout (FR-POS, FR-PAY)", () => {
   test("clears the cart with Esc after confirmation", async ({ browser }) => {
     const page = await cashierAtPos(browser);
     await page.getByRole("searchbox", { name: "Cari produk" }).fill(product);
-    await page.getByRole("button", { name: new RegExp(product) }).click();
+    await addPiece(page, product);
     await expect(
       page.getByRole("complementary", { name: "Keranjang" }).getByLabel(`Jumlah ${product}`),
     ).toHaveValue("1");
@@ -158,8 +146,74 @@ test.describe("POS terminal and checkout (FR-POS, FR-PAY)", () => {
     await page.context().close();
   });
 
-  test("deducted the sold quantity from stock", async ({ page }) => {
+  test("sells a custom cut priced per meter off the roll (FR-ROL-04)", async ({ browser }) => {
+    const page = await cashierAtPos(browser);
+    const cart = page.getByRole("complementary", { name: "Keranjang" });
+    await page.getByRole("searchbox", { name: "Cari produk" }).fill(product);
+    await page.getByRole("button", { name: new RegExp(product) }).click();
+    const picker = page.getByRole("dialog", { name: "Pilih ukuran" });
+    await expect(picker).toContainText("Rp\u00a08.000 per meter");
+    await picker.getByLabel("Panjang potongan").fill("150");
+    await picker.getByRole("button", { name: "Tambah · Rp\u00a012.000" }).click();
+    await expect(cart).toContainText(`${product} · Red · Potong 150cm`);
+    await expect(cart).toContainText(/Rp\s12\.000 × 1\s*Rp\s12\.000/);
+
+    await page.keyboard.press("F2");
+    const dialog = page.getByRole("dialog", { name: "Pembayaran" });
+    await dialog.getByLabel("Nama pelanggan").fill(`Pembeli potong ${run}`);
+    await dialog.getByRole("button", { name: "Uang pas" }).click();
+    await dialog.getByRole("button", { name: "Selesaikan transaksi" }).click();
+    await expect(page.getByRole("dialog", { name: "Transaksi berhasil" })).toBeVisible();
+    await page.context().close();
+  });
+
+  test("deducted the sold pieces and the cut from stock", async ({ page }) => {
     await page.goto(`/id/stock?q=${sku}`);
-    await expect(page.getByRole("row", { name: new RegExp(product) })).toContainText("7");
+    await expect(
+      page.getByRole("row", { name: new RegExp(`${product} · Red · 93cm x 47cm`) }),
+    ).toContainText("7");
+    await expect(
+      page.getByRole("row", { name: new RegExp(`${product} · Red · Roll`) }),
+    ).toContainText("8,5m");
+  });
+
+  test("pays by QRIS into the QRIS account set by the owner (FR-PAY-07)", async ({
+    page,
+    browser,
+  }) => {
+    await page.goto("/id/settings/bank-accounts");
+    await page.getByLabel("Nama bank").fill(`QRIS ${run}`);
+    await page.getByLabel("Nomor rekening").fill("9988776655");
+    await page.getByLabel("Atas nama").fill("Toko QRIS");
+    await page.getByRole("button", { name: "Tambah rekening" }).click();
+    await page.getByRole("link", { name: `Ubah QRIS ${run} 9988776655` }).click();
+    await page.getByRole("button", { name: "Jadikan rekening QRIS" }).click();
+    await page
+      .getByRole("dialog", { name: "Jadikan rekening QRIS?" })
+      .getByRole("button", { name: "Jadikan rekening QRIS" })
+      .click();
+    await expectResult(page, "Rekening QRIS disimpan.");
+
+    const pos = await cashierAtPos(browser);
+    await pos.getByRole("searchbox", { name: "Cari produk" }).fill(product);
+    await addPiece(pos, product);
+    await pos.keyboard.press("F2");
+    const dialog = pos.getByRole("dialog", { name: "Pembayaran" });
+    await dialog.getByLabel("Nama pelanggan").fill(`Pembeli QRIS ${run}`);
+    await dialog.getByText("QRIS", { exact: true }).click();
+    await expect(dialog).toContainText(`Masuk ke rekening QRIS: QRIS ${run} · 9988776655`);
+    await expect(dialog.getByLabel("No. referensi (opsional)")).toHaveCount(0);
+    await dialog.getByRole("button", { name: "Selesaikan transaksi" }).click();
+    await expect(dialog.getByText("Pilih bank atau e-wallet pengirim.")).toBeVisible();
+    await choose(dialog, "Bank / e-wallet pengirim", "Lainnya");
+    await dialog.getByLabel("Nama bank atau e-wallet").fill("Bank Lokal");
+    await dialog.getByRole("button", { name: "Selesaikan transaksi" }).click();
+
+    const success = pos.getByRole("dialog", { name: "Transaksi berhasil" });
+    await success.getByRole("link", { name: "Lihat struk" }).click();
+    await expect(pos.getByRole("dialog", { name: /^Struk INV-/ })).toContainText(
+      "QRIS · dari Bank Lokal",
+    );
+    await pos.context().close();
   });
 });

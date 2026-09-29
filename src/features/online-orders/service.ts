@@ -3,7 +3,7 @@ import "server-only";
 import { db, type Executor } from "@/db/client";
 import { uniqueViolationConstraint } from "@/db/errors";
 import { onlineOrderStatuses } from "@/db/schema/online-orders";
-import { colorOf } from "@/features/catalog/schemas";
+import { variantSnapshotOf } from "@/features/catalog/schemas";
 import { recordStockMovement } from "@/features/stock/service";
 import { recordAudit } from "@/lib/audit/audit";
 import { assertPermission } from "@/lib/auth/authorize";
@@ -63,8 +63,10 @@ class OrderAbort extends Error {
 
 /**
  * Saves a marketplace order and takes its stock at once (FR-ONL-01/02,
- * BR-05). Prices are looked up from the catalogue; variants are locked in
- * id order. A duplicate code for the same marketplace is refused.
+ * BR-05). Each line's price is the marketplace price typed by staff; the
+ * store price at entry is kept beside it and audited, so odd
+ * prices can be traced (FR-ONL-08, ADR-0025). Variants are locked in id
+ * order. A duplicate code for the same marketplace is refused.
  */
 export async function createOnlineOrder(
   session: Session,
@@ -88,13 +90,18 @@ export async function createOnlineOrder(
       }
       const lines = input.lines.map((line, index) => {
         const variant = variants.get(line.variantId);
-        const unitPrice = variant?.price ?? 0;
+        const { unitPrice } = line;
         return {
           variantId: line.variantId,
           nameSnapshot: variant?.productName ?? "",
-          variantSnapshot: colorOf(variant?.attributes)?.name ?? null,
+          variantSnapshot: variantSnapshotOf(
+            variant?.attributes,
+            variant?.size ?? null,
+            variant?.isDefect,
+          ),
           qty: line.qty,
           unitPrice,
+          storePrice: variant?.price ?? null,
           unitCost: variant?.cost ?? 0,
           lineTotal: unitPrice * line.qty,
           sortOrder: index,
@@ -159,6 +166,12 @@ export async function createOnlineOrder(
             orderCode,
             itemsTotal,
             shippingFee: input.shippingFee,
+            items: lines.map((line) => ({
+              variantId: line.variantId,
+              qty: line.qty,
+              unitPrice: line.unitPrice,
+              storePrice: line.storePrice,
+            })),
           },
         },
         context,

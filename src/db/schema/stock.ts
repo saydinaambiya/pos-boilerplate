@@ -7,7 +7,8 @@ import { id, timestamps, timestamptz } from "./columns";
 /**
  * Every way stock can change (PRD FR-STK-01). `CONSIGNMENT_OUT` and
  * `CONSIGNMENT_RETURN` are goods a salesperson takes out and brings back
- * (FR-CSG-02/04).
+ * (FR-CSG-02/04). `CUT` takes centimetres off a roll and adds the pieces
+ * cut from it (FR-ROL-03).
  */
 export const stockMovementTypes = [
   "IN",
@@ -19,6 +20,7 @@ export const stockMovementTypes = [
   "VOID",
   "CONSIGNMENT_OUT",
   "CONSIGNMENT_RETURN",
+  "CUT",
 ] as const;
 
 export const stockMovementType = pgEnum("stock_movement_type", stockMovementTypes);
@@ -26,7 +28,8 @@ export const stockMovementType = pgEnum("stock_movement_type", stockMovementType
 /**
  * Append-only stock ledger. `product_variants.stock_qty` is the running
  * total, updated in the same transaction as each row (FR-STK-02);
- * `stock_after` records it for the history view.
+ * `stock_after` records it for the history view. Quantities of a roll are
+ * centimetres, of anything else pieces (ADR-0023).
  */
 export const stockMovements = pgTable(
   "stock_movements",

@@ -41,31 +41,77 @@ export async function cashierAtPos(browser: Browser): Promise<Page> {
   return page;
 }
 
-/** Fills the brand, motif and size every new product needs (FR-PRD-06). */
-export async function fillProductDetails(dialog: Locator, motif = "Polos") {
+/** Piece sizes as the UI prints them (FR-PRD-06). */
+export const SIZES = ["93cm x 47cm", "100cm x 70cm", "50cm x 140cm", "100cm x 140cm"] as const;
+
+/**
+ * Fills what every new (roll) product needs: brand, a listed motif, the
+ * first colour (Red), thickness (FR-PRD-06) and a normal and defect price
+ * for each size (FR-ROL-02/05).
+ */
+export async function fillProductDetails(dialog: Locator, motif = "Nappa", piecePrice = "10000") {
   await choose(dialog, "Merk", E2E_BRAND);
-  await dialog.getByLabel("Motif").fill(motif);
-  await choose(dialog, "Ukuran", "93 × 47 cm");
+  await pick(dialog, "Motif", motif);
+  await pick(dialog, "Nama warna", "Red");
+  await dialog.getByLabel("Ketebalan (mm)").fill("2");
+  for (const size of SIZES) {
+    await dialog.getByLabel(`Harga ${size}`).fill(piecePrice);
+    await dialog.getByLabel(`Harga cacat ${size}`).fill("5000");
+  }
 }
 
-/** Creates a stock-tracked product through the owner UI. */
+/** Adds roll length through the stock page of a roll (FR-ROL-01). */
+export async function receiveRoll(page: Page, sku: string, name: string, meters: string) {
+  await page.goto(`/id/stock?q=${sku}`);
+  await page.getByRole("link", { name: `Buka stok ${name} · Red · Roll`, exact: true }).click();
+  await page.getByLabel("Panjang (m)").first().fill(meters);
+  await page.getByRole("button", { name: "Tambah stok" }).click();
+  await expectResult(page, "Stok diperbarui");
+}
+
+/** Cuts `meters` off a product's roll into `count` pieces of one size (FR-ROL-03). */
+export async function cutPieces(
+  page: Page,
+  name: string,
+  count: string,
+  meters: string,
+  size: string = SIZES[0],
+) {
+  await page.goto(`/id/cutting?q=${encodeURIComponent(name)}`);
+  await page.getByRole("link", { name: `Potong ${name} · Red`, exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: `Potong ${name} · Red` });
+  await dialog.getByLabel("Panjang dipotong (m)").fill(meters);
+  await dialog.getByLabel(new RegExp(`^${size}`)).fill(count);
+  await dialog.getByRole("button", { name: "Simpan potongan" }).click();
+  await expectResult(page, "Potongan dicatat");
+}
+
+/**
+ * Creates a roll product through the owner UI with `price` for every size,
+ * 20 m of roll and `stock` pieces of 93cm x 47cm cut from 10 m of it.
+ */
 export async function createStockedProduct(
   page: Page,
   options: { name: string; sku: string; price: string; stock: string },
 ) {
   await page.goto("/id/products?new=1");
   await page.getByLabel("Nama produk").fill(options.name);
-  await fillProductDetails(page.getByRole("dialog"));
+  await fillProductDetails(page.getByRole("dialog"), "Nappa", options.price);
   await page.getByLabel("Harga jual").fill(options.price);
   await page.getByLabel("SKU").fill(options.sku);
   await page.getByRole("button", { name: "Simpan produk" }).click();
   await expect(page).toHaveURL(/\/id\/products$/);
+  await receiveRoll(page, options.sku, options.name, "20");
+  await cutPieces(page, options.name, options.stock, "10");
+}
 
-  await page.goto(`/id/stock?q=${options.sku}`);
-  await page.getByRole("link", { name: `Buka stok ${options.name}` }).click();
-  await page.getByLabel("Jumlah").first().fill(options.stock);
-  await page.getByRole("button", { name: "Tambah stok" }).click();
-  await expectResult(page, "Stok diperbarui");
+/** Taps a product at the POS and picks one of its sizes (FR-ROL-04). */
+export async function addPiece(page: Page, name: string, size: string = SIZES[0]) {
+  await page.getByRole("button", { name: new RegExp(name) }).click();
+  await page
+    .getByRole("dialog", { name: "Pilih ukuran" })
+    .getByRole("button", { name: new RegExp(`^${size}(?!\\s*Cacat)`) })
+    .click();
 }
 
 /** Ensures the default employee role holds a permission (checkbox in the role matrix). */
@@ -96,5 +142,13 @@ export async function expectResult(
 export async function choose(scope: Page | Locator, label: string, option: string) {
   const page = "page" in scope ? scope.page() : scope;
   await scope.getByLabel(label, { exact: true }).click();
+  await page.getByRole("option", { name: option, exact: true }).click();
+}
+
+/** Picks an option in a searchable dropdown (ADR-0026), typing `search` first. */
+export async function pick(scope: Page | Locator, label: string, option: string, search = option) {
+  const page = "page" in scope ? scope.page() : scope;
+  await scope.getByLabel(label, { exact: true }).click();
+  await page.getByRole("combobox", { name: "Cari…" }).fill(search);
   await page.getByRole("option", { name: option, exact: true }).click();
 }

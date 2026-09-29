@@ -1,9 +1,8 @@
 import { desc, eq, sql } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { DEFAULT_EMPLOYEE_ROLE } from "@/config/permissions";
 import { db } from "@/db/client";
-import { auditLogs, productVariants, rolePermissions, roles } from "@/db/schema";
+import { auditLogs, productVariants } from "@/db/schema";
 import { ForbiddenError } from "@/lib/auth/authorize";
 import { fixtures, resetDatabase } from "@/test/database";
 import { signIn, testContext } from "@/test/sessions";
@@ -22,12 +21,12 @@ import {
 
 const owner = () => signIn(fixtures.owner.username, fixtures.owner.password);
 const allActive: ProductFilters = { q: "", status: "active", page: 1 };
+const sizePrices = { "93x47": 150000, "100x70": 180000, "50x140": 175000, "100x140": 320000 };
 
 function product(overrides: Partial<ProductInput> = {}): ProductInput {
   return {
     name: "Kopi Susu",
     price: 18000,
-    cost: 7000,
     unit: "cup",
     trackStock: true,
     sku: "KOPI-SUSU",
@@ -36,21 +35,10 @@ function product(overrides: Partial<ProductInput> = {}): ProductInput {
   };
 }
 
-/** Gives the default employee role product permissions but not cost visibility. */
-async function grantCashierProductEditing() {
-  const [role] = await db.select().from(roles).where(eq(roles.name, DEFAULT_EMPLOYEE_ROLE.name));
-  await db.insert(rolePermissions).values(
-    ["product:create", "product:update"].map((permission) => ({
-      roleId: role?.id ?? "",
-      permission,
-    })),
-  );
-}
-
 beforeEach(resetDatabase);
 
 describe("brands and product details (FR-CAT-02, FR-PRD-06)", () => {
-  it("stores brand, motif and size, filters by them and guards brands in use", async () => {
+  it("stores brand, motif and thickness, filters by brand and guards brands in use", async () => {
     const session = await owner();
     const created = await createBrand(session, { name: "Turkiye" }, testContext());
     if (!created.ok) throw new Error(created.reason);
@@ -61,22 +49,22 @@ describe("brands and product details (FR-CAT-02, FR-PRD-06)", () => {
 
     const saved = await createProduct(
       session,
-      product({ brandId: created.id, motif: "Mihrab", size: "93x47" }),
+      product({ brandId: created.id, motif: "Mihrab", thickness: 2.5 }),
       testContext(),
     );
     if (!saved.ok) throw new Error(saved.reason);
     expect(await getProduct(session, saved.id)).toMatchObject({
       brandName: "Turkiye",
       motif: "Mihrab",
-      size: "93x47",
+      thickness: 2.5,
     });
 
     const search = async (filters: Partial<ProductFilters>) =>
       (await listProducts(session, { ...allActive, ...filters })).products.map((row) => row.id);
     expect(await search({ q: "turki" })).toEqual([saved.id]);
     expect(await search({ q: "mihrab" })).toEqual([saved.id]);
-    expect(await search({ brand: created.id, size: "93x47" })).toEqual([saved.id]);
-    expect(await search({ size: "100x70" })).toEqual([]);
+    expect(await search({ brand: created.id })).toEqual([saved.id]);
+    expect(await search({ q: "polos" })).toEqual([]);
 
     expect(await getBrands(session)).toEqual([
       { id: created.id, name: "Turkiye", productCount: 1 },
@@ -99,7 +87,7 @@ describe("brands and product details (FR-CAT-02, FR-PRD-06)", () => {
 
     const saved = await createProduct(
       session,
-      product({ motif: "Polos", size: "50x140" }),
+      product({ motif: "Polos", thickness: 8 }),
       testContext(),
     );
     if (!saved.ok) throw new Error(saved.reason);
@@ -107,8 +95,54 @@ describe("brands and product details (FR-CAT-02, FR-PRD-06)", () => {
     expect(await getProduct(session, saved.id)).toMatchObject({
       price: 20000,
       motif: "Polos",
-      size: "50x140",
+      thickness: 8,
     });
+  });
+});
+
+describe("roll products (FR-ROL-01/02, ADR-0023)", () => {
+  it("creates a roll with a piece per size, priced per size and per meter", async () => {
+    const session = await owner();
+    const result = await createProduct(
+      session,
+      product({ sku: "KRP", price: 300000, trackStock: false, sizePrices }),
+      testContext(),
+    );
+    if (!result.ok) throw new Error(result.reason);
+
+    const rows = await db
+      .select()
+      .from(productVariants)
+      .where(eq(productVariants.productId, result.id))
+      .orderBy(productVariants.sortOrder);
+    const roll = rows.find((row) => row.parentId === null);
+    expect(roll).toMatchObject({ sku: "KRP", isDefault: true, minStock: 5 });
+    expect(
+      rows.filter((row) => row.parentId === roll?.id).map((row) => [row.size, row.sku]),
+    ).toEqual([
+      ["93x47", "KRP-93x47"],
+      ["100x70", "KRP-100x70"],
+      ["50x140", "KRP-50x140"],
+      ["100x140", "KRP-100x140"],
+    ]);
+    expect(await getProduct(session, result.id)).toMatchObject({
+      isRoll: true,
+      trackStock: true,
+      sizePrices,
+      stockQty: 0,
+      pieceStock: 0,
+      lowStockVariants: 1,
+      variantCount: 1,
+    });
+
+    await updateProduct(session, result.id, product({ sku: "KRP2", price: 300000 }), testContext());
+    const renamed = await db
+      .select({ sku: productVariants.sku })
+      .from(productVariants)
+      .where(eq(productVariants.productId, result.id))
+      .orderBy(productVariants.sortOrder, productVariants.sku);
+    expect(renamed.map((row) => row.sku)).toContain("KRP2-100x140");
+    expect(await getProduct(session, result.id)).toMatchObject({ sizePrices });
   });
 });
 
@@ -167,37 +201,23 @@ describe("products (FR-PRD-01..04, §3.1.1)", () => {
     expect(await names({ q: "kopi", status: "inactive" })).toEqual(["Kopi Susu"]);
   });
 
-  it("hides cost from roles without product:view-cost and never overwrites it (FR-PRD-02)", async () => {
-    const created = await createProduct(await owner(), product(), testContext());
-    if (!created.ok) throw new Error(created.reason);
-    await grantCashierProductEditing();
-    const cashier = await signIn("kasir", "123456");
-
-    expect((await getProduct(cashier, created.id))?.cost).toBeNull();
-    expect((await listProducts(cashier, allActive)).products[0]?.cost).toBeNull();
-
-    const withoutCost: ProductInput = {
-      name: "Kopi Susu",
-      price: 20000,
-      unit: "cup",
-      trackStock: true,
-      sku: "KOPI-SUSU",
-      minStock: 5,
-    };
-    expect(await updateProduct(cashier, created.id, withoutCost, testContext())).toEqual({
-      ok: true,
-      id: created.id,
-    });
-    const stored = await getProduct(await owner(), created.id);
-    expect(stored).toMatchObject({ price: 20000, cost: 7000 });
-
-    const byCashier = await createProduct(
-      cashier,
-      product({ name: "Teh", sku: "TEH", cost: 99999 }),
+  it("creates a product with its first colour as the default roll (ADR-0026)", async () => {
+    const session = await owner();
+    const created = await createProduct(
+      session,
+      { ...product({ sku: "KRP-RED", sizePrices }), colorName: "Red" },
       testContext(),
     );
-    if (!byCashier.ok) throw new Error(byCashier.reason);
-    expect((await getProduct(await owner(), byCashier.id))?.cost).toBe(0);
+    if (!created.ok) throw new Error(created.reason);
+    expect(await getProduct(session, created.id)).toMatchObject({ hasVariants: true });
+    const rows = await db
+      .select()
+      .from(productVariants)
+      .where(eq(productVariants.productId, created.id));
+    expect(rows).toHaveLength(5);
+    for (const row of rows) {
+      expect(row.attributes).toEqual({ color: { name: "Red", hex: "#D32F2F" } });
+    }
   });
 
   it("audits only changed fields and rejects unknown brands", async () => {

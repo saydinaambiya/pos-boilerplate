@@ -24,10 +24,11 @@ describe("permission catalog (PRD §2.2)", () => {
     }
   });
 
-  it("gates every production menu entry with a page permission", () => {
-    for (const item of navigation.filter((entry) => !entry.diagnostics)) {
+  it("gates every production menu entry but home with a page permission", () => {
+    for (const item of navigation.filter((entry) => !entry.diagnostics && entry.href !== "/")) {
       expect(item.permission, item.href).toMatch(/^page:/);
     }
+    expect(navigation.find((entry) => entry.href === "/")?.permission).toBeUndefined();
   });
 
   it("does not give the default employee role management permissions", () => {

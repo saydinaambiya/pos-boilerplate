@@ -7,7 +7,8 @@ test.describe("routing & i18n", () => {
   test("redirects to the default locale", async ({ page }) => {
     await page.goto("/");
     await expect(page).toHaveURL(/\/id$/);
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Dasbor");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^Halo, /);
+    await expect(page.getByRole("link", { name: "Dasbor" }).last()).toBeVisible();
   });
 
   test("switches language and keeps the current page", async ({ page, isMobile }) => {
