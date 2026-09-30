@@ -8,6 +8,7 @@ import { useShowResult } from "@/components/feedback/result-provider";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
+import { MoneyInput } from "@/components/ui/money-input";
 import { Select } from "@/components/ui/select";
 import { toneClasses } from "@/components/ui/tone";
 import type { Locale } from "@/config/locales";
@@ -25,12 +26,13 @@ import {
 } from "@/features/checkout/components/source-bank-field";
 import { useRouter } from "@/i18n/navigation";
 import { formatCurrency } from "@/lib/format/currency";
+import { parseRupiah } from "@/lib/format/rupiah-input";
 import { calculateSale, type TaxRules } from "@/lib/money/calculate";
 import { cn } from "@/lib/utils/cn";
 
 import { settleGoodsAction } from "../actions";
 
-type Method = "CASH" | "TRANSFER" | "QRIS" | "KASBON";
+type Method = "CASH" | "TRANSFER" | "QRIS" | "SPLIT" | "KASBON";
 
 export interface OutstandingItem {
   variantId: string;
@@ -62,7 +64,8 @@ const toQty = (text: string) => {
 /**
  * Settlement form (FR-CSG-03/04). In `sell` mode the salesperson enters
  * how many of each item were sold, the buyer (FR-POS-11) and how it is
- * paid; the total is a preview and the server prices the sale. In `return`
+ * paid, also part cash with the rest by transfer or QRIS (ADR-0033); the
+ * total is a preview and the server prices the sale. In `return`
  * mode the shop floor enters how many came back.
  */
 export function SettleForm(props: SettleFormProps) {
@@ -80,6 +83,8 @@ export function SettleForm(props: SettleFormProps) {
   const [method, setMethod] = useState<Method>("CASH");
   const [bankAccountId, setBankAccountId] = useState(props.bankAccounts[0]?.id ?? "");
   const [source, setSource] = useState<SourceBankDraft>(emptySourceBank);
+  const [cashPart, setCashPart] = useState("");
+  const [restMethod, setRestMethod] = useState<"TRANSFER" | "QRIS">("TRANSFER");
   const [kasbonNote, setKasbonNote] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [note, setNote] = useState("");
@@ -104,6 +109,9 @@ export function SettleForm(props: SettleFormProps) {
     props.tax,
   ).grandTotal;
   const hasSale = soldLines.length > 0;
+  const cash = parseRupiah(cashPart) ?? 0;
+  const splitError = method === "SPLIT" && (cash <= 0 || cash >= total);
+  const paysQris = method === "QRIS" || (method === "SPLIT" && restMethod === "QRIS");
   const customerErrors = customerDraftErrors(customer, hasSale && method === "KASBON");
   const set = (variantId: string, field: "sold" | "returned", value: string) => {
     setQuantities((current) => ({
@@ -120,6 +128,7 @@ export function SettleForm(props: SettleFormProps) {
     { value: "CASH", label: t("methodCash") },
     { value: "TRANSFER", label: t("methodTransfer") },
     ...(props.qrisAccount ? [{ value: "QRIS" as const, label: t("methodQris") }] : []),
+    { value: "SPLIT", label: props.qrisAccount ? t("methodSplit") : t("methodSplitTransfer") },
     ...(props.canKasbon ? [{ value: "KASBON" as const, label: t("methodKasbon") }] : []),
   ];
 
@@ -143,7 +152,8 @@ export function SettleForm(props: SettleFormProps) {
     if (
       hasSale &&
       (Object.values(customerErrors).some(Boolean) ||
-        (method === "QRIS" && sourceBankOf(source) === ""))
+        splitError ||
+        (paysQris && sourceBankOf(source) === ""))
     ) {
       setShowErrors(true);
       setError(null);
@@ -151,13 +161,22 @@ export function SettleForm(props: SettleFormProps) {
     }
     setError(null);
     const payment =
-      method === "TRANSFER"
-        ? { method, bankAccountId }
-        : method === "QRIS"
-          ? { method, sourceBank: sourceBankOf(source) }
-          : method === "KASBON"
-            ? { method, note: kasbonNote, dueDate: dueDate === "" ? null : dueDate }
-            : { method };
+      method === "SPLIT"
+        ? {
+            method,
+            cash,
+            rest:
+              restMethod === "QRIS"
+                ? { method: restMethod, sourceBank: sourceBankOf(source) }
+                : { method: restMethod, bankAccountId },
+          }
+        : method === "TRANSFER"
+          ? { method, bankAccountId }
+          : method === "QRIS"
+            ? { method, sourceBank: sourceBankOf(source) }
+            : method === "KASBON"
+              ? { method, note: kasbonNote, dueDate: dueDate === "" ? null : dueDate }
+              : { method };
     startTransition(async () => {
       try {
         const result = await settleGoodsAction(locale, props.consignmentId, {
@@ -247,7 +266,7 @@ export function SettleForm(props: SettleFormProps) {
             <div
               className={cn(
                 "grid gap-1 rounded-card bg-surface-muted p-1",
-                methods.length === 3 ? "grid-cols-3" : "grid-cols-2",
+                methods.length === 4 ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-3",
               )}
             >
               {methods.map((option) => (
@@ -273,7 +292,54 @@ export function SettleForm(props: SettleFormProps) {
               ))}
             </div>
           </fieldset>
-          {method === "TRANSFER" ? (
+          {method === "SPLIT" ? (
+            <div className="flex flex-col gap-3">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor={`${id}-cash`} className="text-sm font-medium text-ink">
+                    {t("splitCash")}
+                  </label>
+                  <MoneyInput
+                    id={`${id}-cash`}
+                    value={cashPart}
+                    onValueChange={setCashPart}
+                    aria-invalid={showErrors && splitError}
+                    aria-describedby={`${id}-cash-hint`}
+                  />
+                  <p
+                    id={`${id}-cash-hint`}
+                    className={cn(
+                      "text-xs",
+                      showErrors && splitError ? "text-danger-ink" : "text-ink-muted",
+                    )}
+                  >
+                    {showErrors && splitError
+                      ? t("errors.splitInvalid")
+                      : t("splitRest", { amount: money(Math.max(total - cash, 0)) })}
+                  </p>
+                </div>
+                {props.qrisAccount ? (
+                  <div className="flex flex-col gap-1.5">
+                    <label htmlFor={`${id}-rest`} className="text-sm font-medium text-ink">
+                      {t("splitRestMethod")}
+                    </label>
+                    <Select
+                      id={`${id}-rest`}
+                      value={restMethod}
+                      onValueChange={(value) => {
+                        setRestMethod(value === "QRIS" ? "QRIS" : "TRANSFER");
+                      }}
+                      options={[
+                        { value: "TRANSFER", label: t("methodTransfer") },
+                        { value: "QRIS", label: t("methodQris") },
+                      ]}
+                    />
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+          {method === "TRANSFER" || (method === "SPLIT" && restMethod === "TRANSFER") ? (
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="flex flex-col gap-1.5">
                 <label htmlFor={`${id}-bank`} className="text-sm font-medium text-ink">
@@ -291,7 +357,7 @@ export function SettleForm(props: SettleFormProps) {
               </div>
             </div>
           ) : null}
-          {method === "QRIS" && props.qrisAccount ? (
+          {paysQris && props.qrisAccount ? (
             <div className="flex flex-col gap-3">
               <p className="rounded-control bg-surface-muted px-3 py-2 text-sm text-ink">
                 {tPos("qrisAccount", { account: props.qrisAccount.label })}

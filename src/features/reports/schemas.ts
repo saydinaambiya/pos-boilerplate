@@ -38,3 +38,59 @@ export function reportRange(
     .slice(0, 10);
   return { from: start, to, clipped: true };
 }
+
+/** A recap covers one store day or one month (FR-RPT-06). */
+export type RecapPeriod =
+  | { kind: "day"; day: string; from: string; to: string; previous: string; next: string | null }
+  | {
+      kind: "month";
+      month: string;
+      from: string;
+      to: string;
+      previous: string;
+      next: string | null;
+    };
+
+const addDays = (isoDate: string, days: number) =>
+  new Date(Date.parse(`${isoDate}T00:00:00Z`) + days * DAY_MS).toISOString().slice(0, 10);
+
+const addMonths = (month: string, months: number) => {
+  const date = new Date(`${month}-01T00:00:00Z`);
+  date.setUTCMonth(date.getUTCMonth() + months);
+  return date.toISOString().slice(0, 7);
+};
+
+/**
+ * The recap period from `?day=YYYY-MM-DD` or `?month=YYYY-MM` (FR-RPT-06).
+ * Without either it is today; a future day or month falls back to the
+ * current one, and a month stops at today. `previous` and `next` step one
+ * day or month; `next` is null at the current one.
+ */
+export function recapPeriod(
+  raw: { day?: string | undefined; month?: string | undefined },
+  today: string,
+): RecapPeriod {
+  const thisMonth = today.slice(0, 7);
+  if (raw.month !== undefined && /^\d{4}-(0[1-9]|1[0-2])$/.test(raw.month)) {
+    const month = raw.month > thisMonth ? thisMonth : raw.month;
+    const last = addDays(`${addMonths(month, 1)}-01`, -1);
+    return {
+      kind: "month",
+      month,
+      from: `${month}-01`,
+      to: last > today ? today : last,
+      previous: addMonths(month, -1),
+      next: month === thisMonth ? null : addMonths(month, 1),
+    };
+  }
+  const parsed = z.iso.date().safeParse(raw.day);
+  const day = parsed.success && parsed.data <= today ? parsed.data : today;
+  return {
+    kind: "day",
+    day,
+    from: day,
+    to: day,
+    previous: addDays(day, -1),
+    next: day === today ? null : addDays(day, 1),
+  };
+}

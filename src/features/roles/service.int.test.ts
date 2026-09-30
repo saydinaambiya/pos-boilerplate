@@ -28,7 +28,7 @@ describe("roles service (FR-RBAC-01)", () => {
       ...[DEFAULT_EMPLOYEE_ROLE, ...SEEDED_ROLES].map((role) => role.name).sort(),
     ]);
     expect(list.find((role) => role.name === "Sales")).toMatchObject({
-      permissionCount: 3,
+      permissionCount: SEEDED_ROLES.find((role) => role.name === "Sales")?.permissions.length,
       userCount: 0,
     });
     expect(list.find((role) => role.name === DEFAULT_EMPLOYEE_ROLE.name)).toMatchObject({

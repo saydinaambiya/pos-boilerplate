@@ -31,8 +31,18 @@ const archival = {
 };
 
 /**
+ * Whose cash a shift holds (ADR-0032): the store's one cash drawer, or the
+ * money a salesperson collects for the goods they carry, which never
+ * enters the drawer (ADR-0029).
+ */
+export const shiftKinds = ["DRAWER", "SALES"] as const;
+export const shiftKind = pgEnum("shift_kind", shiftKinds);
+
+/**
  * Cashier shifts (FR-SHF-01..04). At most one open shift per user, enforced
- * by a partial unique index.
+ * by a partial unique index. A drawer shift starts with the cash left in the
+ * drawer by the last closed drawer shift (`carried_cash`, FR-SHF-02); each
+ * closed shift is carried at most once.
  */
 export const shifts = pgTable(
   "shifts",
@@ -41,8 +51,13 @@ export const shifts = pgTable(
     userId: uuid()
       .notNull()
       .references(() => users.id, { onDelete: "restrict" }),
+    /** Null for shifts from before drawer tracking, which carry nothing over. */
+    kind: shiftKind(),
     openedAt: timestamptz().notNull().defaultNow(),
     openingCash: money().notNull(),
+    /** Cash left in the drawer by the shift this one carries over from. */
+    carriedCash: money().notNull().default(0),
+    carriedFromShiftId: uuid().references((): AnyPgColumn => shifts.id, { onDelete: "restrict" }),
     closedAt: timestamptz(),
     expectedCash: money(),
     countedCash: money(),
@@ -57,6 +72,8 @@ export const shifts = pgTable(
       .where(sql`${table.closedAt} IS NULL`),
     index("shifts_user_id_opened_at_idx").on(table.userId, table.openedAt),
     index("shifts_opened_at_idx").on(table.openedAt),
+    uniqueIndex("shifts_carried_from_shift_id_key").on(table.carriedFromShiftId),
+    index("shifts_kind_closed_at_idx").on(table.kind, table.closedAt),
     check("shifts_opening_cash_non_negative", sql`${table.openingCash} >= 0`),
   ],
 );

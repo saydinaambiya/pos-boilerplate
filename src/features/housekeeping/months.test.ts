@@ -6,6 +6,7 @@ describe("archivable months (FR-HK-01)", () => {
   it("keeps the retention period out of reach", () => {
     expect(latestArchivableMonth("2026-09-26", 3)).toBe("2026-06");
     expect(latestArchivableMonth("2026-01-01", 3)).toBe("2025-10");
+    expect(latestArchivableMonth("2026-09-30", 1)).toBe("2026-08");
     expect(addMonths("2026-12", 1)).toBe("2027-01");
   });
 

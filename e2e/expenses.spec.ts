@@ -58,9 +58,12 @@ test.describe("daily staff expenses (FR-EXP-01..03)", () => {
     await page.context().close();
   });
 
-  test("the recap shows expenses and the balance", async ({ page }) => {
+  test("the recap takes expenses off the drawer and lists them by kind", async ({ page }) => {
     await page.goto("/id/reports");
-    await expect(page.getByRole("term").filter({ hasText: /^Sisa$/ })).toBeVisible();
+    const drawer = page.getByRole("region", { name: "Kas tunai" });
+    await expect(drawer.getByRole("term").filter({ hasText: /^Pengeluaran$/ })).toBeVisible();
+    await expect(drawer.getByRole("definition").nth(2)).not.toHaveText(/^− Rp\s?0$/);
+    await page.getByText("Rincian lainnya").click();
     await expect(page.getByRole("table", { name: "Pengeluaran per jenis" })).toContainText(
       "Uang makan",
     );

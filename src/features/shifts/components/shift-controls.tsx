@@ -6,13 +6,24 @@ import { FormField } from "@/components/form/form-field";
 import { SubmitButton } from "@/components/form/submit-button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { RouteDialog } from "@/components/ui/route-dialog";
+import { requireSession } from "@/lib/auth/guard";
+import { formatCurrency } from "@/lib/format/currency";
 
 import { closeShiftAction, openShiftAction } from "../actions";
+import { getDrawerCarry } from "../service";
 import { ShiftFigures } from "./shift-figures";
 
-/** Opening float form, shared by the cashier and the Sales menu (FR-SHF-02, ADR-0029). */
+/**
+ * Opening float form, shared by the cashier and the Sales menu (FR-SHF-02,
+ * ADR-0029). A cashier sees the drawer's leftover that is added on top of
+ * the float they enter (ADR-0032).
+ */
 export async function OpenShiftCard({ description }: { description?: string }) {
-  const [t, locale] = await Promise.all([getTranslations("Shifts"), getLocale()]);
+  const [t, locale, carried] = await Promise.all([
+    getTranslations("Shifts"),
+    getLocale(),
+    requireSession().then(getDrawerCarry),
+  ]);
   return (
     <Card className="max-w-md">
       <CardHeader className="flex-col gap-1">
@@ -24,7 +35,11 @@ export async function OpenShiftCard({ description }: { description?: string }) {
           name="openingCash"
           money
           label={t("openingCash")}
-          hint={t("moneyHint")}
+          hint={
+            carried === 0
+              ? t("moneyHint")
+              : t("carriedHint", { amount: formatCurrency(carried, locale) })
+          }
           maxLength={20}
         />
         <SubmitButton className="self-start">{t("open")}</SubmitButton>

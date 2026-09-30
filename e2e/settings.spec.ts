@@ -44,10 +44,10 @@ test.describe("settings (FR-SET) and audit log (FR-AUD-03)", () => {
   test("enforces the minimum housekeeping retention (BR-18)", async ({ page }) => {
     await page.goto("/id/settings/operations");
     const retention = page.getByLabel("Retensi data sebelum housekeeping (bulan)");
-    await retention.fill("2");
+    await retention.fill("0");
     await page.getByRole("button", { name: "Simpan" }).click();
     await expectResult(page, /./, "error");
-    await expect(page.getByText("Minimal 3.")).toBeVisible();
+    await expect(page.getByText("Minimal 1.")).toBeVisible();
     await retention.fill("12");
     await page.getByRole("button", { name: "Simpan" }).click();
     await expectResult(page, "Pengaturan disimpan.");

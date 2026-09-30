@@ -33,7 +33,13 @@ test.describe("cashier shifts (FR-SHF)", () => {
       .analyze();
     expect(results.violations).toEqual([]);
 
-    await page.getByLabel("Kas fisik").fill("190.000");
+    /** Expected cash includes whatever the last drawer shift left behind (ADR-0032). */
+    const expected = await dialog
+      .getByText("Kas seharusnya", { exact: true })
+      .locator("..")
+      .innerText();
+    const amount = Number((/Rp\s*([\d.]+)/.exec(expected)?.[1] ?? "0").replaceAll(".", ""));
+    await page.getByLabel("Kas fisik").fill(String(amount - 10_000));
     await page.getByLabel("Catatan").fill("Selisih uji");
     await page.getByRole("button", { name: "Tutup shift" }).click();
     await expect(page).toHaveURL(/\/id\/pos\/shifts\?view=[0-9a-f-]+$/);

@@ -11,12 +11,14 @@ interface ShiftFiguresProps {
     openedAt: Date;
     closedAt: Date | null;
     openingCash: number;
+    carriedCash: number;
     expectedCash: number;
     countedCash: number | null;
     variance: number | null;
     totals: {
       byMethod: Partial<Record<(typeof paymentMethods)[number], number>>;
       expenses: number;
+      deposited: number;
       kasbonIssued: number;
       kasbonCollected: Partial<Record<(typeof paymentMethods)[number], number>>;
       salesCount: number;
@@ -40,7 +42,8 @@ export async function VarianceText({ variance }: { variance: number }) {
 
 /**
  * Key figures of a shift, its totals per payment method, store credit given
- * and store credit payments taken (FR-SHF-03/04, FR-KSB-03).
+ * and store credit payments taken (FR-SHF-03/04, FR-KSB-03), with the
+ * drawer's carried leftover and ATM deposits (ADR-0032).
  */
 export async function ShiftFigures({ shift }: ShiftFiguresProps) {
   const [t, format, locale] = await Promise.all([
@@ -68,6 +71,9 @@ export async function ShiftFigures({ shift }: ShiftFiguresProps) {
           money(shift.openingCash),
           t("openingCashShort"),
         )}
+        {shift.carriedCash !== 0
+          ? stat(t("carriedCash"), money(shift.carriedCash), t("carriedCashHint"))
+          : null}
         {stat(
           t("salesCount"),
           shift.totals.salesCount,
@@ -75,6 +81,7 @@ export async function ShiftFigures({ shift }: ShiftFiguresProps) {
         )}
         {stat(t("revenue"), money(shift.totals.revenue))}
         {stat(t("expenses"), money(shift.totals.expenses), t("expensesHint"))}
+        {shift.totals.deposited > 0 ? stat(t("deposited"), money(shift.totals.deposited)) : null}
         {stat(t("expectedCash"), money(shift.expectedCash), t("expectedHint"))}
         {shift.countedCash !== null ? stat(t("countedCashShort"), money(shift.countedCash)) : null}
         {shift.variance !== null

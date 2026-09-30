@@ -1,10 +1,27 @@
 import "server-only";
 
-import { and, asc, desc, eq, gte, isNotNull, lt, ne, notInArray, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  gte,
+  inArray,
+  isNotNull,
+  isNull,
+  lt,
+  lte,
+  ne,
+  notInArray,
+  sql,
+  type AnyColumn,
+} from "drizzle-orm";
 
 import { db } from "@/db/client";
 import {
+  bankAccounts,
   brands,
+  cashDeposits,
   cashExpenses,
   kasbons,
   onlineOrderItems,
@@ -14,6 +31,7 @@ import {
   productVariants,
   saleItems,
   sales,
+  shifts,
   users,
   vouchers,
 } from "@/db/schema";
@@ -312,4 +330,170 @@ export async function todayFigures(window: ReportWindow) {
     .from(sales)
     .where(counted(window));
   return { count: row?.count ?? 0, grandTotal: row?.grandTotal ?? 0 };
+}
+
+/** Methods whose money lands in the drawer or a bank account (FR-RPT-06). */
+const moneyInMethods = ["CASH", "TRANSFER", "QRIS"] as const;
+
+const dayOf = (column: AnyColumn, window: ReportWindow) =>
+  sql<string>`to_char((${column} at time zone ${window.timeZone})::date, 'YYYY-MM-DD')`;
+
+const within = (column: AnyColumn, window: ReportWindow) =>
+  and(gte(column, window.start), lt(column, window.end));
+
+/**
+ * Money received per store day, method, bank account and shift kind
+ * (FR-RPT-06, ADR-0032): settled payments of non-voided sales by sale time;
+ * cash store credit installments by the time they were taken, as the shift
+ * counts them; and transfer or QRIS installments once approved, as in
+ * `creditCollected`. The kind tells the drawer from a salesperson's cash;
+ * it is null for shifts from before drawer tracking.
+ */
+export async function moneyInByDay(window: ReportWindow) {
+  const columns = {
+    method: payments.method,
+    bankAccountId: payments.bankAccountId,
+    kind: shifts.kind,
+    total: num(sql`sum(${payments.amount})`),
+  };
+  const [fromSales, cashCredit, bankCredit] = await Promise.all([
+    db
+      .select({ day: dayOf(sales.createdAt, window), ...columns })
+      .from(payments)
+      .innerJoin(sales, eq(sales.id, payments.saleId))
+      .leftJoin(shifts, eq(shifts.id, sales.shiftId))
+      .where(
+        and(
+          counted(window),
+          eq(payments.status, "SETTLED"),
+          inArray(payments.method, moneyInMethods),
+        ),
+      )
+      .groupBy(sql`1`, payments.method, payments.bankAccountId, shifts.kind),
+    db
+      .select({ day: dayOf(payments.createdAt, window), ...columns })
+      .from(payments)
+      .leftJoin(shifts, eq(shifts.id, payments.shiftId))
+      .where(
+        and(
+          isNotNull(payments.kasbonId),
+          eq(payments.method, "CASH"),
+          ne(payments.status, "FAILED"),
+          within(payments.createdAt, window),
+        ),
+      )
+      .groupBy(sql`1`, payments.method, payments.bankAccountId, shifts.kind),
+    db
+      .select({ day: dayOf(payments.updatedAt, window), ...columns })
+      .from(payments)
+      .leftJoin(shifts, eq(shifts.id, payments.shiftId))
+      .where(
+        and(
+          isNotNull(payments.kasbonId),
+          inArray(payments.method, ["TRANSFER", "QRIS"]),
+          eq(payments.status, "SETTLED"),
+          within(payments.updatedAt, window),
+        ),
+      )
+      .groupBy(sql`1`, payments.method, payments.bankAccountId, shifts.kind),
+  ]);
+  return [...fromSales, ...cashCredit, ...bankCredit];
+}
+
+/**
+ * Drawer movements per store day besides money received (ADR-0032): the
+ * float cashiers added when opening, staff expenses paid out, and the
+ * variance counted at close. Drawer shifts only.
+ */
+export async function drawerFlowsByDay(window: ReportWindow) {
+  const drawer = eq(shifts.kind, "DRAWER");
+  const [added, spent, counted] = await Promise.all([
+    db
+      .select({ day: dayOf(shifts.openedAt, window), total: num(sql`sum(${shifts.openingCash})`) })
+      .from(shifts)
+      .where(and(drawer, within(shifts.openedAt, window)))
+      .groupBy(sql`1`),
+    db
+      .select({
+        day: dayOf(cashExpenses.createdAt, window),
+        total: num(sql`sum(${cashExpenses.amount})`),
+      })
+      .from(cashExpenses)
+      .innerJoin(shifts, eq(shifts.id, cashExpenses.shiftId))
+      .where(and(drawer, within(cashExpenses.createdAt, window)))
+      .groupBy(sql`1`),
+    db
+      .select({ day: dayOf(shifts.closedAt, window), total: num(sql`sum(${shifts.variance})`) })
+      .from(shifts)
+      .where(and(drawer, isNotNull(shifts.closedAt), within(shifts.closedAt, window)))
+      .groupBy(sql`1`),
+  ]);
+  return { added, spent, counted };
+}
+
+/** Marketplace orders still counting as sold, per store day. */
+export async function onlineByDay(window: ReportWindow) {
+  const day = sql<string>`to_char((${onlineOrders.createdAt} at time zone ${window.timeZone})::date, 'YYYY-MM-DD')`;
+  return db
+    .select({ day, total: num(sql`sum(${onlineOrders.itemsTotal})`) })
+    .from(onlineOrders)
+    .where(liveOrders(window))
+    .groupBy(sql`1`)
+    .orderBy(sql`1`);
+}
+
+/** Bank accounts by id, for labelling money received and deposits. */
+export async function bankAccountLabels() {
+  return db
+    .select({
+      id: bankAccounts.id,
+      bankName: bankAccounts.bankName,
+      accountNo: bankAccounts.accountNo,
+      isActive: bankAccounts.isActive,
+    })
+    .from(bankAccounts)
+    .orderBy(asc(bankAccounts.bankName), asc(bankAccounts.accountNo));
+}
+
+/** Deposits not cancelled, per store day in `[from, to]` (FR-RPT-07). */
+export async function depositsByDay(from: string, to: string) {
+  return db
+    .select({ day: cashDeposits.day, total: num(sql`sum(${cashDeposits.amount})`) })
+    .from(cashDeposits)
+    .where(
+      and(gte(cashDeposits.day, from), lte(cashDeposits.day, to), isNull(cashDeposits.cancelledAt)),
+    )
+    .groupBy(cashDeposits.day)
+    .orderBy(cashDeposits.day);
+}
+
+/** Deposits not cancelled on store days before `day`. */
+export async function depositsBefore(day: string) {
+  const [row] = await db
+    .select({ total: num(sql`sum(${cashDeposits.amount})`) })
+    .from(cashDeposits)
+    .where(and(lt(cashDeposits.day, day), isNull(cashDeposits.cancelledAt)));
+  return row?.total ?? 0;
+}
+
+/** Deposits of `[from, to]`, cancelled ones included, oldest first. */
+export async function listDeposits(from: string, to: string) {
+  return db
+    .select({
+      id: cashDeposits.id,
+      day: cashDeposits.day,
+      amount: cashDeposits.amount,
+      note: cashDeposits.note,
+      bankAccountId: cashDeposits.bankAccountId,
+      bankName: bankAccounts.bankName,
+      accountNo: bankAccounts.accountNo,
+      actorName: users.name,
+      createdAt: cashDeposits.createdAt,
+      cancelledAt: cashDeposits.cancelledAt,
+    })
+    .from(cashDeposits)
+    .innerJoin(bankAccounts, eq(bankAccounts.id, cashDeposits.bankAccountId))
+    .innerJoin(users, eq(users.id, cashDeposits.actorId))
+    .where(and(gte(cashDeposits.day, from), lte(cashDeposits.day, to)))
+    .orderBy(asc(cashDeposits.day), asc(cashDeposits.createdAt));
 }
