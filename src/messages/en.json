@@ -2000,7 +2000,6 @@
     "recoverSubmit": "Save new password",
     "errorRecoveryInvalid": "Wrong username or recovery code.",
     "noCodesHelp": "No recovery codes? Contact the developer to reset the Owner password.",
-    "backToLogin": "Back to sign in",
-    "accountLink": "Account & security"
+    "backToLogin": "Back to sign in"
   }
 }

@@ -5,12 +5,12 @@ import { ActionForm } from "@/components/form/action-form";
 import { FormField } from "@/components/form/form-field";
 import { SubmitButton } from "@/components/form/submit-button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { PageHeader } from "@/components/ui/page-header";
 import { toneClasses } from "@/components/ui/tone";
 import { appConfig } from "@/config/app.config";
 import { changePasswordAction } from "@/features/auth/actions";
 import { RecoveryCodesCard } from "@/features/auth/components/recovery-codes-card";
 import { getRecoveryCodeStatus } from "@/features/auth/service";
+import { SettingsHeader } from "@/features/settings/components/settings-frame";
 import { redirect } from "@/i18n/navigation";
 import { requireSession } from "@/lib/auth/guard";
 import { cn } from "@/lib/utils/cn";
@@ -24,9 +24,9 @@ export async function generateMetadata(): Promise<Metadata> {
 const LOW_CODES = 2;
 
 /**
- * Password change and recovery codes for password accounts, i.e. the Owner
- * (FR-AUTH-11/12, ADR-0037). PIN accounts are sent home; the Owner resets
- * their PIN instead (FR-AUTH-06).
+ * Settings tab with the password change and recovery codes of password
+ * accounts, i.e. the Owner (FR-AUTH-11/12, ADR-0037). PIN accounts are sent
+ * to the store profile; the Owner resets their PIN instead (FR-AUTH-06).
  */
 export default async function AccountPage() {
   const session = await requireSession();
@@ -37,12 +37,13 @@ export default async function AccountPage() {
     getLocale(),
     getRecoveryCodeStatus(session),
   ]);
-  if (!status) return redirect({ href: "/", locale });
+  if (!status) return redirect({ href: "/settings", locale });
   const reveal = { show: tCommon("showSecret"), hide: tCommon("hideSecret") };
 
   return (
     <>
-      <PageHeader title={t("title")} description={t("description")} />
+      <SettingsHeader current="account" />
+      <p className="mb-4 max-w-4xl text-sm text-ink-muted">{t("description")}</p>
       <div className="grid max-w-4xl gap-6 lg:grid-cols-2">
         <Card className="self-start">
           <CardHeader className="flex-col gap-1">

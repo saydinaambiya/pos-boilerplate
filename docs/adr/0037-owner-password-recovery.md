@@ -15,8 +15,9 @@ adding one would make an inbox the way into the account.
 
 ## Decision
 
-- **Change while signed in.** `/account` ("Akun & keamanan", a key icon on
-  the account card, password accounts only) changes the password after the
+- **Change while signed in.** The settings tab `/settings/account`
+  ("Akun & keamanan", shown to password accounts only; moved off the
+  account card after review) changes the password after the
   current one. A wrong current password counts towards the lockout like a
   failed login. Other devices are signed out.
 - **Recovery codes.** The same page creates 8 single-use codes after the
@@ -25,7 +26,7 @@ adding one would make an inbox the way into the account.
   dashes or O/I/L. With that much entropy a SHA-256 digest is enough; only
   digests are stored (`recovery_codes`). The codes are shown once, with copy
   and a `.txt` download. A new set replaces the old one. While no unused
-  code is left, every page shows a banner linking to `/account`.
+  code is left, every page shows a banner linking to that tab.
 - **Recovery.** The password step of the sign-in links to `/recover`:
   username, code and a new password. Unknown users, PIN accounts and wrong
   codes get the same answer. Wrong codes count towards the account lockout

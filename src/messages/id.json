@@ -2000,7 +2000,6 @@
     "recoverSubmit": "Simpan password baru",
     "errorRecoveryInvalid": "Username atau kode pemulihan salah.",
     "noCodesHelp": "Tidak punya kode pemulihan? Hubungi developer untuk mereset password Owner.",
-    "backToLogin": "Kembali ke halaman masuk",
-    "accountLink": "Akun & keamanan"
+    "backToLogin": "Kembali ke halaman masuk"
   }
 }

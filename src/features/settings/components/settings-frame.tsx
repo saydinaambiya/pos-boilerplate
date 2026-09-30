@@ -5,12 +5,16 @@ import { ActionForm } from "@/components/form/action-form";
 import { SubmitButton } from "@/components/form/submit-button";
 import { SectionTabs } from "@/components/shell/section-tabs";
 import { PageHeader } from "@/components/ui/page-header";
+import { getSession } from "@/lib/auth/guard";
 import type { FormAction } from "@/lib/validation/form-state";
 
 export type SettingsSection =
-  "profile" | "tax" | "operations" | "hours" | "bank-accounts" | "marketplaces";
+  "profile" | "tax" | "operations" | "hours" | "bank-accounts" | "marketplaces" | "account";
 
-/** Page title and section tabs shared by every settings page (FR-SET). */
+/**
+ * Page title and section tabs shared by every settings page (FR-SET). The
+ * account tab only shows for password accounts, i.e. the Owner (ADR-0037).
+ */
 export async function SettingsHeader({
   current,
   actions,
@@ -18,7 +22,11 @@ export async function SettingsHeader({
   current: SettingsSection;
   actions?: ReactNode;
 }) {
-  const t = await getTranslations("Settings");
+  const [t, tAccount, session] = await Promise.all([
+    getTranslations("Settings"),
+    getTranslations("Account"),
+    getSession(),
+  ]);
   return (
     <>
       <PageHeader title={t("title")} description={t("subtitle")} actions={actions} />
@@ -32,6 +40,9 @@ export async function SettingsHeader({
           { id: "hours", href: "/settings/hours", label: t("tabHours") },
           { id: "bank-accounts", href: "/settings/bank-accounts", label: t("tabBankAccounts") },
           { id: "marketplaces", href: "/settings/marketplaces", label: t("tabMarketplaces") },
+          ...(session?.user.credential === "password"
+            ? [{ id: "account", href: "/settings/account", label: tAccount("title") }]
+            : []),
         ]}
       />
     </>

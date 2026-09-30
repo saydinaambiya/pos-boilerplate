@@ -13,11 +13,13 @@ test.describe("owner account and recovery (FR-AUTH-11/12, ADR-0037)", () => {
   test.skip(({ isMobile }) => isMobile, "stateful account flows run once, on desktop");
   test.describe.configure({ mode: "serial" });
 
-  test("the account card leads to the security page", async ({ page }) => {
-    await page.goto("/id/products");
+  test("the security tab sits under settings, not on the account card", async ({ page }) => {
+    await page.goto("/id/settings");
     const sidebar = page.getByRole("complementary").filter({ visible: true }).first();
-    await sidebar.getByRole("link", { name: "Akun & keamanan" }).click();
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Akun & keamanan");
+    await expect(sidebar.getByRole("link", { name: "Akun & keamanan" })).toHaveCount(0);
+    await page.getByRole("link", { name: "Akun & keamanan" }).click();
+    await expect(page).toHaveURL(/\/id\/settings\/account$/);
+    await expect(page.getByRole("heading", { name: "Ganti password" })).toBeVisible();
 
     await page.getByLabel("Password sekarang", { exact: true }).first().fill("wrong-password!");
     await page.getByLabel("Password baru", { exact: true }).fill("short");
@@ -33,7 +35,7 @@ test.describe("owner account and recovery (FR-AUTH-11/12, ADR-0037)", () => {
   });
 
   test("creates recovery codes shown once and clears the banner", async ({ page }) => {
-    await page.goto("/id/account");
+    await page.goto("/id/settings/account");
     await page
       .getByLabel("Password sekarang", { exact: true })
       .last()

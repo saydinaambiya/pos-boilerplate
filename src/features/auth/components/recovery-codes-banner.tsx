@@ -19,7 +19,7 @@ export async function RecoveryCodesBanner() {
       <KeyRound className="size-5 shrink-0" aria-hidden="true" />
       <p className="flex-1">{t("bannerNoCodes")}</p>
       <Link
-        href="/account"
+        href="/settings/account"
         className="inline-flex min-h-11 items-center font-medium underline underline-offset-4"
       >
         {t("bannerAction")}

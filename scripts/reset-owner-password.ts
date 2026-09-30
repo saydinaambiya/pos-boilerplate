@@ -3,7 +3,7 @@
  * password and the recovery codes (FR-AUTH-13, ADR-0037). Sets a random
  * temporary password, lifts the lockout, signs out every device and prints
  * the password once. Run by whoever holds DATABASE_URL; the Owner then
- * changes it under "Akun & keamanan".
+ * changes it under Pengaturan → Akun & keamanan.
  */
 import { db } from "@/db/client";
 import { resetOwnerPassword } from "@/features/auth/service";
@@ -23,6 +23,6 @@ console.warn(
   [
     `Owner password reset for "${result.username}".`,
     `Temporary password: ${result.password}`,
-    "Share it privately; the Owner should change it right away under Akun & keamanan.",
+    "Share it privately; the Owner should change it right away under Pengaturan > Akun & keamanan.",
   ].join("\n"),
 );
