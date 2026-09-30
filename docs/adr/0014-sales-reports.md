@@ -1,6 +1,6 @@
 # ADR-0014: Sales reports, cost snapshots and CSV export
 
-- Status: Accepted
+- Status: Accepted; recap layout amended by [ADR-0032](./0032-money-recap-and-atm-deposits.md)
 - Date: 2026-09-26
 - Requirements: PRD §3.11, FR-DSH-01, FR-RPT-01..05, FR-UI-11
 

@@ -29,6 +29,12 @@ test.describe("field sales goods (FR-CSG-01..05, ADR-0024)", () => {
     });
     await grantEmployeePermission(page, "Halaman Sales (barang bawaan sales)");
     await grantEmployeePermission(page, "Sales: jual barang bawaan sendiri");
+    await page.goto("/id/settings/bank-accounts");
+    await page.getByLabel("Nama bank").fill(`Sales ${run}`);
+    await page.getByLabel("Nomor rekening").fill(Date.now().toString().slice(-10));
+    await page.getByLabel("Atas nama").fill("Toko Contoh");
+    await page.getByRole("button", { name: "Tambah rekening" }).click();
+    await expect(page.getByRole("row", { name: new RegExp(`Sales ${run}`) })).toBeVisible();
   });
 
   test("the store records goods a salesperson takes on two visits", async ({ page }) => {
@@ -71,6 +77,13 @@ test.describe("field sales goods (FR-CSG-01..05, ADR-0024)", () => {
     await expect(sell.getByLabel(`Dikembalikan, ${item}`)).toHaveCount(0);
     await sell.getByLabel(`Terjual, ${item}`).fill("4");
     await sell.getByLabel("Nama pelanggan").fill(`Warung ${run}`);
+    /** Part cash, the rest by transfer (ADR-0033); the label names QRIS once a QRIS account exists. */
+    await sell.getByLabel(/^Tunai \+/).check({ force: true });
+    await sell.getByLabel("Tunai diterima").fill("50.000");
+    await sell.getByRole("button", { name: "Simpan barang terjual" }).click();
+    await expect(sell.getByText(/Isi jumlah tunai lebih dari 0/)).toBeVisible();
+    await sell.getByLabel("Tunai diterima").fill("5.000");
+    await expect(sell.getByText(/^Sisanya Rp\s?[\d.]+ lewat transfer\/QRIS$/)).toBeVisible();
     await sell.getByRole("button", { name: "Simpan barang terjual" }).click();
     await expectResult(page, /Barang terjual sudah dicatat\. Transaksi INV-\d{8}-\d{4} dibuat\./);
 

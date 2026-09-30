@@ -46,6 +46,7 @@ type SettleReason =
   | "closed"
   | "exceeds-outstanding"
   | "kasbon-forbidden"
+  | "split-invalid"
   | "store-closed";
 
 export type SettleResult =
@@ -382,6 +383,9 @@ export async function settleGoods(
       })),
       tax,
     ).grandTotal;
+    if (payment.method === "SPLIT" && payment.cash >= grandTotal) {
+      return { ok: false, reason: "split-invalid" };
+    }
     const saleInput: CheckoutInput = {
       idempotencyKey: input.idempotencyKey,
       lines,
@@ -389,17 +393,32 @@ export async function settleGoods(
       payments:
         payment.method === "KASBON" || grandTotal === 0
           ? []
-          : payment.method === "CASH"
-            ? [{ method: "CASH", amount: grandTotal }]
-            : payment.method === "QRIS"
-              ? [{ method: "QRIS", amount: grandTotal, sourceBank: payment.sourceBank }]
-              : [
-                  {
-                    method: "TRANSFER",
-                    amount: grandTotal,
-                    bankAccountId: payment.bankAccountId,
-                  },
-                ],
+          : payment.method === "SPLIT"
+            ? [
+                { method: "CASH", amount: payment.cash },
+                payment.rest.method === "QRIS"
+                  ? {
+                      method: "QRIS",
+                      amount: grandTotal - payment.cash,
+                      sourceBank: payment.rest.sourceBank,
+                    }
+                  : {
+                      method: "TRANSFER",
+                      amount: grandTotal - payment.cash,
+                      bankAccountId: payment.rest.bankAccountId,
+                    },
+              ]
+            : payment.method === "CASH"
+              ? [{ method: "CASH", amount: grandTotal }]
+              : payment.method === "QRIS"
+                ? [{ method: "QRIS", amount: grandTotal, sourceBank: payment.sourceBank }]
+                : [
+                    {
+                      method: "TRANSFER",
+                      amount: grandTotal,
+                      bankAccountId: payment.bankAccountId,
+                    },
+                  ],
       ...(payment.method === "KASBON" && grandTotal > 0
         ? { kasbon: { note: payment.note, dueDate: payment.dueDate } }
         : {}),

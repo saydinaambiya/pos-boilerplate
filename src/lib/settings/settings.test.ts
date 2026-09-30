@@ -53,10 +53,13 @@ describe("setting schemas (FR-SET)", () => {
     expect(taxSchema.safeParse({ ...base, ppnEnabled: true, ppnRateBps: 1100 }).success).toBe(true);
   });
 
-  it("keeps at least three months before housekeeping (BR-18)", () => {
+  it("keeps at least one month before housekeeping (BR-18)", () => {
     const base = settingDefinitions.operations.defaults;
-    expect(operationsSchema.safeParse({ ...base, housekeepingRetentionMonths: 2 }).success).toBe(
+    expect(operationsSchema.safeParse({ ...base, housekeepingRetentionMonths: 0 }).success).toBe(
       false,
+    );
+    expect(operationsSchema.safeParse({ ...base, housekeepingRetentionMonths: 1 }).success).toBe(
+      true,
     );
   });
 

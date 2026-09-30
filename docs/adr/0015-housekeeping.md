@@ -1,6 +1,6 @@
 # ADR-0015: Monthly housekeeping by export and mark
 
-- Status: Accepted
+- Status: Accepted; retention minimum amended by [ADR-0032](./0032-money-recap-and-atm-deposits.md)
 - Date: 2026-09-26
 - Requirements: PRD §3.12, FR-HK-01..07, BR-18
 
@@ -13,7 +13,8 @@ without losing data that reports or open store credit still need.
 ## Decision
 
 - **Unit of work**: one store month. A month is archivable once it ended
-  at least `housekeepingRetentionMonths` ago (setting, minimum 3). Each
+  at least `housekeepingRetentionMonths` ago (setting, minimum 1 since
+  [ADR-0032](./0032-money-recap-and-atm-deposits.md), 3 before). Each
   month is exported and marked on its own, so no request has to process
   more than a month (FR-HK-07).
 - **Scope per month**: sales created in the month except those whose store

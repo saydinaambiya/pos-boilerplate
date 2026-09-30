@@ -1,6 +1,6 @@
 # ADR-0029: Salespeople keep a shift but not the cashier
 
-- Status: Accepted
+- Status: Accepted; Sales role grants amended by [ADR-0033](./0033-sales-split-payment-and-store-credit.md)
 - Date: 2026-09-29
 - Requirements: PRD FR-CSG-01/04, FR-SHF-01..03, FR-SET-09; BRD BR-27, Q-30
 - Amends: [ADR-0024](./0024-consignment-roles.md), where the Sales role got the cashier

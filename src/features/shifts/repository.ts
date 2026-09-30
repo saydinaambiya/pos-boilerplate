@@ -5,12 +5,16 @@ import { and, desc, eq, isNull, ne, type SQL, sql } from "drizzle-orm";
 import { db, type Executor } from "@/db/client";
 import { cashExpenses, kasbons, payments, sales, shifts, users } from "@/db/schema";
 
+import { depositedDuring } from "./drawer";
+
 const shiftColumns = {
   id: shifts.id,
   userId: shifts.userId,
   cashierName: users.name,
+  kind: shifts.kind,
   openedAt: shifts.openedAt,
   openingCash: shifts.openingCash,
+  carriedCash: shifts.carriedCash,
   closedAt: shifts.closedAt,
   expectedCash: shifts.expectedCash,
   countedCash: shifts.countedCash,
@@ -41,7 +45,12 @@ export async function findOtherOpenShifts(executor: Executor, userId: string) {
 /** Locks the user's open shift for closing (no concurrent double close). */
 export async function lockOpenShift(executor: Executor, userId: string) {
   const [row] = await executor
-    .select({ id: shifts.id, openingCash: shifts.openingCash })
+    .select({
+      id: shifts.id,
+      kind: shifts.kind,
+      openingCash: shifts.openingCash,
+      carriedCash: shifts.carriedCash,
+    })
     .from(shifts)
     .where(and(eq(shifts.userId, userId), isNull(shifts.closedAt)))
     .for("update");
@@ -60,13 +69,12 @@ export async function findShift(id: string) {
 
 export async function insertShift(
   executor: Executor,
-  userId: string,
-  openingCash: number,
+  values: Pick<
+    typeof shifts.$inferInsert,
+    "userId" | "kind" | "openingCash" | "carriedCash" | "carriedFromShiftId"
+  >,
 ): Promise<string> {
-  const [row] = await executor
-    .insert(shifts)
-    .values({ userId, openingCash })
-    .returning({ id: shifts.id });
+  const [row] = await executor.insert(shifts).values(values).returning({ id: shifts.id });
   if (!row) throw new Error("Shift insert returned no row");
   return row.id;
 }
@@ -85,8 +93,8 @@ export async function closeShiftRow(
 /**
  * Per-shift figures (FR-SHF-03/04): settled payments per method on
  * non-voided sales, sale and void counts, store credit given, and store
- * credit payments taken in this shift, and cash paid out as staff expenses
- * (FR-EXP-03). A payment still awaiting approval
+ * credit payments taken in this shift, cash paid out as staff expenses
+ * (FR-EXP-03) and cash deposited at the ATM while it was open (ADR-0032). A payment still awaiting approval
  * counts because the money is already in hand; a rejected one does not
  * (FR-KSB-03/04).
  */
@@ -135,8 +143,11 @@ export async function shiftTotals(executor: Executor, shiftId: string) {
     .from(cashExpenses)
     .where(eq(cashExpenses.shiftId, shiftId));
 
+  const deposited = await depositedDuring(executor, shiftId);
+
   return {
     expenses: spent?.total ?? 0,
+    deposited,
     kasbonIssued: credit?.total ?? 0,
     kasbonCollected: Object.fromEntries(collected.map((row) => [row.method, row.total])) as Partial<
       Record<(typeof collected)[number]["method"], number>

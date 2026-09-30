@@ -36,6 +36,7 @@ export const permissions = [
   "kasbon:create",
   "kasbon:pay",
   "report:view",
+  "cash:deposit",
   "order.online:update-status",
   "consignment:pickup",
   "consignment:return",
@@ -65,12 +66,20 @@ export const DEFAULT_EMPLOYEE_ROLE = {
  * ADR-0024): Admin records pickups, Pramuniaga records returns, and Sales
  * sells what they carry, also after store hours (FR-SET-09). Sales keeps
  * a shift in the Sales menu and has no cashier, so it can only sell the
- * goods it carries (ADR-0029).
+ * goods it carries (ADR-0029), and may sell them on store credit (ADR-0033).
  */
 export const SEEDED_ROLES = [
   {
     name: "Admin",
-    permissions: ["page:dashboard", "page:consignments", "page:stock", "consignment:pickup"],
+    permissions: [
+      "page:dashboard",
+      "page:consignments",
+      "page:stock",
+      "consignment:pickup",
+      "page:reports",
+      "report:view",
+      "cash:deposit",
+    ],
   },
   {
     name: "Pramuniaga",
@@ -78,7 +87,7 @@ export const SEEDED_ROLES = [
   },
   {
     name: "Sales",
-    permissions: ["page:consignments", "consignment:sell", "pos:after-hours"],
+    permissions: ["page:consignments", "consignment:sell", "pos:after-hours", "kasbon:create"],
   },
 ] as const satisfies readonly { name: string; permissions: readonly Permission[] }[];
 
@@ -116,6 +125,7 @@ export const permissionGroups = {
     "consignment:return",
     "consignment:sell",
     "report:view",
+    "cash:deposit",
   ],
   approvals: ["approval.kasbon:decide", "approval.voucher:decide", "approval.void:decide"],
   administration: ["employee:manage", "role:manage", "settings:manage", "audit:view"],

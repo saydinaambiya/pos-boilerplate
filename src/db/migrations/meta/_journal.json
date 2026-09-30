@@ -183,6 +183,41 @@
       "when": 1790689250339,
       "tag": "0025_sales_without_cashier",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1790742132710,
+      "tag": "0026_cash_deposits",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1790746874653,
+      "tag": "0027_drawer_carry_over",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1790749757751,
+      "tag": "0028_deposit_revisions",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1790755794998,
+      "tag": "0029_sales_store_credit",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1790756488626,
+      "tag": "0030_deposit_after_close",
+      "breakpoints": true
     }
   ]
 }

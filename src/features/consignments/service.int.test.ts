@@ -7,6 +7,7 @@ import {
   consignments,
   invoiceCounters,
   kasbons,
+  payments,
   productVariants,
   rolePermissions,
   roles,
@@ -16,6 +17,7 @@ import {
 import { createProduct } from "@/features/catalog/service";
 import { checkout } from "@/features/checkout/service";
 import { requestVoid } from "@/features/checkout/void-service";
+import { createBankAccount } from "@/features/settings/service";
 import { openShift } from "@/features/shifts/service";
 import { receiveStock } from "@/features/stock/service";
 import { ForbiddenError } from "@/lib/auth/authorize";
@@ -349,6 +351,67 @@ describe("settling goods (FR-CSG-03/04)", () => {
         TUESDAY,
       ),
     ).rejects.toThrow(ForbiddenError);
+  });
+
+  it("takes part cash and the rest by transfer, and store credit without the cashier (ADR-0033)", async () => {
+    const [role] = await db.select().from(roles).where(eq(roles.name, DEFAULT_EMPLOYEE_ROLE.name));
+    await db
+      .delete(rolePermissions)
+      .where(
+        and(eq(rolePermissions.roleId, role?.id ?? ""), eq(rolePermissions.permission, "page:pos")),
+      );
+    await grant("kasbon:create");
+    const account = await createBankAccount(
+      await owner(),
+      { bankName: "BCA", accountNo: "1234567890", accountName: "Toko" },
+      testContext(),
+    );
+    if (!account.ok) throw new Error(account.reason);
+    const session = await salesperson();
+    await openShift(session, { openingCash: 0 }, testContext(), MONDAY);
+    const variantId = await product(10);
+    const id = consignmentId(await take(session, variantId, 5));
+    const rest = { method: "TRANSFER" as const, bankAccountId: account.id };
+
+    expect(
+      await settleGoods(
+        session,
+        id,
+        settlement([{ variantId, sold: 2, returned: 0 }], { method: "SPLIT", cash: 20_000, rest }),
+        testContext(),
+        TUESDAY,
+      ),
+    ).toEqual({ ok: false, reason: "split-invalid" });
+
+    const split = await settleGoods(
+      session,
+      id,
+      settlement([{ variantId, sold: 2, returned: 0 }], { method: "SPLIT", cash: 5_000, rest }),
+      testContext(),
+      TUESDAY,
+    );
+    if (!split.ok) throw new Error(split.reason);
+    const paid = await db
+      .select({ method: payments.method, amount: payments.amount })
+      .from(payments)
+      .where(eq(payments.saleId, split.saleId ?? ""));
+    expect(paid.sort((a, b) => a.method.localeCompare(b.method))).toEqual([
+      { method: "CASH", amount: 5_000 },
+      { method: "TRANSFER", amount: 15_000 },
+    ]);
+
+    const credit = await settleGoods(
+      session,
+      id,
+      settlement(
+        [{ variantId, sold: 1, returned: 0 }],
+        { method: "KASBON", note: "", dueDate: null },
+        { name: "Toko Maju", phone: "+6281234567890" },
+      ),
+      testContext(),
+      TUESDAY,
+    );
+    expect(credit).toMatchObject({ ok: true });
   });
 
   it("never voids a settlement sale (FR-CSG-06)", async () => {

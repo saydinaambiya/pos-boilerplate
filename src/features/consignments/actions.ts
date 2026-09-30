@@ -89,6 +89,8 @@ export async function settleGoodsAction(
         return { ok: false, message: t("errors.closed") };
       case "kasbon-forbidden":
         return { ok: false, message: tPos("errors.kasbonForbidden") };
+      case "split-invalid":
+        return { ok: false, message: t("errors.splitInvalid") };
       case "store-closed":
         return { ok: false, message: t("errors.storeClosed") };
       case "forbidden":

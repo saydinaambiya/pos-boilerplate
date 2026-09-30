@@ -11,3 +11,4 @@ export * from "./online-orders";
 export * from "./housekeeping";
 export * from "./consignments";
 export * from "./expenses";
+export * from "./deposits";

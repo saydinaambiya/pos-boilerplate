@@ -1,0 +1,2 @@
+ALTER TABLE "cash_deposits" ADD COLUMN "after_close" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+UPDATE "cash_deposits" SET "after_close" = true FROM "shifts" WHERE "shifts"."id" = "cash_deposits"."shift_id" AND "shifts"."closed_at" IS NOT NULL AND "cash_deposits"."created_at" > "shifts"."closed_at";

@@ -52,7 +52,7 @@ export const operationsSchema = z
     paperSize: z.enum(paperSizes),
     allowNegativeStock: z.boolean(),
     heldOrderHours: z.int().min(1).max(720),
-    housekeepingRetentionMonths: z.int().min(3).max(60),
+    housekeepingRetentionMonths: z.int().min(1).max(60),
     sessionIdleMinutes: z.int().min(15).max(1440),
     /** Devices one account may be signed in on at the same time (FR-AUTH-09). */
     maxDevicesPerUser: z.int().min(1).max(10),

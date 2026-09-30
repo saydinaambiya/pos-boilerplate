@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 
 import { expect, test } from "./fixtures";
+import { choose, expectResult } from "./helpers";
 
 test.describe("dashboard and sales report (FR-DSH-01, FR-RPT)", () => {
   test("the dashboard shows today's figures and online order chips", async ({ page }) => {
@@ -11,45 +12,48 @@ test.describe("dashboard and sales report (FR-DSH-01, FR-RPT)", () => {
     await expect(page.getByRole("list", { name: "Pesanan online" })).toContainText("Diproses");
   });
 
-  test("the report shows sales results and expenses and exports CSV", async ({
+  test("the recap shows money in and the drawer, by day and by month, with details", async ({
     page,
     isMobile,
   }) => {
     test.skip(isMobile, "downloads are checked once, on desktop");
     await page.goto("/id/reports");
-    /**
-     * The default range is already "this month", so `aria-current` holds
-     * before the click lands. Wait for the URL instead, or the filter form
-     * remounts under the date picker opened below. The report is the
-     * heaviest page, so its navigation gets more time under parallel load.
-     */
-    const thisMonth = page.getByRole("link", { name: "Bulan ini" });
-    await thisMonth.click();
-    await expect(page).toHaveURL(/[?&]from=\d{4}-\d{2}-\d{2}&to=/, { timeout: 15_000 });
-    await expect(thisMonth).toHaveAttribute("aria-current", "page");
+    await expect(page.getByRole("link", { name: "Harian" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    for (const heading of ["Uang masuk", "Kas tunai"]) {
+      await expect(page.getByRole("heading", { name: heading, level: 2 })).toBeVisible();
+    }
+    for (const term of ["Ke rekening", "Tunai di kasir", "Disetor ke ATM", "Sisa di laci"]) {
+      await expect(page.getByRole("term").filter({ hasText: term })).toBeVisible();
+    }
     await expect(page.getByText("Laba kotor kasir")).toHaveCount(0);
-    await expect(page.getByRole("term").filter({ hasText: /^Sisa$/ })).toBeVisible();
+
+    await page.getByRole("link", { name: "Hari sebelumnya" }).click();
+    await expect(page).toHaveURL(/[?&]day=\d{4}-\d{2}-\d{2}/);
+    await expect(page.getByRole("link", { name: "Hari berikutnya" })).toBeVisible();
+
+    /**
+     * The report is the heaviest page, so its navigation gets more time
+     * under parallel load.
+     */
+    await page.getByRole("link", { name: "Bulanan" }).click();
+    await expect(page).toHaveURL(/[?&]month=\d{4}-\d{2}/, { timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Per hari", level: 2 })).toBeVisible();
+    await expect(page.getByText("Sisa dari bulan sebelumnya")).toBeVisible();
+
+    await expect(page.getByRole("heading", { name: "Per produk", level: 2 })).toBeHidden();
+    await page.getByText("Rincian lainnya").click();
     for (const section of [
-      "Per hari",
-      "Pengeluaran harian",
       "Per metode pembayaran",
+      "Pengeluaran harian",
       "Per produk",
       "Per merk",
       "PPN & service",
     ]) {
       await expect(page.getByRole("heading", { name: section, level: 2 })).toBeVisible();
     }
-
-    const from = page.locator('input[name="from"]');
-    const before = await from.inputValue();
-    await page.getByLabel("Dari", { exact: true }).click();
-    await expect(page.getByRole("grid")).toBeVisible();
-    await page.keyboard.press("ArrowLeft");
-    await page.keyboard.press("Enter");
-    await expect(page.getByRole("grid")).toBeHidden();
-    await expect(from).not.toHaveValue(before);
-    await expect(from).toHaveValue(/^\d{4}-\d{2}-\d{2}$/);
-    await expect(page).toHaveURL(new RegExp(`from=${await from.inputValue()}`));
 
     const download = page.waitForEvent("download");
     await page.getByRole("link", { name: "Unduh CSV Per produk" }).click();
@@ -58,7 +62,59 @@ test.describe("dashboard and sales report (FR-DSH-01, FR-RPT)", () => {
       /^rekap-products-\d{4}-\d{2}-\d{2}-\d{4}-\d{2}-\d{2}\.csv$/,
     );
     const content = await readFile(await file.path(), "utf8");
-    expect(content.replace(/^﻿/, "").split("\r\n")[0]).toBe("Produk,Qty,Diskon item,Penjualan");
+    expect(content.replace(/^\uFEFF/, "").split("\r\n")[0]).toBe(
+      "Produk,Qty,Diskon item,Penjualan",
+    );
+  });
+
+  test("records, corrects and cancels a cash deposit with reasons (FR-RPT-07)", async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(isMobile, "stateful deposit flows run once, on desktop");
+    const run = Date.now().toString();
+    const bank = `Setor ${run.slice(-6)}`;
+    const accountNo = run.slice(-10);
+    await page.goto("/id/settings/bank-accounts");
+    await page.getByLabel("Nama bank").fill(bank);
+    await page.getByLabel("Nomor rekening").fill(accountNo);
+    await page.getByLabel("Atas nama").fill("Toko Contoh");
+    await page.getByRole("button", { name: "Tambah rekening" }).click();
+    await expect(page.getByRole("row", { name: new RegExp(bank) })).toBeVisible();
+
+    await page.goto("/id/reports");
+    await page.getByRole("link", { name: "Catat setoran" }).click();
+    const dialog = page.getByRole("dialog", { name: "Catat setoran tunai" });
+    await expect(dialog).toContainText("yang diterima mesin ATM");
+    await choose(dialog, "Rekening tujuan", `${bank} ${accountNo}`);
+    await dialog.getByLabel("Jumlah disetor").fill("150.000");
+    await dialog.getByRole("button", { name: "Simpan setoran" }).click();
+    await expect(dialog).toBeHidden();
+
+    const deposits = page.getByRole("list", { name: "Setoran tunai" });
+    const entry = deposits.getByRole("listitem").filter({ hasText: bank });
+    await expect(entry).toContainText(/Rp\s?150\.000/);
+
+    await entry.getByRole("link", { name: /^Ubah setoran/ }).click();
+    const edit = page.getByRole("dialog", { name: /^Ubah setoran/ });
+    await edit.getByLabel("Jumlah disetor").fill("140.000");
+    await edit.getByRole("button", { name: "Simpan perubahan" }).click();
+    await expectResult(page, /./, "error");
+    await expect(edit.getByText("Wajib diisi.")).toBeVisible();
+    await edit.getByLabel("Alasan").fill("Salah ketik jumlah");
+    await edit.getByRole("button", { name: "Simpan perubahan" }).click();
+    await expect(edit).toBeHidden();
+    await expect(entry).toContainText(/Rp\s?140\.000/);
+    await entry.getByText("Riwayat perubahan (1)").click();
+    await expect(entry).toContainText(/Jumlah Rp\s?150\.000 → Rp\s?140\.000/);
+    await expect(entry).toContainText("Alasan: Salah ketik jumlah");
+
+    await entry.getByRole("button", { name: "Batalkan" }).click();
+    const confirm = page.getByRole("dialog", { name: /^Batalkan setoran/ });
+    await confirm.getByLabel("Alasan").fill("Tidak jadi disetor");
+    await confirm.getByRole("button", { name: "Ya, batalkan" }).click();
+    await expectResult(page, "Setoran dibatalkan.");
+    await expect(entry).toContainText("Dibatalkan");
   });
 
   test("an employee without report access is refused", async ({ browser }) => {

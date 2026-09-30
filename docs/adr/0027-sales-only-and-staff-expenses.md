@@ -1,6 +1,6 @@
 # ADR-0027: Sales results only, and daily staff expenses
 
-- Status: Accepted
+- Status: Accepted; recap balance amended by [ADR-0032](./0032-money-recap-and-atm-deposits.md)
 - Date: 2026-09-29
 - Requirements: PRD FR-PRD-01/02, FR-RPT-02, FR-SHF-03, §3.17 FR-EXP-01..03; BRD Q-25..Q-28
 - Supersedes: cost visibility in FR-PRD-02 and profit in FR-RPT-02 ([ADR-0014](./0014-sales-reports.md))

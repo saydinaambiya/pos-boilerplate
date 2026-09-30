@@ -1,0 +1,1 @@
+INSERT INTO "role_permissions" ("id", "role_id", "permission") SELECT gen_random_uuid(), "roles"."id", 'kasbon:create' FROM "roles" WHERE lower("roles"."name") = 'sales' AND EXISTS (SELECT 1 FROM "role_permissions" WHERE "role_permissions"."role_id" = "roles"."id" AND "role_permissions"."permission" = 'consignment:sell') ON CONFLICT DO NOTHING;

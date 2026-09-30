@@ -10,8 +10,8 @@ import type { AppConfig } from "./app-config.schema";
  */
 export const appConfig: AppConfig = {
   brand: {
-    appName: "Kasir",
-    storeName: "Toko Contoh",
+    appName: "Quincy Leather Group",
+    storeName: "Quincy Leather Group",
     logo: {
       light: "/brand/logo-light.svg",
       dark: "/brand/logo-dark.svg",
@@ -20,7 +20,7 @@ export const appConfig: AppConfig = {
     },
   },
   appearance: {
-    palette: "sand",
+    palette: "ocean",
     layout: "sidebar",
     defaultLocale: "id",
     defaultTheme: "system",

@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { sourceBank } from "@/features/checkout/schemas";
 import { kasbonCheckoutInput, saleCustomerInput } from "@/features/kasbon/schemas";
+import { rupiah } from "@/lib/validation/money";
 import { plainText } from "@/lib/validation/text";
 
 const quantity = z.int().min(0).max(9999);
@@ -20,16 +21,24 @@ export const takeGoodsInput = z
   .strict();
 export type TakeGoodsInput = z.infer<typeof takeGoodsInput>;
 
-export const settlementMethods = ["CASH", "TRANSFER", "QRIS", "KASBON"] as const;
+export const settlementMethods = ["CASH", "TRANSFER", "QRIS", "SPLIT", "KASBON"] as const;
+
+/** The non-cash part of a split payment: a transfer or QRIS (FR-CSG-04). */
+const splitRest = z.discriminatedUnion("method", [
+  z.object({ method: z.literal("TRANSFER"), bankAccountId: z.uuid() }).strict(),
+  z.object({ method: z.literal("QRIS"), sourceBank }).strict(),
+]);
 
 /**
- * How the sold part is paid: in full by cash, transfer or QRIS, or on
- * store credit (FR-CSG-04, FR-PAY-07).
+ * How the sold part is paid: in full by cash, transfer or QRIS; part cash
+ * with the rest by transfer or QRIS; or on store credit (FR-CSG-04,
+ * FR-PAY-07, ADR-0033).
  */
 const settlementPayment = z.discriminatedUnion("method", [
   z.object({ method: z.literal("CASH") }).strict(),
   z.object({ method: z.literal("TRANSFER"), bankAccountId: z.uuid() }).strict(),
   z.object({ method: z.literal("QRIS"), sourceBank }).strict(),
+  z.object({ method: z.literal("SPLIT"), cash: rupiah.min(1), rest: splitRest }).strict(),
   z
     .object({ method: z.literal("KASBON") })
     .extend(kasbonCheckoutInput.shape)

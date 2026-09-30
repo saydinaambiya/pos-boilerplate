@@ -66,6 +66,9 @@ export const auditActions = [
   "consignment.settled",
   "stock.cut",
   "expense.recorded",
+  "deposit.recorded",
+  "deposit.edited",
+  "deposit.cancelled",
 ] as const;
 
 export type AuditAction = (typeof auditActions)[number];

@@ -9,7 +9,7 @@ import { searchPosCatalog } from "@/features/catalog/pos-catalog";
 import { searchCustomers } from "@/features/kasbon/service";
 import { routing } from "@/i18n/routing";
 import { previewVoucher } from "@/features/vouchers/service";
-import { requirePermission } from "@/lib/auth/guard";
+import { requirePermission, requireSession } from "@/lib/auth/guard";
 import { currentRequestContext } from "@/lib/http/request-context";
 import type { VoucherRule } from "@/lib/money/calculate";
 import { formatIndonesianPhone } from "@/lib/validation/phone";
@@ -126,13 +126,18 @@ export interface CustomerSuggestion {
   note: string;
 }
 
-/** Earlier store-credit customers matching a name or phone (FR-KSB-01). */
+/**
+ * Earlier store-credit customers matching a name or phone (FR-KSB-01), at
+ * the cashier or when a salesperson sells on store credit (ADR-0033).
+ */
 export async function searchCustomersAction(
   localeValue: unknown,
   term: unknown,
 ): Promise<CustomerSuggestion[]> {
-  const session = await requirePermission("page:pos", localeOf(localeValue));
-  if (!session.permissions.has("kasbon:create")) return [];
+  const session = await requireSession(localeOf(localeValue));
+  const { permissions } = session;
+  if (!permissions.has("kasbon:create")) return [];
+  if (!permissions.has("page:pos") && !permissions.has("consignment:sell")) return [];
   const rows = await searchCustomers(session, typeof term === "string" ? term : "");
   return rows.map((row) => ({
     name: row.name,
