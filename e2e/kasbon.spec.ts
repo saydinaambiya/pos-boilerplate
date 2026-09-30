@@ -10,7 +10,7 @@ const sku = `TAS-${run}`;
 
 const rupiah = (text: string) => Number(text.replace(/\D/g, ""));
 
-test.describe("store credit with approved installments (FR-PAY-05, FR-KSB)", () => {
+test.describe("store credit with installments at the cashier (FR-PAY-05, FR-KSB, ADR-0035)", () => {
   test.skip(({ isMobile }) => isMobile, "stateful store credit flows run once, on desktop");
   test.describe.configure({ mode: "serial" });
 
@@ -58,7 +58,7 @@ test.describe("store credit with approved installments (FR-PAY-05, FR-KSB)", () 
     await page.context().close();
   });
 
-  test("the cashier records an installment that waits for approval", async ({ browser }) => {
+  test("the cashier records an installment that settles at once", async ({ browser }) => {
     const page = await cashierAtPos(browser);
     await page.goto("/id/kasbon");
     await page.getByRole("searchbox", { name: "Cari" }).fill(customer);
@@ -73,6 +73,9 @@ test.describe("store credit with approved installments (FR-PAY-05, FR-KSB)", () 
     const amount = page.getByLabel("Nominal", { exact: true });
     await amount.fill(String(credit + 1));
     await expect(amount).toHaveAttribute("aria-invalid", "true");
+    await expect(
+      page.getByText("Saldo langsung berkurang tanpa menunggu persetujuan.", { exact: false }),
+    ).toBeVisible();
     await expect(page.getByRole("button", { name: "Catat pembayaran" })).toBeDisabled();
 
     await amount.fill("10000");
@@ -81,34 +84,23 @@ test.describe("store credit with approved installments (FR-PAY-05, FR-KSB)", () 
     await expect(page.getByText("Kembalian: Rp 10.000")).toBeVisible();
     await page.getByRole("button", { name: "Catat pembayaran" }).click();
     const result = page.getByRole("dialog", { name: "Berhasil" });
-    await expect(result).toContainText("Pembayaran dicatat dan menunggu persetujuan.");
+    await expect(result).toContainText("Pembayaran dicatat. Saldo langsung berkurang.");
     await result.getByRole("button", { name: "Oke" }).click();
     await expect(result).toBeHidden();
     await expect(
       page.getByRole("table", { name: "Pembayaran kas bon, terbaru di atas" }),
-    ).toContainText("Menunggu");
-    await page.context().close();
-  });
-
-  test("the owner approves it and the balance drops", async ({ page }) => {
-    await page.goto("/id/approvals");
-    const card = page.getByRole("listitem").filter({ hasText: customer });
-    await expect(card).toContainText("Pembayaran kas bon");
-    await card.getByRole("button", { name: "Setujui" }).click();
-    await page
-      .getByRole("dialog", { name: "Setujui pengajuan ini?" })
-      .getByRole("button", { name: "Setujui" })
-      .click();
-    await expect(page.getByRole("listitem").filter({ hasText: customer })).toHaveCount(0);
-
-    await page.goto(`/id/kasbon?filter=all&q=${encodeURIComponent(customer)}`);
-    await page.getByRole("link", { name: `Buka kas bon ${customer} (${invoiceNo})` }).click();
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText(customer);
+    ).not.toContainText("Menunggu");
     await expect(page.getByText("Dicicil")).toBeVisible();
     const balance = page
       .locator("dl > div")
       .filter({ has: page.locator("dt", { hasText: /^Saldo$/ }) })
       .locator("dd");
     expect(rupiah(await balance.innerText())).toBe(credit - 10_000);
+    await page.context().close();
+  });
+
+  test("the owner has nothing to approve for it", async ({ page }) => {
+    await page.goto("/id/approvals");
+    await expect(page.getByRole("listitem").filter({ hasText: customer })).toHaveCount(0);
   });
 });

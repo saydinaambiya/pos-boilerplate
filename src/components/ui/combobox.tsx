@@ -13,6 +13,8 @@ export interface ComboboxOption {
   group?: string | undefined;
   /** Swatch colour, rendered as an SVG `fill` so it stays CSP-safe (FR-VAR-03). */
   hex?: string | undefined;
+  /** Stays listed whatever is searched, e.g. "Other". */
+  pinned?: boolean | undefined;
 }
 
 interface ComboboxProps {
@@ -23,6 +25,8 @@ interface ComboboxProps {
   value?: string | undefined;
   defaultValue?: string | undefined;
   onValueChange?: ((value: string) => void) | undefined;
+  /** Element to focus once the list closes after a pick; the trigger otherwise. */
+  focusAfterPick?: ((value: string) => HTMLElement | null | undefined) | undefined;
   placeholder?: string | undefined;
   searchPlaceholder: string;
   emptyText: string;
@@ -54,6 +58,7 @@ export function Combobox({
   value,
   defaultValue,
   onValueChange,
+  focusAfterPick,
   placeholder,
   searchPlaceholder,
   emptyText,
@@ -69,12 +74,14 @@ export function Combobox({
   const selected = options.find((option) => option.value === current);
   const hiddenRef = useRef<HTMLInputElement>(null);
   const picked = useRef(false);
+  const pickedValue = useRef<string | null>(null);
 
   const matches = useMemo(() => {
     const needle = query.trim().toLowerCase();
     if (needle === "") return options;
     return options.filter(
       (option) =>
+        option.pinned === true ||
         option.label.toLowerCase().includes(needle) ||
         (option.group?.toLowerCase().includes(needle) ?? false),
     );
@@ -100,6 +107,7 @@ export function Combobox({
 
   const choose = (option: ComboboxOption) => {
     if (option.value !== current) picked.current = true;
+    pickedValue.current = option.value;
     if (value === undefined) setInner(option.value);
     onValueChange?.(option.value);
     setOpen(false);
@@ -147,6 +155,15 @@ export function Combobox({
           <Popover.Content
             align="start"
             sideOffset={4}
+            onCloseAutoFocus={(event) => {
+              const target =
+                pickedValue.current === null ? null : focusAfterPick?.(pickedValue.current);
+              pickedValue.current = null;
+              if (target) {
+                event.preventDefault();
+                target.focus();
+              }
+            }}
             className="z-50 w-(--radix-popover-trigger-width) min-w-56 rounded-control border border-border bg-surface p-1 text-ink shadow-card"
           >
             <div className="flex items-center gap-2 border-b border-border px-2 pb-1">

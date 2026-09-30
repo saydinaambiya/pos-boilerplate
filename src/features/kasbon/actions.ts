@@ -5,6 +5,8 @@ import { getTranslations } from "next-intl/server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
+import type { ActionLink } from "@/components/feedback/result-dialog";
+import { storeClosedRejection } from "@/features/shifts/store-closed";
 import { routing } from "@/i18n/routing";
 import { requirePermission } from "@/lib/auth/guard";
 import { formatCurrency } from "@/lib/format/currency";
@@ -16,9 +18,15 @@ import { recordKasbonPayment } from "./service";
 const kasbonId = z.uuid();
 
 export type KasbonPaymentResponse =
-  { ok: true; message: string } | { ok: false; message: string; field?: "amount" | "bankAccount" };
+  | { ok: true; message: string }
+  | {
+      ok: false;
+      message: string;
+      field?: "amount" | "bankAccount";
+      action?: ActionLink;
+    };
 
-/** Records an installment or payoff (cash, transfer or both) for approval (FR-KSB-03..05). */
+/** Records an installment or payoff (cash, transfer or both) (FR-KSB-03..05, ADR-0035, ADR-0036). */
 export async function recordKasbonPaymentAction(
   localeValue: unknown,
   id: unknown,
@@ -59,6 +67,8 @@ export async function recordKasbonPaymentAction(
       };
     case "no-open-shift":
       return { ok: false, message: t("errorNoOpenShift") };
+    case "store-closed":
+      return { ok: false, ...(await storeClosedRejection(session, locale)) };
     case "invalid-bank-account":
       return { ok: false, message: t("errorBankAccount"), field: "bankAccount" };
     case "settled":

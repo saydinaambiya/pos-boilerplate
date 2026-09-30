@@ -22,7 +22,7 @@ import {
 import { cancelApprovalAction } from "@/features/approvals/actions";
 import { DueMarker, KasbonStatusChip } from "@/features/kasbon/components/kasbon-chips";
 import { KasbonPaymentForm } from "@/features/kasbon/components/kasbon-payment-form";
-import { getKasbon } from "@/features/kasbon/service";
+import { getKasbon, kasbonPaysDirectly } from "@/features/kasbon/service";
 import { getKasbonBankAccounts } from "@/features/settings/service";
 import { Link } from "@/i18n/navigation";
 import { requirePermission } from "@/lib/auth/guard";
@@ -50,7 +50,7 @@ export default async function KasbonDetailPage({ params }: PageProps<"/[locale]/
   const session = await requirePermission("page:kasbon");
   if (!z.uuid().safeParse(id).success) notFound();
   const canPay = session.permissions.has("kasbon:pay");
-  const [t, tApprovals, tCommon, format, locale, kasbon, bankAccounts, messages] =
+  const [t, tApprovals, tCommon, format, locale, kasbon, bankAccounts, messages, direct] =
     await Promise.all([
       getTranslations("Kasbon"),
       getTranslations("Approvals"),
@@ -60,6 +60,7 @@ export default async function KasbonDetailPage({ params }: PageProps<"/[locale]/
       getKasbon(session, id),
       canPay ? getKasbonBankAccounts(session) : [],
       getMessages(),
+      canPay ? kasbonPaysDirectly(session) : false,
     ]);
   if (!kasbon) notFound();
 
@@ -239,6 +240,7 @@ export default async function KasbonDetailPage({ params }: PageProps<"/[locale]/
                 kasbonId={kasbon.id}
                 available={kasbon.available}
                 bankAccounts={bankAccounts}
+                direct={direct}
               />
             </NextIntlClientProvider>
           </Card>

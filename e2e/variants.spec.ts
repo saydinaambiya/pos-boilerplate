@@ -111,6 +111,29 @@ test.describe("colour variants (FR-VAR)", () => {
     ).toContainText("Masuk");
   });
 
+  test("adds a colour typed under Other, rejecting markup (ADR-0034)", async ({ page }) => {
+    await page.goto(`/id/products?q=${sku}`);
+    await page.getByRole("link", { name: `Ubah ${product}` }).click();
+
+    await pick(page, "Nama warna", "Lainnya", "abu");
+    const typed = page.getByLabel("Tulis warna lain");
+    await expect(typed).toBeFocused();
+    await typed.fill("<b>Abu</b>");
+    await page.getByLabel("SKU", { exact: true }).last().fill(`${sku}-G`);
+    await page.getByRole("button", { name: "Tambah varian" }).click();
+    await expectResult(page, /./, "error");
+    await expect(page.getByLabel("Tulis warna lain")).toHaveValue("<b>Abu</b>");
+
+    await page.getByLabel("Tulis warna lain").fill("Abu Muda");
+    await page.getByRole("button", { name: "Tambah varian" }).click();
+    await expectResult(page, "Varian ditambahkan.");
+    const grey = page
+      .getByRole("table", { name: "Daftar varian warna" })
+      .getByRole("row", { name: /Abu Muda/ });
+    await expect(grey).toBeVisible();
+    await expect(grey.locator("circle[fill^='#']")).toHaveCount(0);
+  });
+
   test("product page with variants has no accessibility violations (FR-UX-06)", async ({
     page,
   }) => {

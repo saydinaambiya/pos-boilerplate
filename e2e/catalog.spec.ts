@@ -37,7 +37,10 @@ test.describe("brands & products (FR-CAT-02, FR-PRD)", () => {
     await expect.poll(() => list.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
     expect(await list.evaluate((element) => getComputedStyle(element).scrollbarWidth)).toBe("none");
     await page.keyboard.press("Escape");
+    await pick(dialog, "Motif", "Lainnya", "mihrab");
+    await dialog.getByLabel("Tulis motif lain").fill("Mihrab");
     await pick(dialog, "Motif", "Catur", "catur");
+    await expect(dialog.getByLabel("Tulis motif lain")).toHaveCount(0);
     await pick(dialog, "Nama warna", "Navy", "na");
     await expect(dialog.getByLabel("Motif", { exact: true })).toHaveText("Catur");
     await dialog.getByLabel("Ketebalan (mm)").fill("2,5");

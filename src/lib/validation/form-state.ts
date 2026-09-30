@@ -8,6 +8,8 @@ import type { z } from "zod";
 export interface FormState {
   status?: "error" | "success";
   message?: string;
+  /** A next step shown in the result dialog, e.g. closing the shift after hours. */
+  action?: { label: string; href: string };
   errors?: Record<string, string>;
   values?: Record<string, string | string[]>;
 }

@@ -4,6 +4,7 @@ import { CircleCheck, CircleX } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
+import { Link } from "@/i18n/navigation";
 import {
   Dialog,
   DialogContent,
@@ -13,15 +14,23 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils/cn";
 
+/** A next step offered next to "Oke", e.g. closing the shift after hours. */
+export interface ActionLink {
+  label: string;
+  href: string;
+}
+
 export interface ActionResult {
   status: "success" | "error";
   message: string;
+  action?: ActionLink | undefined;
 }
 
 /**
  * Outcome of an action in a dialog with an "Oke" button, so it is seen even
  * when the form is scrolled out of view (FR-UX-05). Focus returns to the
- * element that was focused before unless `onCloseFocus` says otherwise.
+ * element that was focused before unless `onCloseFocus` says otherwise. An
+ * `action` adds a link as the first button (ADR-0036).
  */
 export function ResultDialog({
   result,
@@ -66,7 +75,19 @@ export function ResultDialog({
           </DialogDescription>
         </div>
         <DialogFooter>
-          <Button autoFocus className="w-full" onClick={onClose}>
+          {result?.action ? (
+            <Button asChild autoFocus className="w-full">
+              <Link href={result.action.href} scroll={false} onClick={onClose}>
+                {result.action.label}
+              </Link>
+            </Button>
+          ) : null}
+          <Button
+            autoFocus={!result?.action}
+            variant={result?.action ? "secondary" : "primary"}
+            className="w-full"
+            onClick={onClose}
+          >
             {t("ok")}
           </Button>
         </DialogFooter>

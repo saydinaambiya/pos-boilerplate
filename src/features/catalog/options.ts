@@ -43,6 +43,11 @@ export const MOTIFS: readonly string[] = [
   ),
 ];
 
+/** Listed motif matching `name` without regard to case, else `name` as typed (ADR-0034). */
+export function canonicalMotif(name: string): string {
+  return MOTIFS.find((motif) => motif.toLowerCase() === name.toLowerCase()) ?? name;
+}
+
 /** Motif options for the searchable dropdown, grouped by family. */
 export const MOTIF_OPTIONS: readonly { value: string; label: string; group?: string }[] = [
   ...PLAIN_MOTIFS.map((motif) => ({ value: motif, label: motif })),
@@ -66,6 +71,11 @@ export const COLORS = [
 ] as const;
 
 export const COLOR_NAMES: readonly string[] = COLORS.map((color) => color.name);
+
+/** Listed colour matching `name` without regard to case, else `name` as typed (ADR-0034). */
+export function canonicalColor(name: string): string {
+  return COLOR_NAMES.find((color) => color.toLowerCase() === name.trim().toLowerCase()) ?? name;
+}
 
 /** Swatch of a listed colour, matched without regard to case. */
 export function colorHex(name: string): string | undefined {

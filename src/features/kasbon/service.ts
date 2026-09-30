@@ -14,12 +14,15 @@ import { assertPermission } from "@/lib/auth/authorize";
 import type { Session } from "@/lib/auth/session";
 import type { RequestContext } from "@/lib/http/request-context";
 import { readSetting } from "@/lib/settings/store";
+import { storeHoursState } from "@/lib/settings/store-hours";
+import { storeClosedFor } from "@/lib/settings/store-hours-guard";
 
 import { agingBucket, daysBetween, dueState, storeDate } from "./aging";
 import {
   findKasbonDetail,
   findKasbonForSale,
   findKasbonLabels,
+  findOpenShiftForPayment,
   insertKasbon,
   insertKasbonPayment,
   isActiveBankAccount,
@@ -49,7 +52,12 @@ export type KasbonPaymentResult =
   | {
       ok: false;
       reason:
-        "not-found" | "settled" | "exceeds-balance" | "no-open-shift" | "invalid-bank-account";
+        | "not-found"
+        | "settled"
+        | "exceeds-balance"
+        | "no-open-shift"
+        | "invalid-bank-account"
+        | "store-closed";
       available?: number;
     };
 
@@ -100,21 +108,46 @@ export async function storeToday(now = new Date()): Promise<string> {
 }
 
 /**
- * Records an installment or payoff paid in cash, by transfer, or both; it
- * only reduces the balance once approved (FR-KSB-03, BR-12), immediately for
- * the Owner (BR-13). The parts share an installment id and one approval.
- * The total may not exceed the balance minus other pending payments,
- * checked under a row lock so concurrent requests cannot overshoot
- * (FR-KSB-05). Cash goes into the recorder's drawer, so it needs their open
- * shift.
+ * Whether a payment recorded now settles without waiting for an approver:
+ * the recorder has an open cashier shift, not a Sales one, and the store is
+ * within its hours. `pos:after-hours` does not count here (FR-KSB-03,
+ * ADR-0035).
+ */
+async function paysDirectly(shift: { kind: string | null } | undefined, now: Date) {
+  if (!shift || shift.kind === "SALES") return false;
+  const [hours, operations] = await Promise.all([
+    readSetting("store.hours"),
+    readSetting("operations"),
+  ]);
+  return storeHoursState(hours, now, operations.timeZone).open;
+}
+
+/** Whether `session` would settle a payment right away, for the payment form (ADR-0035). */
+export async function kasbonPaysDirectly(session: Session, now = new Date()): Promise<boolean> {
+  if (session.role.isSystem) return true;
+  return paysDirectly(await findOpenShiftForPayment(db, session.user.id), now);
+}
+
+/**
+ * Records an installment or payoff paid in cash, by transfer, or both. It
+ * reduces the balance at once for the Owner (BR-13) and for a recorder at an
+ * open cashier shift in store hours (ADR-0035); otherwise it waits for an
+ * approver (FR-KSB-03, BR-12). Outside store hours it is refused, except
+ * for the Owner and `pos:after-hours` holders (FR-SET-09, ADR-0036). The
+ * parts share an installment id and one approval. The total may not exceed
+ * the balance minus other pending payments, checked under a row lock so
+ * concurrent requests cannot overshoot (FR-KSB-05). Cash goes into the
+ * recorder's drawer, so it needs their open shift.
  */
 export async function recordKasbonPayment(
   session: Session,
   kasbonId: string,
   input: KasbonPaymentInput,
   context: RequestContext,
+  now = new Date(),
 ): Promise<KasbonPaymentResult> {
   assertPermission(session, "kasbon:pay");
+  if (await storeClosedFor(session, now)) return { ok: false, reason: "store-closed" };
   const transfer = input.transfer;
   const total = input.cash + (transfer?.amount ?? 0);
   try {
@@ -184,6 +217,7 @@ export async function recordKasbonPayment(
         },
         context,
         applyKasbonPayment,
+        { autoApprove: await paysDirectly(shift, now) },
       );
       return { ok: true, status: submitted.status } as const;
     });

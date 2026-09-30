@@ -68,9 +68,30 @@ describe("newProductInput (FR-PRD-06, FR-ROL-02)", () => {
 
   it("accepts a roll with brand, motif, thickness and a price per size", () => {
     expect(newProductInput.parse(valid)).toMatchObject({ motif: "3D Catur", thickness: 2.5 });
-    expect(newProductInput.safeParse({ ...valid, colorName: "Merah" }).success).toBe(false);
-    for (const motif of ["Mihrab", "3D", "Catur"]) {
-      expect(newProductInput.safeParse({ ...valid, motif }).success, motif).toBe(false);
+  });
+
+  it("takes a motif or colour typed under Other, in the listed spelling if listed (ADR-0034)", () => {
+    expect(
+      newProductInput.parse({ ...valid, motif: " Mihrab  Kecil ", colorName: "Abu-abu (muda)" }),
+    ).toMatchObject({ motif: "Mihrab Kecil", colorName: "Abu-abu (muda)" });
+    expect(newProductInput.parse({ ...valid, motif: "3d catur", colorName: "navy" })).toMatchObject(
+      { motif: "3D Catur", colorName: "Navy" },
+    );
+  });
+
+  it("rejects typed names that could carry markup or a formula (NFR-SEC-04)", () => {
+    for (const name of [
+      "<b>x</b>",
+      "=HYPERLINK(1)",
+      "+1",
+      "-1",
+      "@x",
+      "a;b",
+      'a"b',
+      "x".repeat(61),
+    ]) {
+      expect(newProductInput.safeParse({ ...valid, motif: name }).success, name).toBe(false);
+      expect(newProductInput.safeParse({ ...valid, colorName: name }).success, name).toBe(false);
     }
   });
 

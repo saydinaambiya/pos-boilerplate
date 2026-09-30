@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { DEFAULT_EMPLOYEE_ROLE, type Permission } from "@/config/permissions";
 import { db } from "@/db/client";
 import { rolePermissions, roles } from "@/db/schema";
+import { updateSettings } from "@/features/settings/service";
 import { closeShift, getOpenShift, openShift } from "@/features/shifts/service";
 import { ForbiddenError } from "@/lib/auth/authorize";
 import { fixtures, resetDatabase } from "@/test/database";
@@ -75,6 +76,31 @@ describe("daily staff expenses (FR-EXP-01..03, ADR-0027)", () => {
     expect(expenseInput.safeParse({ ...base, category: "DONATION", amount: 0 }).success).toBe(
       false,
     );
+  });
+
+  it("refuses employees outside store hours, but not the Owner (FR-SET-09, ADR-0036)", async () => {
+    await grant("expense:record");
+    const session = await cashier();
+    await openShift(session, { openingCash: 50_000 }, testContext());
+    const day = { closed: false, open: "08:00", close: "21:00" };
+    await updateSettings(
+      await owner(),
+      "store.hours",
+      { enabled: true, days: [day, day, day, day, day, { ...day, closed: true }, day] },
+      testContext(),
+    );
+    const saturday = new Date("2026-09-26T03:00:00Z");
+    const donation = { category: "DONATION" as const, recipientId: null, amount: 1000, note: "" };
+
+    expect(await recordExpense(session, donation, testContext(), saturday)).toEqual({
+      ok: false,
+      reason: "store-closed",
+    });
+    expect((await getOpenShift(session))?.expectedCash).toBe(50_000);
+
+    const ownerSession = await owner();
+    await openShift(ownerSession, { openingCash: 0 }, testContext(), saturday);
+    expect((await recordExpense(ownerSession, donation, testContext(), saturday)).ok).toBe(true);
   });
 
   it("needs expense:record to record", async () => {
