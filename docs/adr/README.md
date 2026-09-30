@@ -42,3 +42,4 @@ Records are immutable once accepted; a new record supersedes an old one.
 | [0034](./0034-other-motif-and-colour.md)               | "Other" motif and colour                                   | Accepted        |
 | [0035](./0035-installments-at-the-cashier.md)          | Store credit payments settle at the cashier                | Amended by 0036 |
 | [0036](./0036-no-transactions-after-hours.md)          | No transactions after hours, with a way to close the shift | Accepted        |
+| [0037](./0037-owner-password-recovery.md)              | Owner password change and recovery                         | Accepted        |

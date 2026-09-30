@@ -2,7 +2,7 @@
 
 | Atribut         | Nilai              |
 | --------------- | ------------------ |
-| Versi dokumen   | 0.20.0 (draft)     |
+| Versi dokumen   | 0.21.0 (draft)     |
 | Tanggal         | 2026-09-30         |
 | Pemilik         | Owner              |
 | Status          | Menunggu review    |
@@ -32,6 +32,7 @@
 | 0.18.0 | 2026-09-30 | Motif dan warna "Lainnya" (Q-40)                                                                                                                      |
 | 0.19.0 | 2026-09-30 | Cicilan kas bon di kasir tanpa menunggu persetujuan (BR-12, Q-41)                                                                                     |
 | 0.20.0 | 2026-09-30 | Transaksi di luar jam buka ditolak dengan ajakan tutup shift (BR-24, Q-42)                                                                            |
+| 0.21.0 | 2026-09-30 | Pemulihan akun Owner bila lupa password (BR-30, Q-43)                                                                                                 |
 
 ---
 
@@ -213,6 +214,7 @@ Owner pilih rentang (data ≥ 3 bulan) ─▶ Unduh CSV langsung ─▶ Data dit
 | BR-27 | Barang yang dibawa sales mengurangi stok saat diambil. Barang yang terjual menjadi transaksi; barang yang tidak terjual dikembalikan ke stok. Pengambilan dan pengembalian dicatat petugas toko; sales hanya mencatat barang terjual. Riwayat pengambilan tidak diubah.                                                                                          |
 | BR-28 | Setiap produk baru mencatat merk, motif, dan ketebalan (mm). Warna dan SKU dicatat per varian; ukuran (P × L cm: 93×47, 100×70, 50×140, 100×140) dicatat per potongan. Produk dikelompokkan per merk; tidak ada kategori.                                                                                                                                        |
 | BR-29 | Barang masuk sebagai roll (meter, lebar 140 cm) dan dipotong menjadi potongan (pcs) dalam 4 ukuran; roll berkurang sepanjang yang dipotong. Roll dan potongannya satu produk, satu roll satu warna. Kasir dapat menjual potongan custom per cm/meter langsung dari roll.                                                                                         |
+| BR-30 | Owner dapat mengganti password sendiri dan memulihkan password yang terlupa dengan kode pemulihan sekali pakai yang ia simpan. Bila kode juga hilang, developer dapat mereset password Owner; semua langkah ini tercatat di audit log.                                                                                                                           |
 
 ## 7. Asumsi
 
@@ -285,3 +287,4 @@ Owner pilih rentang (data ≥ 3 bulan) ─▶ Unduh CSV langsung ─▶ Data dit
 | Q-40 | Bagaimana jika motif atau warna tidak ada di daftar?                           | Pilih "Lainnya" lalu ketik namanya; isian divalidasi supaya tidak bisa disisipi kode.                                                                                                                 | Diputuskan |
 | Q-41 | Apakah cicilan kas bon harus menunggu persetujuan?                             | Tidak, bila dicatat pekerja yang sedang buka kasir dan tidak di luar jam kerja. Di luar itu tetap lewat persetujuan.                                                                                  | Diputuskan |
 | Q-42 | Bagaimana jika ada transaksi di luar jam operasional?                          | Ditolak, dengan tombol untuk segera menutup kasir (shift).                                                                                                                                            | Diputuskan |
+| Q-43 | Bagaimana jika Owner lupa password?                                            | Owner menyimpan kode pemulihan untuk membuat password baru sendiri; tanpa email. Bila kodenya juga hilang, developer mereset lewat perintah khusus.                                                   | Diputuskan |

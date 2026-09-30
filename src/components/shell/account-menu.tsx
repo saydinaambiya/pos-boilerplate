@@ -1,4 +1,4 @@
-import { LogOut, MonitorSmartphone } from "lucide-react";
+import { KeyRound, LogOut, MonitorSmartphone } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
 
 import { logoutAction } from "@/features/auth/actions";
@@ -16,7 +16,8 @@ function initials(name: string): string {
 }
 
 /**
- * Signed-in account, a link to its devices (FR-AUTH-10) and sign-out
+ * Signed-in account, links to its security page for password accounts
+ * (FR-AUTH-11/12) and to its devices (FR-AUTH-10), and sign-out
  * ("ganti kasir", FR-AUTH-08). A plain form, so it works without client
  * JavaScript. `card` is the sidebar variant under the logo with initials,
  * name, role and icon-only devices and sign-out buttons.
@@ -24,8 +25,13 @@ function initials(name: string): string {
 export async function AccountMenu({ variant = "inline" }: { variant?: "inline" | "card" }) {
   const session = await getSession();
   if (!session) return null;
-  const [t, locale] = await Promise.all([getTranslations("Auth"), getLocale()]);
+  const [t, tAccount, locale] = await Promise.all([
+    getTranslations("Auth"),
+    getTranslations("Account"),
+    getLocale(),
+  ]);
   const account = t("account", { name: session.user.name, role: session.role.name });
+  const security = session.user.credential === "password" ? tAccount("accountLink") : null;
 
   if (variant === "card") {
     return (
@@ -45,6 +51,16 @@ export async function AccountMenu({ variant = "inline" }: { variant?: "inline" |
           <span className="truncate text-sm font-medium text-ink">{session.user.name}</span>
           <span className="truncate text-xs text-ink-muted">{session.role.name}</span>
         </span>
+        {security ? (
+          <Link
+            href="/account"
+            aria-label={security}
+            title={security}
+            className="inline-flex size-10 shrink-0 items-center justify-center rounded-control text-ink-muted transition-colors hover:bg-surface hover:text-ink"
+          >
+            <KeyRound className="size-4" aria-hidden="true" />
+          </Link>
+        ) : null}
         <Link
           href="/devices"
           aria-label={t("devices")}
@@ -72,6 +88,16 @@ export async function AccountMenu({ variant = "inline" }: { variant?: "inline" |
       <span aria-hidden="true" title={account} className="max-w-32 truncate text-sm text-ink-muted">
         {session.user.name}
       </span>
+      {security ? (
+        <Link
+          href="/account"
+          aria-label={security}
+          title={security}
+          className="inline-flex size-11 items-center justify-center rounded-control text-ink transition-colors hover:bg-surface-muted"
+        >
+          <KeyRound className="size-4" aria-hidden="true" />
+        </Link>
+      ) : null}
       <Link
         href="/devices"
         aria-label={t("devices")}

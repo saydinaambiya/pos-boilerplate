@@ -51,20 +51,21 @@ owner in Settings, not in code.
 
 ## Scripts
 
-| Script             | Purpose                                                 |
-| ------------------ | ------------------------------------------------------- |
-| `pnpm dev`         | Development server                                      |
-| `pnpm build`       | Production build (validates `app.config.ts` and assets) |
-| `pnpm lint`        | ESLint with typed rules, zero warnings allowed          |
-| `pnpm typecheck`   | Route type generation + `tsc`                           |
-| `pnpm test`        | Unit tests (Vitest)                                     |
-| `pnpm test:int`    | Service tests against Postgres (Testcontainers, Docker) |
-| `pnpm db:up`       | Start local Postgres (`docker-compose.yml`)             |
-| `pnpm db:generate` | Generate a SQL migration from `src/db/schema`           |
-| `pnpm db:migrate`  | Apply pending migrations                                |
-| `pnpm db:seed`     | Create default roles and the first owner (idempotent)   |
-| `pnpm test:e2e`    | Playwright: flows, accessibility, CSP, JS budget        |
-| `pnpm check`       | Lint, typecheck, format check and unit tests            |
+| Script                      | Purpose                                                  |
+| --------------------------- | -------------------------------------------------------- |
+| `pnpm dev`                  | Development server                                       |
+| `pnpm build`                | Production build (validates `app.config.ts` and assets)  |
+| `pnpm lint`                 | ESLint with typed rules, zero warnings allowed           |
+| `pnpm typecheck`            | Route type generation + `tsc`                            |
+| `pnpm test`                 | Unit tests (Vitest)                                      |
+| `pnpm test:int`             | Service tests against Postgres (Testcontainers, Docker)  |
+| `pnpm db:up`                | Start local Postgres (`docker-compose.yml`)              |
+| `pnpm db:generate`          | Generate a SQL migration from `src/db/schema`            |
+| `pnpm db:migrate`           | Apply pending migrations                                 |
+| `pnpm db:seed`              | Create default roles and the first owner (idempotent)    |
+| `pnpm owner:reset-password` | Last resort: print a temporary Owner password (ADR-0037) |
+| `pnpm test:e2e`             | Playwright: flows, accessibility, CSP, JS budget         |
+| `pnpm check`                | Lint, typecheck, format check and unit tests             |
 
 ## Environment variables
 

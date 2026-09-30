@@ -11,12 +11,13 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t("loginTitle") };
 }
 
-export default async function LoginPage() {
-  const [session, locale, t, tCommon] = await Promise.all([
+export default async function LoginPage({ searchParams }: PageProps<"/[locale]/login">) {
+  const [session, locale, t, tCommon, params] = await Promise.all([
     getSession(),
     getLocale(),
     getTranslations("Auth"),
     getTranslations("Common"),
+    searchParams,
   ]);
   if (session) return redirect({ href: session.user.mustChangePin ? "/change-pin" : "/", locale });
 
@@ -28,6 +29,7 @@ export default async function LoginPage() {
       </p>
       <LoginForm
         locale={locale}
+        notice={params.recovered === "1" ? t("recovered") : undefined}
         labels={{
           username: t("username"),
           next: t("next"),
@@ -38,6 +40,7 @@ export default async function LoginPage() {
           signingInAs: t("signingInAs", { username: "{username}" }),
           submit: t("submit"),
           submitting: t("submitting"),
+          forgotPassword: t("forgotPassword"),
           reveal: { show: tCommon("showSecret"), hide: tCommon("hideSecret") },
         }}
       />

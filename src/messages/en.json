@@ -104,7 +104,9 @@
     "errorUsernameRequired": "Enter your username first.",
     "errorInvalidPassword": "Wrong username or password.",
     "errorInvalidPin": "Wrong username or PIN.",
-    "devices": "Signed-in devices"
+    "devices": "Signed-in devices",
+    "forgotPassword": "Forgot password?",
+    "recovered": "New password saved. Sign in with it."
   },
   "Common": {
     "skipToContent": "Skip to content",
@@ -412,7 +414,12 @@
       "expense_recorded": "Daily expense recorded",
       "deposit_recorded": "Cash deposit recorded",
       "deposit_cancelled": "Cash deposit cancelled",
-      "deposit_edited": "Cash deposit edited"
+      "deposit_edited": "Cash deposit edited",
+      "auth_password_changed": "Password changed",
+      "auth_password_recovered": "Password recovered with a code",
+      "auth_password_recovery-failed": "Password recovery failed",
+      "auth_password_reset": "Owner password reset by the developer",
+      "auth_recovery-codes_generated": "Recovery codes created"
     }
   },
   "Settings": {
@@ -1952,5 +1959,48 @@
     "noAccessTitle": "No menus for this account yet",
     "noAccessDescription": "Ask the Owner to give your role page access in Employees › Roles.",
     "toSales": "Go to Sales"
+  },
+  "Account": {
+    "title": "Account & security",
+    "description": "Change your password and keep recovery codes in case you forget it.",
+    "changePasswordTitle": "Change password",
+    "changePasswordDescription": "Other devices are signed out once the password changes.",
+    "currentPassword": "Current password",
+    "newPassword": "New password",
+    "newPasswordHint": "At least 12 characters.",
+    "confirmPassword": "Repeat new password",
+    "savePassword": "Save password",
+    "passwordChanged": "Password changed. Other devices were signed out.",
+    "errorWrongPassword": "The current password is wrong.",
+    "errorSamePassword": "The new password must differ from the current one.",
+    "errorMismatch": "The passwords do not match.",
+    "errorNotPasswordAccount": "This account signs in with a PIN. Ask the Owner to reset it.",
+    "codesTitle": "Recovery codes",
+    "codesDescription": "For a forgotten password: enter one code to set a new password. Each code works once.",
+    "codesNone": "No recovery codes yet. Create them now and keep them somewhere safe.",
+    "codesStatus": "{unused} of {total} codes unused. Created {date}.",
+    "codesLow": "Few codes left. Create new ones so you can still recover the account.",
+    "codesPasswordHint": "Enter your current password to create codes.",
+    "generateCodes": "Create recovery codes",
+    "regenerateCodes": "Create new codes",
+    "regenerateWarning": "The old codes stop working once new ones are created.",
+    "codesShownOnce": "Save these codes now. They are only shown this once.",
+    "codesListLabel": "New recovery codes",
+    "copyCodes": "Copy all",
+    "copied": "Copied",
+    "downloadCodes": "Download .txt",
+    "codesFileHeader": "{appName} recovery codes for {username}. Each code works once.",
+    "codesSaved": "I have saved them",
+    "bannerNoCodes": "You have no recovery codes. Without them, a forgotten password can only be reset by the developer.",
+    "bannerAction": "Create recovery codes",
+    "recoverTitle": "Forgot password",
+    "recoverSubtitle": "Enter one of the recovery codes you saved, then choose a new password.",
+    "recoveryCode": "Recovery code",
+    "recoveryCodeHint": "For example ABCD-EFGH-JKMN-PQRS",
+    "recoverSubmit": "Save new password",
+    "errorRecoveryInvalid": "Wrong username or recovery code.",
+    "noCodesHelp": "No recovery codes? Contact the developer to reset the Owner password.",
+    "backToLogin": "Back to sign in",
+    "accountLink": "Account & security"
   }
 }

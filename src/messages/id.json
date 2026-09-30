@@ -104,7 +104,9 @@
     "errorUsernameRequired": "Isi username terlebih dahulu.",
     "errorInvalidPassword": "Username atau password salah.",
     "errorInvalidPin": "Username atau PIN salah.",
-    "devices": "Perangkat login"
+    "devices": "Perangkat login",
+    "forgotPassword": "Lupa password?",
+    "recovered": "Password baru tersimpan. Silakan masuk dengan password baru."
   },
   "Common": {
     "skipToContent": "Langsung ke konten",
@@ -412,7 +414,12 @@
       "expense_recorded": "Pengeluaran harian dicatat",
       "deposit_recorded": "Setoran tunai dicatat",
       "deposit_cancelled": "Setoran tunai dibatalkan",
-      "deposit_edited": "Setoran tunai diubah"
+      "deposit_edited": "Setoran tunai diubah",
+      "auth_password_changed": "Password diganti",
+      "auth_password_recovered": "Password dipulihkan dengan kode",
+      "auth_password_recovery-failed": "Pemulihan password gagal",
+      "auth_password_reset": "Password Owner direset developer",
+      "auth_recovery-codes_generated": "Kode pemulihan dibuat"
     }
   },
   "Settings": {
@@ -1952,5 +1959,48 @@
     "noAccessTitle": "Belum ada menu untuk akun ini",
     "noAccessDescription": "Minta Owner memberi akses halaman pada role Anda di Karyawan › Role.",
     "toSales": "Ke menu Sales"
+  },
+  "Account": {
+    "title": "Akun & keamanan",
+    "description": "Ganti password dan siapkan kode pemulihan untuk berjaga-jaga bila lupa password.",
+    "changePasswordTitle": "Ganti password",
+    "changePasswordDescription": "Perangkat lain akan otomatis keluar setelah password diganti.",
+    "currentPassword": "Password sekarang",
+    "newPassword": "Password baru",
+    "newPasswordHint": "Minimal 12 karakter.",
+    "confirmPassword": "Ulangi password baru",
+    "savePassword": "Simpan password",
+    "passwordChanged": "Password diganti. Perangkat lain sudah dikeluarkan.",
+    "errorWrongPassword": "Password sekarang salah.",
+    "errorSamePassword": "Password baru harus berbeda dari yang sekarang.",
+    "errorMismatch": "Password tidak sama.",
+    "errorNotPasswordAccount": "Akun ini masuk dengan PIN. Minta Owner untuk mereset PIN.",
+    "codesTitle": "Kode pemulihan",
+    "codesDescription": "Dipakai bila lupa password: masukkan salah satu kode untuk membuat password baru. Tiap kode hanya bisa dipakai sekali.",
+    "codesNone": "Belum ada kode pemulihan. Buat sekarang dan simpan di tempat aman.",
+    "codesStatus": "{unused} dari {total} kode belum dipakai. Dibuat {date}.",
+    "codesLow": "Kode tinggal sedikit. Buat kode baru supaya tetap bisa memulihkan akun.",
+    "codesPasswordHint": "Masukkan password sekarang untuk membuat kode.",
+    "generateCodes": "Buat kode pemulihan",
+    "regenerateCodes": "Buat kode baru",
+    "regenerateWarning": "Kode lama tidak bisa dipakai lagi setelah kode baru dibuat.",
+    "codesShownOnce": "Simpan kode ini sekarang. Kode hanya ditampilkan sekali ini.",
+    "codesListLabel": "Kode pemulihan baru",
+    "copyCodes": "Salin semua",
+    "copied": "Tersalin",
+    "downloadCodes": "Unduh .txt",
+    "codesFileHeader": "Kode pemulihan {appName} untuk {username}. Tiap kode hanya bisa dipakai sekali.",
+    "codesSaved": "Sudah saya simpan",
+    "bannerNoCodes": "Anda belum punya kode pemulihan. Tanpa kode ini, password yang terlupa hanya bisa direset developer.",
+    "bannerAction": "Buat kode pemulihan",
+    "recoverTitle": "Lupa password",
+    "recoverSubtitle": "Masukkan salah satu kode pemulihan yang Anda simpan, lalu buat password baru.",
+    "recoveryCode": "Kode pemulihan",
+    "recoveryCodeHint": "Contoh: ABCD-EFGH-JKMN-PQRS",
+    "recoverSubmit": "Simpan password baru",
+    "errorRecoveryInvalid": "Username atau kode pemulihan salah.",
+    "noCodesHelp": "Tidak punya kode pemulihan? Hubungi developer untuk mereset password Owner.",
+    "backToLogin": "Kembali ke halaman masuk",
+    "accountLink": "Akun & keamanan"
   }
 }
