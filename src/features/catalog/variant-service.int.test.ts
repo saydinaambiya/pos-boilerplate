@@ -182,6 +182,7 @@ describe("colour variants (FR-VAR-01..05, FR-VAR-08)", () => {
     await createVariant(session, productId, newVariant(), testContext());
     const found = await listProducts(session, { q: "biru", status: "active", page: 1 });
     expect(found.products.map((product) => product.id)).toEqual([productId]);
+    expect(found.products[0]?.colorNames).toEqual(["Merah", "Biru"]);
   });
 
   it("inherits prices unless overridden (FR-VAR-02)", async () => {

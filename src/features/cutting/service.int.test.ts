@@ -100,7 +100,14 @@ describe("cutting rolls (FR-ROL-03, ADR-0023)", () => {
       { size: "100x70", qty: 2 },
       { size: "100x140", qty: 3 },
     ]);
-    expect((await getRolls(session, { q: "mihrab" })).map((row) => row.id)).toEqual([rollId]);
+    const [listed] = await getRolls(session, { q: "mihrab" });
+    expect(listed?.id).toBe(rollId);
+    expect(listed?.pieces.map(({ size, stockQty }) => ({ size, stockQty }))).toEqual([
+      { size: "93x47", stockQty: 4 },
+      { size: "100x70", stockQty: 2 },
+      { size: "50x140", stockQty: 0 },
+      { size: "100x140", stockQty: 3 },
+    ]);
   });
 
   it("never cuts more than the roll holds and only cuts rolls", async () => {

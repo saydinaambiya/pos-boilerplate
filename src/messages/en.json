@@ -674,11 +674,12 @@
     "defectPrice": "Defect price {size}",
     "noBrand": "No brand",
     "brandGroup": "{count, plural, one {# product} other {# products}}",
-    "toggleBrand": "Show or hide {brand} products"
+    "toggleBrand": "Show or hide {brand} products",
+    "color": "Colour"
   },
   "Stock": {
     "title": "Stock",
-    "subtitle": "Stock per product, motif and colour. Click the arrow to see its pieces.",
+    "subtitle": "Stock per brand, product and colour. Open a brand to see its products, then the arrow to see the pieces.",
     "search": "Search",
     "searchPlaceholder": "Product, brand, motif, colour or SKU",
     "lowOnly": "Low stock only",
@@ -768,7 +769,10 @@
     "pieceMinimum": "Minimum stock (pcs)",
     "pieceMinimumHint": "Enter 0 to turn the reminder off.",
     "saveMinimum": "Save minimum",
-    "minimumSaved": "Minimum stock saved: {qty} pcs."
+    "minimumSaved": "Minimum stock saved: {qty} pcs.",
+    "noBrand": "No brand",
+    "brandGroup": "{count, plural, one {# item} other {# items}}",
+    "toggleBrand": "Show or hide {brand} stock"
   },
   "Variants": {
     "title": "Colour variants",
@@ -1947,7 +1951,18 @@
     "defectPiecesLabel": "Defect pieces made",
     "defectInStock": "{count} defect pcs in stock",
     "defectChip": "Defect",
-    "savedDefect": "Defect pieces recorded. Cut {used}, roll left {left}."
+    "savedDefect": "Defect pieces recorded. Cut {used}, roll left {left}.",
+    "product": "Product",
+    "brand": "Brand",
+    "motif": "Motif",
+    "color": "Colour",
+    "noBrand": "No brand",
+    "brandGroup": "{count, plural, one {# roll} other {# rolls}}",
+    "toggleBrand": "Show or hide {brand} rolls",
+    "togglePieces": "Pieces of {name} ({count})",
+    "pieceStock": "{count} pcs",
+    "defect": "Defect",
+    "rollUnit": "Roll (m)"
   },
   "Expenses": {
     "title": "Daily expenses",

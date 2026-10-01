@@ -89,6 +89,7 @@ const levelColumns = {
   variantId: productVariants.id,
   productId: products.id,
   productName: products.name,
+  brandId: products.brandId,
   brandName: brands.name,
   motif: products.motif,
   unit: products.unit,
@@ -131,7 +132,8 @@ const piece = alias(productVariants, "piece");
 
 /**
  * One page of stock groups: a roll or a plain variant of an active,
- * stock-tracked product, by product name and colour order (FR-STK-08).
+ * stock-tracked product, by brand (unbranded last), product name and
+ * colour order so the list groups per brand (FR-STK-08).
  * The search matches the product, brand, motif, colour or SKU; a group is
  * listed when it or one of its pieces passes the other filters.
  */
@@ -174,7 +176,14 @@ export async function queryStockGroups(filters: StockFilters, pageSize: number) 
     .innerJoin(products, eq(products.id, productVariants.productId))
     .leftJoin(brands, eq(brands.id, products.brandId))
     .where(and(...conditions))
-    .orderBy(asc(products.name), asc(productVariants.sortOrder), asc(productVariants.id))
+    .orderBy(
+      sql`lower(${brands.name}) ASC NULLS LAST`,
+      asc(products.brandId),
+      asc(products.name),
+      asc(products.id),
+      asc(productVariants.sortOrder),
+      asc(productVariants.id),
+    )
     .limit(pageSize + 1)
     .offset((filters.page - 1) * pageSize);
 }

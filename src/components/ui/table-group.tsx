@@ -23,58 +23,106 @@ interface TableGroupProps {
   children?: ReactNode;
 }
 
-/**
- * A table row heading a collapsible set of rows, rendered as its own
- * `<tbody>` so a table can hold several groups (FR-PRD-04, FR-STK-08).
- */
-export function TableGroup({
+interface GroupRowProps extends Omit<TableGroupProps, "defaultOpen" | "children"> {
+  open: boolean;
+  grouped: boolean;
+  onToggle: () => void;
+  controls?: string;
+}
+
+function GroupRow({
   toggleLabel,
   toggleContent,
   lead,
   leadColSpan,
   cells,
-  defaultOpen,
   className,
-  children,
-}: TableGroupProps) {
+  open,
+  grouped,
+  onToggle,
+  controls,
+}: GroupRowProps) {
+  return (
+    <tr className={cn("hover:bg-surface-muted", className)}>
+      <td colSpan={leadColSpan} className="px-3 py-2 align-middle text-ink">
+        <span className="flex items-center gap-1">
+          {grouped ? (
+            <button
+              type="button"
+              aria-expanded={open}
+              aria-controls={controls}
+              aria-label={toggleContent ? undefined : toggleLabel}
+              title={toggleLabel}
+              onClick={onToggle}
+              className={cn(
+                "-ml-2 inline-flex min-h-11 min-w-11 items-center gap-2 rounded-control px-2 text-left text-ink hover:bg-surface-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
+                toggleContent ? "font-medium" : "justify-center",
+              )}
+            >
+              <ChevronRight
+                aria-hidden="true"
+                className={cn("size-4 shrink-0 transition-transform", open && "rotate-90")}
+              />
+              {toggleContent}
+            </button>
+          ) : (
+            <span aria-hidden="true" className="-ml-2 inline-block w-11 shrink-0" />
+          )}
+          {lead}
+        </span>
+      </td>
+      {cells}
+    </tr>
+  );
+}
+
+function hasRows(children: ReactNode): boolean {
+  return children !== undefined && children !== null && children !== false;
+}
+
+/**
+ * A table row heading a collapsible set of rows, rendered as its own
+ * `<tbody>` so a table can hold several groups (FR-PRD-04, FR-STK-08).
+ */
+export function TableGroup({ defaultOpen, children, ...row }: TableGroupProps) {
   const [open, setOpen] = useState(defaultOpen);
   const id = useId();
-  const grouped = children !== undefined && children !== null && children !== false;
+  const grouped = hasRows(children);
   return (
     <tbody id={id} className="border-b border-border last:border-0">
-      <tr className={cn("hover:bg-surface-muted", className)}>
-        <td colSpan={leadColSpan} className="px-3 py-2 align-middle text-ink">
-          <span className="flex items-center gap-1">
-            {grouped ? (
-              <button
-                type="button"
-                aria-expanded={open}
-                aria-controls={id}
-                aria-label={toggleContent ? undefined : toggleLabel}
-                title={toggleLabel}
-                onClick={() => {
-                  setOpen((value) => !value);
-                }}
-                className={cn(
-                  "-ml-2 inline-flex min-h-11 min-w-11 items-center gap-2 rounded-control px-2 text-left text-ink hover:bg-surface-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
-                  toggleContent ? "font-medium" : "justify-center",
-                )}
-              >
-                <ChevronRight
-                  aria-hidden="true"
-                  className={cn("size-4 shrink-0 transition-transform", open && "rotate-90")}
-                />
-                {toggleContent}
-              </button>
-            ) : (
-              <span aria-hidden="true" className="-ml-2 inline-block w-11 shrink-0" />
-            )}
-            {lead}
-          </span>
-        </td>
-        {cells}
-      </tr>
+      <GroupRow
+        {...row}
+        open={open}
+        grouped={grouped}
+        controls={id}
+        onToggle={() => {
+          setOpen((value) => !value);
+        }}
+      />
       {grouped && open ? children : null}
     </tbody>
+  );
+}
+
+/**
+ * A collapsible set of rows inside a {@link TableGroup}, for a second
+ * level such as a roll's pieces under its brand (FR-STK-08, FR-ROL-03).
+ * It renders bare rows, since a `<tbody>` cannot nest.
+ */
+export function TableSubGroup({ defaultOpen, children, ...row }: TableGroupProps) {
+  const [open, setOpen] = useState(defaultOpen);
+  const grouped = hasRows(children);
+  return (
+    <>
+      <GroupRow
+        {...row}
+        open={open}
+        grouped={grouped}
+        onToggle={() => {
+          setOpen((value) => !value);
+        }}
+      />
+      {grouped && open ? children : null}
+    </>
   );
 }

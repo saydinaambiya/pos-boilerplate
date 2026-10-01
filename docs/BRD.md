@@ -2,7 +2,7 @@
 
 | Atribut         | Nilai              |
 | --------------- | ------------------ |
-| Versi dokumen   | 0.23.0 (draft)     |
+| Versi dokumen   | 0.24.0 (draft)     |
 | Tanggal         | 2026-10-01         |
 | Pemilik         | Owner              |
 | Status          | Menunggu review    |
@@ -35,6 +35,7 @@
 | 0.21.0 | 2026-09-30 | Pemulihan akun Owner bila lupa password (BR-30, Q-43)                                                                                                 |
 | 0.22.0 | 2026-10-01 | Masukan demo v1.4: produk per merk, stok per produk/motif/warna, roll dan 93×47 harus selalu ada (Q-44)                                               |
 | 0.23.0 | 2026-10-01 | Audit log lama bisa dihapus per rentang tanggal setelah diunduh (Q-45)                                                                                |
+| 0.24.0 | 2026-10-01 | Masukan demo v1.5: stok dan Potong Roll dikelompokkan seperti produk, warna tampil di semua daftar (Q-46)                                             |
 
 ---
 
@@ -292,3 +293,4 @@ Owner pilih rentang (data ≥ 3 bulan) ─▶ Unduh CSV langsung ─▶ Data dit
 | Q-43 | Bagaimana jika Owner lupa password?                                            | Owner menyimpan kode pemulihan untuk membuat password baru sendiri; tanpa email. Bila kodenya juga hilang, developer mereset lewat perintah khusus.                                                   | Diputuskan |
 | Q-44 | Stok apa yang harus selalu ada?                                                | Roll dan potongan 93×47. Keduanya diberi stok minimum dan bisa difilter di halaman stok; ukuran lain tidak.                                                                                           | Diputuskan |
 | Q-45 | Apakah audit log bisa dihapus?                                                 | Ya, oleh Owner per rentang tanggal, kecuali hari ini. File CSV-nya wajib diunduh dulu, baru log bisa dihapus.                                                                                         | Diputuskan |
+| Q-46 | Bagaimana daftar stok dan Potong Roll disusun?                                 | Sama seperti daftar produk: per merk, lalu produk, lalu potongannya. Warna tampil sebagai kolom di daftar produk, stok, dan Potong Roll.                                                              | Diputuskan |

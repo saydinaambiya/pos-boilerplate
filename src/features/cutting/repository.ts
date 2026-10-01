@@ -10,6 +10,7 @@ const rollColumns = {
   id: productVariants.id,
   productId: products.id,
   productName: products.name,
+  brandId: products.brandId,
   brandName: brands.name,
   motif: products.motif,
   sku: productVariants.sku,
@@ -25,7 +26,10 @@ const activeRoll = [
   eq(productVariants.isActive, true),
 ];
 
-/** Active rolls, longest first within a product (FR-ROL-03). */
+/**
+ * Active rolls by brand (unbranded last), product name and colour order,
+ * so the list groups per brand (FR-ROL-03, ADR-0040).
+ */
 export async function queryRolls(filters: { q: string }, limit: number) {
   const conditions: SQL[] = [...activeRoll];
   if (filters.q) {
@@ -45,7 +49,14 @@ export async function queryRolls(filters: { q: string }, limit: number) {
     .innerJoin(products, eq(products.id, productVariants.productId))
     .leftJoin(brands, eq(brands.id, products.brandId))
     .where(and(...conditions))
-    .orderBy(asc(products.name), asc(productVariants.sortOrder), asc(productVariants.id))
+    .orderBy(
+      sql`lower(${brands.name}) ASC NULLS LAST`,
+      asc(products.brandId),
+      asc(products.name),
+      asc(products.id),
+      asc(productVariants.sortOrder),
+      asc(productVariants.id),
+    )
     .limit(limit);
 }
 
@@ -72,6 +83,22 @@ export async function listRollPieces(executor: Executor, rollId: string) {
     .from(productVariants)
     .where(eq(productVariants.parentId, rollId))
     .orderBy(asc(productVariants.sortOrder));
+}
+
+/** Active pieces of the given rolls by size, for the roll list (FR-ROL-03). */
+export async function listPiecesOfRolls(rollIds: readonly string[]) {
+  if (rollIds.length === 0) return [];
+  return db
+    .select({
+      id: productVariants.id,
+      parentId: productVariants.parentId,
+      size: productVariants.size,
+      isDefect: productVariants.isDefect,
+      stockQty: productVariants.stockQty,
+    })
+    .from(productVariants)
+    .where(and(inArray(productVariants.parentId, [...rollIds]), eq(productVariants.isActive, true)))
+    .orderBy(asc(productVariants.sortOrder), asc(productVariants.id));
 }
 
 /** Whether a cut with this key was already recorded (FR-ROL-03 idempotency). */

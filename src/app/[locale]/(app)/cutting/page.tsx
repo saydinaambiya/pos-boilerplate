@@ -1,4 +1,4 @@
-import { Scissors } from "lucide-react";
+import { Scissors, Tag } from "lucide-react";
 import type { Metadata } from "next";
 import { NextIntlClientProvider } from "next-intl";
 import { getFormatter, getLocale, getMessages, getTranslations } from "next-intl/server";
@@ -15,13 +15,13 @@ import { PageHeader } from "@/components/ui/page-header";
 import { RouteDialog } from "@/components/ui/route-dialog";
 import {
   Table,
-  TableBody,
   TableCaption,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { TableGroup, TableSubGroup } from "@/components/ui/table-group";
 import { formatSize, isProductSize } from "@/features/catalog/sizes";
 import { CutForm } from "@/features/cutting/components/cut-form";
 import { rollFilters } from "@/features/cutting/schemas";
@@ -39,7 +39,9 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /**
  * Cut Rolls (FR-ROL-03, ADR-0023): every active roll with the meters left
- * and the latest cuts. `?roll=` opens the cut form over the list
+ * and the latest cuts, grouped per brand like the product list with each
+ * roll's pieces folded under it; brands start closed until a search
+ * applies (ADR-0040). `?roll=` opens the cut form over the list
  * (ADR-0018).
  */
 export default async function CuttingPage({ searchParams }: PageProps<"/[locale]/cutting">) {
@@ -60,6 +62,10 @@ export default async function CuttingPage({ searchParams }: PageProps<"/[locale]
   ]);
   const meters = (cm: number) => formatMeters(cm, locale);
   const kept = filters.q ? { q: filters.q } : {};
+  const searched = filters.q !== "";
+  const brandGroups = Object.values(Object.groupBy(rolls, (roll) => roll.brandId ?? "")).filter(
+    (group) => group !== undefined,
+  );
 
   return (
     <>
@@ -102,7 +108,10 @@ export default async function CuttingPage({ searchParams }: PageProps<"/[locale]
               <TableCaption>{t("listCaption")}</TableCaption>
               <TableHeader>
                 <TableRow>
-                  <TableHead>{t("roll")}</TableHead>
+                  <TableHead>{t("brand")}</TableHead>
+                  <TableHead>{t("product")}</TableHead>
+                  <TableHead>{t("motif")}</TableHead>
+                  <TableHead>{t("color")}</TableHead>
                   <TableHead>{t("sku")}</TableHead>
                   <TableHead className="text-right">{t("length")}</TableHead>
                   <TableHead>
@@ -110,36 +119,91 @@ export default async function CuttingPage({ searchParams }: PageProps<"/[locale]
                   </TableHead>
                 </TableRow>
               </TableHeader>
-              <TableBody>
-                {rolls.map((roll) => {
-                  const name = variantLabel(roll.productName, roll.colorName);
-                  return (
-                    <TableRow key={roll.id}>
-                      <TableCell className="font-medium [overflow-wrap:anywhere]">
-                        {name}
-                        <span className="block text-xs font-normal text-ink-muted">
-                          {[roll.brandName, roll.motif].filter(Boolean).join(" · ") || "—"}
+              {brandGroups.map((group) => {
+                const brand = group[0]?.brandName ?? t("noBrand");
+                return (
+                  <TableGroup
+                    key={`${group[0]?.brandId ?? "none"}-${String(searched)}`}
+                    defaultOpen={searched}
+                    leadColSpan={7}
+                    className="bg-surface-muted/60"
+                    toggleLabel={t("toggleBrand", { brand })}
+                    toggleContent={
+                      <>
+                        <Tag aria-hidden="true" className="size-4 shrink-0 text-primary" />
+                        <span>{brand}</span>
+                        <span className="text-xs font-normal text-ink-muted">
+                          {t("brandGroup", { count: group.length })}
                         </span>
-                      </TableCell>
-                      <TableCell className="text-ink-muted">{roll.sku}</TableCell>
-                      <TableCell className="text-right whitespace-nowrap tabular-nums">
-                        {meters(roll.stockQty)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button asChild size="sm" variant="secondary">
-                          <Link
-                            href={{ pathname: "/cutting", query: { ...kept, roll: roll.id } }}
-                            scroll={false}
-                            aria-label={t("cutNamed", { name })}
-                          >
-                            {t("cut")}
-                          </Link>
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
+                      </>
+                    }
+                  >
+                    {group.map((roll) => {
+                      const name = variantLabel(roll.productName, roll.colorName);
+                      return (
+                        <TableSubGroup
+                          key={`${roll.id}-${String(searched)}`}
+                          defaultOpen={searched}
+                          toggleLabel={t("togglePieces", { name, count: roll.pieces.length })}
+                          cells={
+                            <>
+                              <TableCell className="font-medium [overflow-wrap:anywhere]">
+                                {roll.productName}
+                                <span className="block text-xs font-normal text-ink-muted">
+                                  {t("rollUnit")}
+                                </span>
+                              </TableCell>
+                              <TableCell>{roll.motif ?? "—"}</TableCell>
+                              <TableCell>{roll.colorName ?? "—"}</TableCell>
+                              <TableCell className="text-ink-muted">{roll.sku}</TableCell>
+                              <TableCell className="text-right whitespace-nowrap tabular-nums">
+                                {meters(roll.stockQty)}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <Button asChild size="sm" variant="secondary">
+                                  <Link
+                                    href={{
+                                      pathname: "/cutting",
+                                      query: { ...kept, roll: roll.id },
+                                    }}
+                                    scroll={false}
+                                    aria-label={t("cutNamed", { name })}
+                                  >
+                                    {t("cut")}
+                                  </Link>
+                                </Button>
+                              </TableCell>
+                            </>
+                          }
+                        >
+                          {roll.pieces.length > 0
+                            ? roll.pieces.map((piece) => (
+                                <TableRow key={piece.id} className="bg-surface-muted/40">
+                                  <TableCell />
+                                  <TableCell className="pl-8 font-medium">
+                                    {[
+                                      piece.size ? formatSize(piece.size) : "—",
+                                      piece.isDefect ? t("defect") : null,
+                                    ]
+                                      .filter(Boolean)
+                                      .join(" · ")}
+                                  </TableCell>
+                                  <TableCell />
+                                  <TableCell>{roll.colorName ?? "—"}</TableCell>
+                                  <TableCell />
+                                  <TableCell className="text-right whitespace-nowrap tabular-nums">
+                                    {t("pieceStock", { count: piece.stockQty })}
+                                  </TableCell>
+                                  <TableCell />
+                                </TableRow>
+                              ))
+                            : null}
+                        </TableSubGroup>
+                      );
+                    })}
+                  </TableGroup>
+                );
+              })}
             </Table>
           )}
         </Card>

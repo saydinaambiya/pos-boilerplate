@@ -71,6 +71,7 @@ test.describe("brands & products (FR-CAT-02, FR-PRD)", () => {
     await expect(row).toContainText(/Rp\s18\.000 \/ m/);
     await expect(row.getByText("Stok menipis")).toBeVisible();
     await expect(row).toContainText("3D Catur");
+    await expect(row.getByRole("cell", { name: "Navy", exact: true })).toBeVisible();
     await expect(row).toContainText("2,5mm");
     await expect(row).toContainText("Roll · dipotong per ukuran");
 

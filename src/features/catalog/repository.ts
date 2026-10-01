@@ -60,6 +60,7 @@ export async function countProductsOfBrand(brandId: string): Promise<number> {
  * Colour rows (a roll's centimetres, or plain pieces) and cut pieces are
  * summed apart, since their units differ (ADR-0023). A piece only counts
  * as low when it has a minimum set, so uncut sizes do not flag every roll.
+ * Colour names come in colour order for the product list (FR-PRD-04).
  */
 const variantTotals = db
   .select({
@@ -78,6 +79,11 @@ const variantTotals = db
       ),
     variantCount: sql<number>`count(*) filter (where ${productVariants.parentId} is null)`.as(
       "variant_count",
+    ),
+    colorNames: sql<
+      string[]
+    >`array_agg(${productVariants.attributes} -> 'color' ->> 'name' order by ${productVariants.sortOrder}, ${productVariants.id}) filter (where ${productVariants.parentId} is null and ${productVariants.attributes} -> 'color' ->> 'name' is not null)`.as(
+      "color_names",
     ),
   })
   .from(productVariants)
@@ -107,6 +113,7 @@ const productColumns = {
   pieceStock: sql<number>`coalesce(${variantTotals.pieceStock}, 0)`.mapWith(Number),
   lowStockVariants: sql<number>`coalesce(${variantTotals.lowCount}, 0)`.mapWith(Number),
   variantCount: sql<number>`coalesce(${variantTotals.variantCount}, 0)`.mapWith(Number),
+  colorNames: sql<string[]>`coalesce(${variantTotals.colorNames}, '{}')`,
 };
 
 function productQuery() {

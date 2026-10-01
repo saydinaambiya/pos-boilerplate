@@ -38,8 +38,8 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /**
  * Product list with search and a brand filter, grouped per brand in
- * collapsible rows with the brand leftmost, closed until a filter applies, showing motif and
- * thickness in their own columns (FR-PRD-01/02/04/06, ADR-0038). Roll prices are per
+ * collapsible rows with the brand leftmost, closed until a filter applies, showing motif,
+ * colours and thickness in their own columns (FR-PRD-01/02/04/06, ADR-0038, ADR-0040). Roll prices are per
  * meter and roll stock shows meters and cut pieces (FR-ROL-01); `?new=1`
  * opens the create dialog (ADR-0018).
  */
@@ -173,6 +173,7 @@ export default async function ProductsPage({ searchParams }: PageProps<"/[locale
                 <TableHead>{t("brand")}</TableHead>
                 <TableHead>{t("name")}</TableHead>
                 <TableHead>{t("motif")}</TableHead>
+                <TableHead>{t("color")}</TableHead>
                 <TableHead>{t("thickness")}</TableHead>
                 <TableHead>{t("sku")}</TableHead>
                 <TableHead className="text-right">{t("price")}</TableHead>
@@ -186,7 +187,7 @@ export default async function ProductsPage({ searchParams }: PageProps<"/[locale
                 <TableGroup
                   key={`${group[0]?.brandId ?? "none"}-${String(filtered)}`}
                   defaultOpen={filtered}
-                  leadColSpan={8}
+                  leadColSpan={9}
                   className="bg-surface-muted/60"
                   toggleLabel={t("toggleBrand", { brand })}
                   toggleContent={
@@ -219,6 +220,9 @@ export default async function ProductsPage({ searchParams }: PageProps<"/[locale
                         </span>
                       </TableCell>
                       <TableCell>{product.motif ?? "—"}</TableCell>
+                      <TableCell className="[overflow-wrap:anywhere]">
+                        {product.colorNames.length > 0 ? product.colorNames.join(", ") : "—"}
+                      </TableCell>
                       <TableCell className="whitespace-nowrap tabular-nums">
                         {product.thickness ? formatThickness(product.thickness, locale) : "—"}
                       </TableCell>

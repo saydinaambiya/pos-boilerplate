@@ -674,11 +674,12 @@
     "defectPrice": "Harga cacat {size}",
     "noBrand": "Tanpa merk",
     "brandGroup": "{count, plural, other {# produk}}",
-    "toggleBrand": "Tampilkan atau sembunyikan produk {brand}"
+    "toggleBrand": "Tampilkan atau sembunyikan produk {brand}",
+    "color": "Warna"
   },
   "Stock": {
     "title": "Stok",
-    "subtitle": "Stok per produk, motif, dan warna. Klik panah untuk melihat potongannya.",
+    "subtitle": "Stok per merk, produk, dan warna. Buka merk untuk melihat produknya, lalu klik panah untuk melihat potongannya.",
     "search": "Cari",
     "searchPlaceholder": "Produk, merk, motif, warna, atau SKU",
     "lowOnly": "Hanya stok menipis",
@@ -768,7 +769,10 @@
     "pieceMinimum": "Stok minimum (pcs)",
     "pieceMinimumHint": "Isi 0 bila tidak perlu diingatkan.",
     "saveMinimum": "Simpan minimum",
-    "minimumSaved": "Stok minimum disimpan: {qty} pcs."
+    "minimumSaved": "Stok minimum disimpan: {qty} pcs.",
+    "noBrand": "Tanpa merk",
+    "brandGroup": "{count, plural, other {# item}}",
+    "toggleBrand": "Tampilkan atau sembunyikan stok {brand}"
   },
   "Variants": {
     "title": "Varian warna",
@@ -1947,7 +1951,18 @@
     "defectPiecesLabel": "Hasil potongan cacat",
     "defectInStock": "Stok cacat sekarang {count} pcs",
     "defectChip": "Cacat",
-    "savedDefect": "Potongan cacat dicatat. Dipotong {used}, sisa roll {left}."
+    "savedDefect": "Potongan cacat dicatat. Dipotong {used}, sisa roll {left}.",
+    "product": "Produk",
+    "brand": "Merk",
+    "motif": "Motif",
+    "color": "Warna",
+    "noBrand": "Tanpa merk",
+    "brandGroup": "{count, plural, other {# roll}}",
+    "toggleBrand": "Tampilkan atau sembunyikan roll {brand}",
+    "togglePieces": "Potongan {name} ({count})",
+    "pieceStock": "{count} pcs",
+    "defect": "Cacat",
+    "rollUnit": "Roll (m)"
   },
   "Expenses": {
     "title": "Pengeluaran harian",
