@@ -6,6 +6,7 @@ import { assertPermission } from "@/lib/auth/authorize";
 import type { Session } from "@/lib/auth/session";
 import { startOfNextZonedDay, startOfZonedDay, storeDate } from "@/lib/format/zoned-time";
 import type { RequestContext } from "@/lib/http/request-context";
+import { storeClosedFor } from "@/lib/settings/store-hours-guard";
 import { readSetting } from "@/lib/settings/store";
 
 import {
@@ -18,20 +19,24 @@ import {
 import type { ExpenseInput } from "./schemas";
 
 export type ExpenseResult =
-  { ok: true; id: string } | { ok: false; reason: "no-open-shift" | "invalid-recipient" };
+  | { ok: true; id: string }
+  | { ok: false; reason: "no-open-shift" | "invalid-recipient" | "store-closed" };
 
 /**
  * Records a staff expense paid from the recorder's cash drawer (FR-EXP-01,
  * FR-EXP-03, ADR-0027). It needs an open shift, share-locked so the shift
- * cannot close mid-write, and lowers that shift's expected cash. Rows are
- * never edited, like payments.
+ * cannot close mid-write, and lowers that shift's expected cash. Refused
+ * outside store hours like checkout (FR-SET-09, ADR-0036). Rows are never
+ * edited, like payments.
  */
 export async function recordExpense(
   session: Session,
   input: ExpenseInput,
   context: RequestContext,
+  now = new Date(),
 ): Promise<ExpenseResult> {
   assertPermission(session, "expense:record");
+  if (await storeClosedFor(session, now)) return { ok: false, reason: "store-closed" };
   return db.transaction(async (tx) => {
     const shift = await lockOpenShiftForExpense(tx, session.user.id);
     if (!shift) return { ok: false as const, reason: "no-open-shift" as const };

@@ -25,7 +25,8 @@
     "db:up": "docker compose up -d --wait db",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:seed": "tsx --env-file-if-exists=.env.local --conditions=react-server scripts/seed.ts"
+    "db:seed": "tsx --env-file-if-exists=.env.local --conditions=react-server scripts/seed.ts",
+    "owner:reset-password": "tsx --env-file-if-exists=.env.local --conditions=react-server scripts/reset-owner-password.ts"
   },
   "dependencies": {
     "@node-rs/argon2": "^2.2.1",

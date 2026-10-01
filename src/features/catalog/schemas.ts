@@ -1,9 +1,9 @@
 import { z } from "zod";
 
 import { rupiah } from "@/lib/validation/money";
-import { plainText } from "@/lib/validation/text";
+import { nameText, plainText } from "@/lib/validation/text";
 
-import { COLOR_NAMES, MOTIFS } from "./options";
+import { canonicalColor, canonicalMotif } from "./options";
 import { defectWord, formatSize, PRODUCT_SIZES } from "./sizes";
 
 /** Brand name (FR-CAT-02). */
@@ -16,6 +16,12 @@ export const skuSchema = z
   .regex(/^[A-Za-z0-9._-]{1,40}$/);
 
 const minStock = z.int().min(0).max(1_000_000);
+
+/** Motif from the list or typed under "Other"; a typed listed motif takes the listed spelling (FR-PRD-06, ADR-0034). */
+export const motifName = nameText(60).transform(canonicalMotif);
+
+/** Colour from the list or typed under "Other"; a typed listed colour takes the listed spelling (FR-VAR-01, ADR-0034). */
+export const colorName = nameText(40).transform(canonicalColor);
 
 /** A choice from a list; an empty submission reads as "required", not "invalid". */
 const chosen = <T extends z.ZodType<string, string>>(schema: T) => z.string().min(1).pipe(schema);
@@ -58,9 +64,7 @@ export const productDetailsInput = z
   .object({
     name: plainText(120),
     brandId: optionalChoice(z.uuid()).optional(),
-    motif: plainText(60, 0)
-      .transform((value) => (value === "" ? null : value))
-      .optional(),
+    motif: optionalChoice(motifName).optional(),
     thickness: thickness.nullable().optional(),
     sizePrices: sizePrices.optional(),
     defectSizePrices: sizePrices.optional(),
@@ -88,13 +92,13 @@ export const rollProductInput = productInput.extend({
 
 /**
  * New products are rolls (FR-ROL-01) and must name their first colour,
- * brand, a listed motif and thickness (FR-PRD-06, ADR-0026).
+ * brand, motif and thickness (FR-PRD-06, ADR-0026, ADR-0034).
  */
 export const newProductInput = rollProductInput.extend({
   /** The first colour; its roll becomes the default variant (FR-VAR-01, ADR-0026). */
-  colorName: chosen(z.string().refine((value) => COLOR_NAMES.includes(value))),
+  colorName: chosen(colorName),
   brandId: chosen(z.uuid()),
-  motif: chosen(z.string().refine((value) => MOTIFS.includes(value))),
+  motif: chosen(motifName),
   thickness: thickness.nullable().refine((value) => value !== null, { error: "required" }),
 });
 
@@ -134,7 +138,7 @@ export function variantSnapshotOf(
 }
 
 const colorFields = {
-  colorName: plainText(40),
+  colorName: chosen(colorName),
   hex: z.union([z.literal(""), hexColor]),
 };
 

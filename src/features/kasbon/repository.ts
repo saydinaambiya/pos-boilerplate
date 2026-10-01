@@ -165,10 +165,20 @@ export async function updateKasbonAmounts(
     .where(eq(kasbons.id, kasbonId));
 }
 
+/** The user's open shift and its kind, without locking it. */
+export async function findOpenShiftForPayment(executor: Executor, userId: string) {
+  const [row] = await executor
+    .select({ id: shifts.id, kind: shifts.kind })
+    .from(shifts)
+    .where(and(eq(shifts.userId, userId), isNull(shifts.closedAt)))
+    .limit(1);
+  return row;
+}
+
 /** The caller's open shift, share-locked so it cannot close mid-payment (FR-SHF-01). */
 export async function lockOpenShiftForPayment(executor: Executor, userId: string) {
   const [row] = await executor
-    .select({ id: shifts.id })
+    .select({ id: shifts.id, kind: shifts.kind })
     .from(shifts)
     .where(and(eq(shifts.userId, userId), isNull(shifts.closedAt)))
     .for("share");

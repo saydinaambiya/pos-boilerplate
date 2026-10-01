@@ -4,9 +4,11 @@ import { hasLocale } from "next-intl";
 import { getTranslations } from "next-intl/server";
 import { revalidatePath } from "next/cache";
 
+import type { ActionLink } from "@/components/feedback/result-dialog";
 import type { PosProduct } from "@/features/catalog/pos-types";
 import { searchPosCatalog } from "@/features/catalog/pos-catalog";
 import { searchCustomers } from "@/features/kasbon/service";
+import { storeClosedRejection } from "@/features/shifts/store-closed";
 import { routing } from "@/i18n/routing";
 import { previewVoucher } from "@/features/vouchers/service";
 import { requirePermission, requireSession } from "@/lib/auth/guard";
@@ -19,7 +21,7 @@ import { checkout } from "./service";
 
 export type CheckoutResponse =
   | { ok: true; saleId: string; invoiceNo: string; grandTotal: number; kasbonTotal: number }
-  | { ok: false; message: string };
+  | { ok: false; message: string; action?: ActionLink };
 
 function localeOf(value: unknown) {
   return typeof value === "string" && hasLocale(routing.locales, value)
@@ -73,7 +75,7 @@ export async function checkoutAction(
       case "kasbon-due-date":
         return { ok: false, message: t("errors.kasbonDueDate") };
       case "store-closed":
-        return { ok: false, message: t("errors.storeClosed") };
+        return { ok: false, ...(await storeClosedRejection(session, locale)) };
       case "idempotency-conflict":
       case "invalid-items":
         return { ok: false, message: t("errors.invalid") };

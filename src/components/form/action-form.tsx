@@ -81,7 +81,11 @@ export function ActionForm({
     state === dismissed
       ? null
       : state.status === "error"
-        ? { status: "error" as const, message: state.message ?? t("checkFields") }
+        ? {
+            status: "error" as const,
+            message: state.message ?? t("checkFields"),
+            action: state.action,
+          }
         : showSuccess
           ? { status: "success" as const, message: state.message ?? "" }
           : null;

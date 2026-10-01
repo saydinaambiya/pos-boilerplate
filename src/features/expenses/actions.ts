@@ -3,6 +3,7 @@
 import { getTranslations } from "next-intl/server";
 import { revalidatePath } from "next/cache";
 
+import { storeClosedRejection } from "@/features/shifts/store-closed";
 import { localeFromForm } from "@/i18n/form-locale";
 import { redirect } from "@/i18n/navigation";
 import { requirePermission } from "@/lib/auth/guard";
@@ -39,9 +40,14 @@ export async function recordExpenseAction(
 
   const result = await recordExpense(session, parsed.data, await currentRequestContext());
   if (!result.ok) {
-    return result.reason === "no-open-shift"
-      ? { status: "error", message: t("errors.noOpenShift"), values }
-      : { status: "error", errors: { recipientId: t("errors.invalidRecipient") }, values };
+    switch (result.reason) {
+      case "store-closed":
+        return { status: "error", ...(await storeClosedRejection(session, locale)), values };
+      case "no-open-shift":
+        return { status: "error", message: t("errors.noOpenShift"), values };
+      case "invalid-recipient":
+        return { status: "error", errors: { recipientId: t("errors.invalidRecipient") }, values };
+    }
   }
   revalidatePath("/", "layout");
   return redirect({ href: "/expenses", locale });

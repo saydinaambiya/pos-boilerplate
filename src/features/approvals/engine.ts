@@ -68,9 +68,11 @@ export interface SubmitInput {
 
 /**
  * Files a request inside the caller's transaction (FR-APR-01). Requests by
- * the Owner are approved and applied immediately (FR-APR-03, BR-13). A
- * second pending request for the same target raises `ApprovalConflict`
- * with reason `already-pending`.
+ * the Owner are approved and applied immediately (FR-APR-03, BR-13), as are
+ * those the caller marks `autoApprove`, such as a store credit payment taken
+ * at an open cashier shift in store hours (ADR-0035). A second pending
+ * request for the same target raises `ApprovalConflict` with reason
+ * `already-pending`.
  */
 export async function submitApproval(
   executor: Executor,
@@ -78,8 +80,9 @@ export async function submitApproval(
   input: SubmitInput,
   context: RequestContext,
   apply: ApplyApproval,
+  options: { autoApprove?: boolean } = {},
 ): Promise<{ id: string; status: "PENDING" | "APPROVED" }> {
-  const autoApprove = session.role.isSystem;
+  const autoApprove = session.role.isSystem || options.autoApprove === true;
   let id: string;
   try {
     const [row] = await executor

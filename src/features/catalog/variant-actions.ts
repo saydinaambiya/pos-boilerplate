@@ -48,17 +48,16 @@ const override = (value: string) =>
   value.trim() === "" ? null : (parseRupiah(value) ?? Number.NaN);
 
 /**
- * Colour from the form: a listed colour with its swatch filled in, or on an
- * edit the stored colour kept as it was. Anything else reads as empty, so
- * validation asks for a choice (FR-VAR-01/03, ADR-0026).
+ * Colour from the form: a listed colour gets its swatch filled in, a stored
+ * colour kept on an edit keeps its swatch, and one typed under "Other" has
+ * none (FR-VAR-01/03, ADR-0026, ADR-0034).
  */
 function chosenColor(formData: FormData, current?: { name: string; hex?: string | undefined }) {
   const name = formText(formData, "colorName");
-  const listed = colorHex(name);
   const kept = current?.name === name;
   return {
-    colorName: listed !== undefined || kept ? name : "",
-    hex: listed ?? (kept ? (current.hex ?? "") : ""),
+    colorName: name,
+    hex: colorHex(name) ?? (kept ? (current.hex ?? "") : ""),
   };
 }
 

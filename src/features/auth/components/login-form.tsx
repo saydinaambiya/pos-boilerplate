@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { PasswordInput, type RevealLabels } from "@/components/ui/password-input";
 import type { Locale } from "@/config/locales";
 import { LOCALE_FIELD } from "@/i18n/form-locale";
+import { Link } from "@/i18n/navigation";
 
 import { loginAction, type LoginState } from "../actions";
 
@@ -25,8 +26,11 @@ interface LoginFormProps {
     signingInAs: string;
     submit: string;
     submitting: string;
+    forgotPassword: string;
     reveal: RevealLabels;
   };
+  /** Shown above the form, e.g. after a password was recovered. */
+  notice?: string | undefined;
 }
 
 const initialState: LoginState = {};
@@ -34,9 +38,10 @@ const initialState: LoginState = {};
 /**
  * Two-step sign-in (FR-AUTH-01/02): username first, then a password for the
  * Owner or a 6-digit PIN for everyone else. Focus moves to the field that
- * needs attention after each step (FR-UX-05).
+ * needs attention after each step (FR-UX-05). The password step links to
+ * recovery with a code (FR-AUTH-12).
  */
-export function LoginForm({ locale, labels }: LoginFormProps) {
+export function LoginForm({ locale, labels, notice }: LoginFormProps) {
   const [state, action, pending] = useActionState(loginAction, initialState);
   useGlobalPending(pending);
   const [editedState, setEditedState] = useState<LoginState | null>(null);
@@ -53,6 +58,11 @@ export function LoginForm({ locale, labels }: LoginFormProps) {
   return (
     <form action={action} className="flex flex-col gap-4">
       <input type="hidden" name={LOCALE_FIELD} value={locale} />
+      {notice && !state.error && !state.method ? (
+        <p role="status" className="rounded-control bg-success px-3 py-2 text-sm text-success-ink">
+          {notice}
+        </p>
+      ) : null}
       {state.error ? (
         <p role="alert" className="rounded-control bg-danger px-3 py-2 text-sm text-danger-ink">
           {state.error}
@@ -99,6 +109,14 @@ export function LoginForm({ locale, labels }: LoginFormProps) {
           <Button type="submit" size="lg" disabled={pending}>
             {pending ? labels.submitting : labels.submit}
           </Button>
+          {method === "password" ? (
+            <Link
+              href={{ pathname: "/recover", query: { username: state.username ?? "" } }}
+              className="inline-flex min-h-11 items-center justify-center text-sm font-medium text-primary underline underline-offset-4"
+            >
+              {labels.forgotPassword}
+            </Link>
+          ) : null}
         </>
       ) : (
         <>

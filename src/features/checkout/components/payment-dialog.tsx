@@ -4,12 +4,14 @@ import { useTranslations } from "next-intl";
 import { useEffect, useId, useRef, useState, useTransition } from "react";
 
 import { useGlobalPending } from "@/components/feedback/loading-indicator";
+import type { ActionLink } from "@/components/feedback/result-dialog";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogTitle } from "@/components/ui/dialog";
 import { MoneyInput } from "@/components/ui/money-input";
 import { Select } from "@/components/ui/select";
 import { toneClasses } from "@/components/ui/tone";
 import type { Locale } from "@/config/locales";
+import { Link } from "@/i18n/navigation";
 import { formatCurrency } from "@/lib/format/currency";
 import { parseRupiah } from "@/lib/format/rupiah-input";
 import type { ItemDiscount } from "@/lib/money/calculate";
@@ -96,6 +98,7 @@ export function PaymentDialog(props: PaymentDialogProps) {
   const [kasbon, setKasbon] = useState<KasbonDraft>(emptyKasbonDraft);
   const [showErrors, setShowErrors] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorAction, setErrorAction] = useState<ActionLink | null>(null);
   const [pending, startTransition] = useTransition();
   useGlobalPending(pending);
   const idempotencyKey = useRef<string | null>(null);
@@ -139,6 +142,7 @@ export function PaymentDialog(props: PaymentDialogProps) {
       return;
     }
     setError(null);
+    setErrorAction(null);
     const payments =
       mode === "kasbon"
         ? downPayment
@@ -170,6 +174,7 @@ export function PaymentDialog(props: PaymentDialogProps) {
         });
         if (!result.ok) {
           setError(result.message);
+          setErrorAction(result.action ?? null);
           return;
         }
         setCashText("");
@@ -397,6 +402,13 @@ export function PaymentDialog(props: PaymentDialogProps) {
             <p role="alert" className={cn("rounded-control px-3 py-2 text-sm", toneClasses.danger)}>
               {error}
             </p>
+          ) : null}
+          {errorAction ? (
+            <Button asChild variant="secondary" className="w-full">
+              <Link href={errorAction.href} scroll={false}>
+                {errorAction.label}
+              </Link>
+            </Button>
           ) : null}
 
           <DialogFooter>

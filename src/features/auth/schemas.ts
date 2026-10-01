@@ -30,3 +30,28 @@ export const changePinInput = z
   });
 
 export type ChangePinInput = z.infer<typeof changePinInput>;
+
+/** Owner password with its confirmation (FR-AUTH-01). */
+const newPassword = {
+  password: z.string().min(12).max(128),
+  confirmPassword: z.string(),
+};
+
+const passwordsMatch = (value: { password: string; confirmPassword: string }) =>
+  value.password === value.confirmPassword;
+
+/** Password change while signed in; the current password proves it is the owner (FR-AUTH-11). */
+export const changePasswordInput = z
+  .object({ currentPassword: z.string().min(1).max(128), ...newPassword })
+  .strict()
+  .refine(passwordsMatch, { path: ["confirmPassword"], error: "mismatch" });
+
+export type ChangePasswordInput = z.infer<typeof changePasswordInput>;
+
+/** A forgotten password replaced with a recovery code (FR-AUTH-12, ADR-0037). */
+export const recoverPasswordInput = z
+  .object({ username: usernameSchema, code: z.string().min(1).max(40), ...newPassword })
+  .strict()
+  .refine(passwordsMatch, { path: ["confirmPassword"], error: "mismatch" });
+
+export type RecoverPasswordInput = z.infer<typeof recoverPasswordInput>;

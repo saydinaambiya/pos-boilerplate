@@ -25,6 +25,8 @@ interface KasbonPaymentFormProps {
   /** Balance minus pending payments: the most that can be requested (FR-KSB-05). */
   available: number;
   bankAccounts: readonly { id: string; label: string }[];
+  /** The payment settles at once instead of waiting for approval (ADR-0035). */
+  direct: boolean;
 }
 
 const amountOf = (text: string) => (text.trim() === "" ? 0 : (parseRupiah(text) ?? Number.NaN));
@@ -40,6 +42,7 @@ export function KasbonPaymentForm({
   kasbonId,
   available,
   bankAccounts,
+  direct,
 }: KasbonPaymentFormProps) {
   const t = useTranslations("Kasbon");
   const id = useId();
@@ -84,7 +87,11 @@ export function KasbonPaymentForm({
           cash,
           transfer: transfer > 0 ? { amount: transfer, bankAccountId } : null,
         });
-        setResult({ status: response.ok ? "success" : "error", message: response.message });
+        setResult(
+          response.ok
+            ? { status: "success", message: response.message }
+            : { status: "error", message: response.message, action: response.action },
+        );
         if (response.ok) {
           setAmountText("");
           setTransferText("");
@@ -145,7 +152,9 @@ export function KasbonPaymentForm({
           aria-invalid={Number.isFinite(amount) && amount > available ? true : undefined}
         />
         <p id={`${id}-amount-hint`} className="text-xs text-ink-muted">
-          {t("recordPaymentDescription", { amount: money(available) })}
+          {t(direct ? "recordPaymentDirect" : "recordPaymentDescription", {
+            amount: money(available),
+          })}
         </p>
         <Button
           size="sm"

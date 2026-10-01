@@ -1,6 +1,6 @@
 # ADR-0026: Listed motifs and colours, and defect pieces
 
-- Status: Accepted
+- Status: Accepted; "Other" added by [ADR-0034](./0034-other-motif-and-colour.md)
 - Date: 2026-09-29
 - Requirements: PRD FR-PRD-06, FR-VAR-01/03, FR-ROL-05, FR-STK-01; BRD BR-29, Q-22..Q-24
 

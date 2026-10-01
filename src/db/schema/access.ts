@@ -100,3 +100,22 @@ export const sessions = pgTable(
     index("sessions_expires_at_idx").on(table.expiresAt),
   ],
 );
+
+/**
+ * Single-use codes that let a password account set a new password when it
+ * is forgotten; only their SHA-256 is stored, and generating a new set
+ * replaces the old one (FR-AUTH-12, ADR-0037).
+ */
+export const recoveryCodes = pgTable(
+  "recovery_codes",
+  {
+    id: id(),
+    userId: uuid()
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    codeHash: text().notNull(),
+    usedAt: timestamptz(),
+    ...timestamps,
+  },
+  (table) => [uniqueIndex("recovery_codes_user_id_code_hash_key").on(table.userId, table.codeHash)],
+);

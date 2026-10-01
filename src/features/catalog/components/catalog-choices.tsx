@@ -4,17 +4,11 @@ import { FormCombobox } from "@/components/form/form-combobox";
 
 import { COLORS, MOTIF_OPTIONS } from "../options";
 
-/** Options plus the stored value when it predates the lists, so editing keeps it. */
-function withCurrent<T extends { value: string; label: string }>(
-  options: readonly T[],
-  current: string | null | undefined,
-): readonly (T | { value: string; label: string })[] {
-  return current && !options.some((option) => option.value === current)
-    ? [{ value: current, label: current }, ...options]
-    : options;
-}
-
-/** Searchable motif choice from `MOTIFS`; 3D motifs sit under their family (FR-PRD-06, ADR-0026). */
+/**
+ * Searchable motif choice from `MOTIFS`; 3D motifs sit under their family.
+ * "Other" takes a typed motif, and a stored motif outside the list opens
+ * there prefilled (FR-PRD-06, ADR-0026, ADR-0034).
+ */
 export async function MotifField({ defaultValue }: { defaultValue?: string | null | undefined }) {
   const t = await getTranslations("Catalog");
   return (
@@ -25,12 +19,17 @@ export async function MotifField({ defaultValue }: { defaultValue?: string | nul
       searchPlaceholder={t("searchChoice")}
       emptyText={t("noChoice")}
       defaultValue={defaultValue ?? ""}
-      options={withCurrent(MOTIF_OPTIONS, defaultValue)}
+      options={MOTIF_OPTIONS}
+      other={{ label: t("otherChoice"), inputLabel: t("otherMotif"), maxLength: 60 }}
     />
   );
 }
 
-/** Searchable colour choice from `COLORS` with swatches; the hex follows the name (FR-VAR-01/03). */
+/**
+ * Searchable colour choice from `COLORS` with swatches; the hex follows the
+ * name. "Other" takes a typed colour without a swatch (FR-VAR-01/03,
+ * ADR-0026, ADR-0034).
+ */
 export async function ColorField({ defaultValue }: { defaultValue?: string | null | undefined }) {
   const [t, tCatalog] = await Promise.all([
     getTranslations("Variants"),
@@ -44,10 +43,8 @@ export async function ColorField({ defaultValue }: { defaultValue?: string | nul
       searchPlaceholder={tCatalog("searchChoice")}
       emptyText={tCatalog("noChoice")}
       defaultValue={defaultValue ?? ""}
-      options={withCurrent(
-        COLORS.map((color) => ({ value: color.name, label: color.name, hex: color.hex })),
-        defaultValue,
-      )}
+      options={COLORS.map((color) => ({ value: color.name, label: color.name, hex: color.hex }))}
+      other={{ label: tCatalog("otherChoice"), inputLabel: tCatalog("otherColor"), maxLength: 40 }}
     />
   );
 }

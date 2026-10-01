@@ -1,6 +1,6 @@
 # ADR-0012: Store credit, installments and the cash drawer
 
-- Status: Accepted
+- Status: Accepted; direct payments at the cashier by [ADR-0035](./0035-installments-at-the-cashier.md)
 - Date: 2026-09-26
 - Requirements: PRD §3.8, §4.3, FR-PAY-05, FR-KSB-01..06, FR-SHF-03, FR-INV-04, BR-11, BR-12, BR-13
 
