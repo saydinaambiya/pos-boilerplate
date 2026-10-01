@@ -1,4 +1,4 @@
-import { CircleCheck, CircleOff, PackagePlus, PackageSearch } from "lucide-react";
+import { CircleCheck, CircleOff, PackagePlus, PackageSearch, Tag } from "lucide-react";
 import type { Metadata } from "next";
 import { getLocale, getTranslations } from "next-intl/server";
 
@@ -13,13 +13,13 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Select } from "@/components/ui/select";
 import {
   Table,
-  TableBody,
   TableCaption,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { TableGroup } from "@/components/ui/table-group";
 import { CatalogTabs } from "@/features/catalog/components/catalog-tabs";
 import { NewProductDialog } from "@/features/catalog/components/new-product-dialog";
 import { StockCell } from "@/features/catalog/components/stock-cell";
@@ -37,8 +37,9 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * Product list with search and a brand filter, showing motif and
- * thickness in their own columns (FR-PRD-01/02/04/06). Roll prices are per
+ * Product list with search and a brand filter, grouped per brand in
+ * collapsible rows with the brand leftmost, closed until a filter applies, showing motif and
+ * thickness in their own columns (FR-PRD-01/02/04/06, ADR-0038). Roll prices are per
  * meter and roll stock shows meters and cut pieces (FR-ROL-01); `?new=1`
  * opens the create dialog (ADR-0018).
  */
@@ -64,6 +65,9 @@ export default async function ProductsPage({ searchParams }: PageProps<"/[locale
   const noBrands = brands.length === 0;
   const kept = keptQuery(raw, ["new"]);
   const filtered = filters.q !== "" || filters.brand !== undefined || filters.status !== "active";
+  const brandGroups = Object.values(
+    Object.groupBy(page.products, (product) => product.brandId ?? ""),
+  ).filter((group) => group !== undefined);
   const query = (pageNumber: number) => ({
     ...(filters.q ? { q: filters.q } : {}),
     ...(filters.brand ? { brand: filters.brand } : {}),
@@ -166,8 +170,8 @@ export default async function ProductsPage({ searchParams }: PageProps<"/[locale
             <TableCaption>{t("listCaption")}</TableCaption>
             <TableHeader>
               <TableRow>
-                <TableHead>{t("name")}</TableHead>
                 <TableHead>{t("brand")}</TableHead>
+                <TableHead>{t("name")}</TableHead>
                 <TableHead>{t("motif")}</TableHead>
                 <TableHead>{t("thickness")}</TableHead>
                 <TableHead>{t("sku")}</TableHead>
@@ -176,70 +180,90 @@ export default async function ProductsPage({ searchParams }: PageProps<"/[locale
                 <TableHead>{t("status")}</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody>
-              {page.products.map((product) => (
-                <TableRow key={product.id}>
-                  <TableCell className="font-medium">
-                    {canUpdate ? (
-                      <Link
-                        href={`/products/${product.id}`}
-                        aria-label={t("edit", { name: product.name })}
-                        className="underline-offset-4 hover:underline"
-                      >
-                        {product.name}
-                      </Link>
-                    ) : (
-                      product.name
-                    )}
-                    <span className="block text-xs font-normal text-ink-muted">
-                      {product.isRoll ? t("rollProduct") : product.unit}
-                    </span>
-                  </TableCell>
-                  <TableCell>{product.brandName ?? "—"}</TableCell>
-                  <TableCell>{product.motif ?? "—"}</TableCell>
-                  <TableCell className="whitespace-nowrap tabular-nums">
-                    {product.thickness ? formatThickness(product.thickness, locale) : "—"}
-                  </TableCell>
-                  <TableCell className="text-ink-muted">
-                    {product.hasVariants
-                      ? tVariants("variantCount", { count: product.variantCount })
-                      : product.sku}
-                  </TableCell>
-                  <TableCell className="text-right whitespace-nowrap tabular-nums">
-                    {product.isRoll
-                      ? t("perMeter", { price: formatCurrency(product.price, locale) })
-                      : formatCurrency(product.price, locale)}
-                  </TableCell>
-                  <TableCell>
-                    <StockCell
-                      trackStock={product.trackStock}
-                      stockQty={product.stockQty}
-                      minStock={product.minStock}
-                      low={product.lowStockVariants > 0}
-                      label={
-                        product.isRoll
-                          ? t("rollStock", {
-                              meters: formatMeters(product.stockQty, locale),
-                              pieces: product.pieceStock,
-                            })
-                          : undefined
-                      }
-                    />
-                  </TableCell>
-                  <TableCell>
-                    {product.isActive ? (
-                      <Chip tone="success" icon={<CircleCheck aria-hidden="true" />}>
-                        {t("active")}
-                      </Chip>
-                    ) : (
-                      <Chip tone="neutral" icon={<CircleOff aria-hidden="true" />}>
-                        {t("inactive")}
-                      </Chip>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
+            {brandGroups.map((group) => {
+              const brand = group[0]?.brandName ?? t("noBrand");
+              return (
+                <TableGroup
+                  key={`${group[0]?.brandId ?? "none"}-${String(filtered)}`}
+                  defaultOpen={filtered}
+                  leadColSpan={8}
+                  className="bg-surface-muted/60"
+                  toggleLabel={t("toggleBrand", { brand })}
+                  toggleContent={
+                    <>
+                      <Tag aria-hidden="true" className="size-4 shrink-0 text-primary" />
+                      <span>{brand}</span>
+                      <span className="text-xs font-normal text-ink-muted">
+                        {t("brandGroup", { count: group.length })}
+                      </span>
+                    </>
+                  }
+                >
+                  {group.map((product) => (
+                    <TableRow key={product.id}>
+                      <TableCell />
+                      <TableCell className="font-medium">
+                        {canUpdate ? (
+                          <Link
+                            href={`/products/${product.id}`}
+                            aria-label={t("edit", { name: product.name })}
+                            className="underline-offset-4 hover:underline"
+                          >
+                            {product.name}
+                          </Link>
+                        ) : (
+                          product.name
+                        )}
+                        <span className="block text-xs font-normal text-ink-muted">
+                          {product.isRoll ? t("rollProduct") : product.unit}
+                        </span>
+                      </TableCell>
+                      <TableCell>{product.motif ?? "—"}</TableCell>
+                      <TableCell className="whitespace-nowrap tabular-nums">
+                        {product.thickness ? formatThickness(product.thickness, locale) : "—"}
+                      </TableCell>
+                      <TableCell className="text-ink-muted">
+                        {product.hasVariants
+                          ? tVariants("variantCount", { count: product.variantCount })
+                          : product.sku}
+                      </TableCell>
+                      <TableCell className="text-right whitespace-nowrap tabular-nums">
+                        {product.isRoll
+                          ? t("perMeter", { price: formatCurrency(product.price, locale) })
+                          : formatCurrency(product.price, locale)}
+                      </TableCell>
+                      <TableCell>
+                        <StockCell
+                          trackStock={product.trackStock}
+                          stockQty={product.stockQty}
+                          minStock={product.minStock}
+                          low={product.lowStockVariants > 0}
+                          label={
+                            product.isRoll
+                              ? t("rollStock", {
+                                  meters: formatMeters(product.stockQty, locale),
+                                  pieces: product.pieceStock,
+                                })
+                              : undefined
+                          }
+                        />
+                      </TableCell>
+                      <TableCell>
+                        {product.isActive ? (
+                          <Chip tone="success" icon={<CircleCheck aria-hidden="true" />}>
+                            {t("active")}
+                          </Chip>
+                        ) : (
+                          <Chip tone="neutral" icon={<CircleOff aria-hidden="true" />}>
+                            {t("inactive")}
+                          </Chip>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableGroup>
+              );
+            })}
           </Table>
         )}
         {filters.page > 1 || page.hasNextPage ? (

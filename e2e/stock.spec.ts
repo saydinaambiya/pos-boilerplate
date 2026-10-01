@@ -110,7 +110,7 @@ test.describe("stock ledger (FR-STK)", () => {
     ).toHaveCount(1);
 
     await page.goto(`/id/stock?q=${sku}&defect=1`);
-    await expect(page.getByRole("row")).toHaveCount(2);
+    await expect(page.getByRole("row")).toHaveCount(3);
     await expect(
       page.getByRole("row", { name: new RegExp(`${product} · Red · 93cm x 47cm · Cacat`) }),
     ).toContainText("1");
@@ -128,6 +128,68 @@ test.describe("stock ledger (FR-STK)", () => {
     await expect(dialog.getByRole("alert")).toHaveText("Roll tidak cukup. Butuh 4m, tersisa 2,5m.");
   });
 
+  test("folds a roll's pieces under its row (FR-STK-08)", async ({ page }) => {
+    await page.goto(`/id/stock?q=${sku}`);
+    const toggle = page.getByRole("button", { name: new RegExp(`^Potongan ${product} · Red`) });
+    const piece = page.getByRole("link", {
+      name: `Buka stok ${product} · Red · 93cm x 47cm`,
+      exact: true,
+    });
+    await expect(toggle).toHaveAttribute("aria-expanded", "true");
+    await expect(piece).toBeVisible();
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await expect(piece).toHaveCount(0);
+    await expect(
+      page.getByRole("link", { name: `Buka stok ${product} · Red · Roll`, exact: true }),
+    ).toBeVisible();
+  });
+
+  test("starts on stock with a minimum, folded, and remembers unticking it (FR-STK-09)", async ({
+    page,
+  }) => {
+    await page.goto("/id/stock");
+    const minimum = page.getByLabel("Hanya yang ada stok minimum");
+    await expect(minimum).toBeChecked();
+    await expect(
+      page.getByRole("table", { name: "Daftar stok" }).getByRole("button", { expanded: true }),
+    ).toHaveCount(0);
+    await minimum.uncheck();
+    await expect(page).toHaveURL(/minimum=0/);
+    await expect(minimum).not.toBeChecked();
+    await page.getByRole("link", { name: "Reset" }).click();
+    await expect(minimum).toBeChecked();
+  });
+
+  test("keeps a minimum on the 93x47 piece and filters stock with one (FR-STK-09)", async ({
+    page,
+  }) => {
+    await page.goto(`/id/stock?q=${sku}`);
+    await page
+      .getByRole("link", { name: `Buka stok ${product} · Red · 100cm x 70cm`, exact: true })
+      .click();
+    await expect(page.getByLabel("Stok minimum (pcs)")).toHaveCount(0);
+
+    await page.goto(`/id/stock?q=${sku}`);
+    await page
+      .getByRole("link", { name: `Buka stok ${product} · Red · 93cm x 47cm`, exact: true })
+      .click();
+    await page.getByLabel("Stok minimum (pcs)").fill("10");
+    await page.getByRole("button", { name: "Simpan minimum" }).click();
+    await expectResult(page, "Stok minimum disimpan: 10 pcs.");
+
+    await page.goto(`/id/stock?q=${sku}&minimum=1`);
+    await expect(
+      page.getByRole("link", { name: `Buka stok ${product} · Red · Roll`, exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("row", { name: new RegExp(`${product} · Red · 93cm x 47cm`) }),
+    ).toContainText("Stok menipis");
+    await expect(
+      page.getByRole("link", { name: `Buka stok ${product} · Red · 100cm x 70cm`, exact: true }),
+    ).toHaveCount(0);
+  });
+
   test("flags the product as low stock on the dashboard", async ({ page }) => {
     await page.goto("/id/dashboard");
     await expect(
@@ -135,7 +197,9 @@ test.describe("stock ledger (FR-STK)", () => {
     ).toBeVisible();
     await page.goto(`/id/stock?q=${sku}&low=1`);
     await expect(
-      page.getByRole("row", { name: new RegExp(product) }).getByText("Stok menipis"),
+      page
+        .getByRole("row", { name: new RegExp(`${product} · Red · Roll`) })
+        .getByText("Stok menipis"),
     ).toBeVisible();
   });
 });

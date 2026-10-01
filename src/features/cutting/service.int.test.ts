@@ -5,7 +5,7 @@ import { db } from "@/db/client";
 import { productVariants, stockMovements } from "@/db/schema";
 import { createProduct } from "@/features/catalog/service";
 import { searchPosCatalog } from "@/features/catalog/pos-catalog";
-import { getStockLevels, receiveStock } from "@/features/stock/service";
+import { getStockLevels, receiveStock, setPieceMinimum } from "@/features/stock/service";
 import { ForbiddenError } from "@/lib/auth/authorize";
 import { fixtures, resetDatabase } from "@/test/database";
 import { signIn, testContext } from "@/test/sessions";
@@ -165,7 +165,8 @@ describe("cutting rolls (FR-ROL-03, ADR-0023)", () => {
     const [cut] = await getRecentCuts(session);
     expect(cut).toMatchObject({ defect: true, pieces: [{ size: "93x47", qty: 1 }] });
     const levels = await getStockLevels(session, { q: "mihrab", defect: "1", page: 1 });
-    expect(levels.levels.map((level) => level.variantId)).toEqual([defects[0]?.id]);
+    expect(levels.groups.map((group) => group.variantId)).toEqual([rollId]);
+    expect(levels.groups[0]?.pieces.map((level) => level.variantId)).toEqual([defects[0]?.id]);
     const [pos] = await searchPosCatalog(session, "mihrab");
     expect(pos?.variants.find((variant) => variant.isDefect)).toMatchObject({ price: 30_000 });
   });
@@ -179,5 +180,44 @@ describe("cutting rolls (FR-ROL-03, ADR-0023)", () => {
 
     const cashier = await signIn("kasir", "123456");
     await expect(getRolls(cashier, { q: "" })).rejects.toThrow(ForbiddenError);
+  });
+
+  it("groups pieces under their roll and keeps a minimum on the 93x47 piece only (FR-STK-08/09)", async () => {
+    const session = await owner();
+    const { rollId, piece } = await roll(1000);
+
+    const all = await getStockLevels(session, { q: "mihrab", page: 1 });
+    expect(all.groups.map((group) => group.variantId)).toEqual([rollId]);
+    expect(all.groups[0]?.pieces.map((item) => item.size)).toEqual([
+      "93x47",
+      "100x70",
+      "50x140",
+      "100x140",
+    ]);
+    expect((await getStockLevels(session, { q: "mihrab", minimum: "1", page: 1 })).groups).toEqual(
+      [],
+    );
+
+    expect(await setPieceMinimum(session, piece("100x70"), { minStock: 3 }, testContext())).toEqual(
+      { ok: false, reason: "not-found" },
+    );
+    expect(await setPieceMinimum(session, rollId, { minStock: 3 }, testContext())).toEqual({
+      ok: false,
+      reason: "not-found",
+    });
+    expect(await setPieceMinimum(session, piece("93x47"), { minStock: 3 }, testContext())).toEqual({
+      ok: true,
+    });
+
+    const withMinimum = await getStockLevels(session, { q: "", minimum: "1", page: 1 });
+    expect(withMinimum.groups.map((group) => group.variantId)).toEqual([rollId]);
+    expect(withMinimum.groups[0]?.pieces.map((item) => item.variantId)).toEqual([piece("93x47")]);
+    const low = await getStockLevels(session, { q: "", low: "1", page: 1 });
+    expect(low.groups[0]?.pieces.map((item) => item.variantId)).toEqual([piece("93x47")]);
+
+    const cashier = await signIn("kasir", "123456");
+    await expect(
+      setPieceMinimum(cashier, piece("93x47"), { minStock: 1 }, testContext()),
+    ).rejects.toBeInstanceOf(ForbiddenError);
   });
 });

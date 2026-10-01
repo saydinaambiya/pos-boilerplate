@@ -15,12 +15,15 @@ import {
   lockVariant,
   queryLowStock,
   queryMovements,
-  queryStockLevels,
+  queryStockGroups,
+  queryStockPieces,
   type StockMovementType,
+  updateMinStock,
 } from "./repository";
 import type {
   CountStockInput,
   MovementFilters,
+  PieceMinimumInput,
   ReceiveStockInput,
   StockFilters,
   WriteOffStockInput,
@@ -169,10 +172,72 @@ export function writeOffStock(
   );
 }
 
+/**
+ * Stock grouped per product, motif and colour: each roll or plain variant
+ * with the pieces cut from it that pass the filters (FR-STK-08).
+ */
 export async function getStockLevels(session: Session, filters: StockFilters) {
   assertPermission(session, "page:stock");
-  const rows = await queryStockLevels(filters, STOCK_PAGE_SIZE);
-  return { levels: rows.slice(0, STOCK_PAGE_SIZE), hasNextPage: rows.length > STOCK_PAGE_SIZE };
+  const rows = await queryStockGroups(filters, STOCK_PAGE_SIZE);
+  const heads = rows.slice(0, STOCK_PAGE_SIZE);
+  const pieces = await queryStockPieces(
+    heads.filter((head) => head.isRoll).map((head) => head.variantId),
+    filters,
+  );
+  return {
+    groups: heads.map((head) => ({
+      ...head,
+      pieces: pieces.filter((item) => item.parentId === head.variantId),
+    })),
+    hasNextPage: rows.length > STOCK_PAGE_SIZE,
+  };
+}
+
+/** The one piece size whose minimum is kept, as it must always be in stock (FR-STK-09). */
+export const MINIMUM_PIECE_SIZE = "93x47";
+
+/** Whether a stock row is the 93×47 piece that takes a minimum (FR-STK-09). */
+export function takesPieceMinimum(item: {
+  parentId: string | null;
+  size: string | null;
+  isDefect: boolean;
+}): boolean {
+  return item.parentId !== null && item.size === MINIMUM_PIECE_SIZE && !item.isDefect;
+}
+
+export type PieceMinimumResult = { ok: true } | { ok: false; reason: "not-found" };
+
+/**
+ * Sets the minimum stock of a 93×47 piece so it is flagged when low;
+ * other pieces keep none (FR-STK-09).
+ */
+export async function setPieceMinimum(
+  session: Session,
+  variantId: string,
+  input: PieceMinimumInput,
+  context: RequestContext,
+): Promise<PieceMinimumResult> {
+  assertPermission(session, "stock:adjust");
+  return db.transaction(async (tx) => {
+    const variant = await findVariantStock(variantId, tx);
+    if (!variant?.isActive || !takesPieceMinimum(variant)) {
+      return { ok: false as const, reason: "not-found" as const };
+    }
+    if (variant.minStock === input.minStock) return { ok: true as const };
+    await updateMinStock(tx, variantId, input.minStock);
+    await recordAudit(
+      tx,
+      {
+        actorId: session.user.id,
+        action: "stock.minimum-set",
+        entity: "product-variant",
+        entityId: variantId,
+        diff: { minStock: { from: variant.minStock, to: input.minStock } },
+      },
+      context,
+    );
+    return { ok: true as const };
+  });
 }
 
 /** Whether a variant's quantities are roll centimetres (ADR-0023); callers checked access. */

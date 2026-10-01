@@ -1,4 +1,4 @@
-import { ScrollText } from "lucide-react";
+import { ScrollText, Trash2 } from "lucide-react";
 import type { Metadata } from "next";
 import { getFormatter, getTranslations } from "next-intl/server";
 
@@ -19,6 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { AuditPurgeDialog } from "@/features/audit/components/audit-purge-dialog";
 import { parseAuditFilters } from "@/features/audit/schemas";
 import { getAuditActors, listAuditLogs } from "@/features/audit/service";
 import { Link } from "@/i18n/navigation";
@@ -34,11 +35,17 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t("title") };
 }
 
-/** Filterable, read-only audit trail (FR-AUD-03/04). */
+/**
+ * Filterable audit trail (FR-AUD-03/04). The Owner can delete a past date
+ * range after downloading it, in a dialog opened by `?purge=1` (FR-AUD-05).
+ */
 export default async function AuditPage({ searchParams }: PageProps<"/[locale]/audit">) {
   const session = await requirePermission("page:audit");
   await requirePermission("audit:view");
-  const filters = parseAuditFilters(await searchParams);
+  const raw = await searchParams;
+  const filters = parseAuditFilters(raw);
+  const first = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value);
+  const canPurge = session.role.isSystem;
   const [t, format, actors, page] = await Promise.all([
     getTranslations("Audit"),
     getFormatter(),
@@ -57,7 +64,23 @@ export default async function AuditPage({ searchParams }: PageProps<"/[locale]/a
 
   return (
     <>
-      <PageHeader title={t("title")} description={t("subtitle")} />
+      <PageHeader
+        title={t("title")}
+        description={t("subtitle")}
+        actions={
+          canPurge ? (
+            <Button asChild variant="secondary">
+              <Link
+                href={{ pathname: "/audit", query: { ...activeFilters, purge: "1" } }}
+                scroll={false}
+              >
+                <Trash2 aria-hidden="true" />
+                {t("purgeOpen")}
+              </Link>
+            </Button>
+          ) : undefined
+        }
+      />
 
       <Card className="mb-6">
         <FilterForm
@@ -200,6 +223,14 @@ export default async function AuditPage({ searchParams }: PageProps<"/[locale]/a
           ) : null}
         </div>
       </Card>
+      {canPurge && first(raw.purge) === "1" ? (
+        <AuditPurgeDialog
+          session={session}
+          from={first(raw.purgeFrom) ?? ""}
+          to={first(raw.purgeTo) ?? ""}
+          closeHref={{ pathname: "/audit", query: activeFilters }}
+        />
+      ) : null}
     </>
   );
 }
@@ -221,6 +252,7 @@ const ENTITIES = new Set<string>([
   "kasbon",
   "online-order",
   "archive-batch",
+  "audit-purge",
 ]);
 
 function isEntity(value: string): value is EntityKey {

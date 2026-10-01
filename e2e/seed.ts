@@ -11,6 +11,8 @@ import { eq } from "drizzle-orm";
 
 import { db } from "@/db/client";
 import {
+  auditLogs,
+  auditPurges,
   brands,
   payments,
   sessions,
@@ -24,7 +26,7 @@ import {
 } from "@/db/schema";
 import { seed } from "@/db/seed";
 
-import { accounts, E2E_BRAND, EXTREME_SALE_ID } from "./accounts";
+import { accounts, E2E_BRAND, EXTREME_SALE_ID, OLD_AUDIT_DAY } from "./accounts";
 
 await seed(db, {
   owner: accounts.owner,
@@ -151,5 +153,20 @@ if (owner) {
     await db.insert(payments).values({ saleId: EXTREME_SALE_ID, method: "CASH", amount: subtotal });
   }
 }
+
+/** Three old audit entries for the purge test, restored on every run (FR-AUD-05). */
+await db.delete(auditPurges).where(eq(auditPurges.fromDate, OLD_AUDIT_DAY));
+await db
+  .insert(auditLogs)
+  .values(
+    ["03:00", "04:00", "05:00"].map((time, index) => ({
+      id: `0199a000-0000-7000-8000-00000000d00${String(index + 1)}`,
+      actorId: null,
+      action: "auth.logout",
+      entity: "user",
+      createdAt: new Date(`${OLD_AUDIT_DAY}T${time}:00Z`),
+    })),
+  )
+  .onConflictDoNothing();
 
 await db.$client.end();

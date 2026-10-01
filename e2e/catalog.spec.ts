@@ -70,10 +70,16 @@ test.describe("brands & products (FR-CAT-02, FR-PRD)", () => {
     const row = page.getByRole("row", { name: new RegExp(`Kopi Susu ${run}`) });
     await expect(row).toContainText(/Rp\s18\.000 \/ m/);
     await expect(row.getByText("Stok menipis")).toBeVisible();
-    await expect(row).toContainText(brand);
     await expect(row).toContainText("3D Catur");
     await expect(row).toContainText("2,5mm");
     await expect(row).toContainText("Roll · dipotong per ukuran");
+
+    const brandGroup = page.getByRole("button", { name: new RegExp(`^${brand}\\s*1 produk`) });
+    await expect(brandGroup).toHaveAttribute("aria-expanded", "true");
+    await brandGroup.click();
+    await expect(row).toHaveCount(0);
+    await brandGroup.click();
+    await expect(row).toBeVisible();
 
     await page.goto(`/id/products?q=${encodeURIComponent(`kopi susu ${run}`)}`);
     await expect(page.getByRole("row", { name: new RegExp(`Kopi Susu ${run}`) })).toBeVisible();
@@ -81,6 +87,11 @@ test.describe("brands & products (FR-CAT-02, FR-PRD)", () => {
     await row.getByRole("link").first().click();
     await expect(page.getByLabel("Harga 100cm x 140cm")).toHaveValue("20.000");
     await expect(page.getByLabel("Ketebalan (mm)")).toHaveValue("2,5");
+
+    await page.goto("/id/products");
+    const products = page.getByRole("table", { name: "Daftar produk" });
+    await expect(products.getByRole("button", { expanded: true })).toHaveCount(0);
+    await expect(products.getByRole("button", { expanded: false }).first()).toBeVisible();
   });
 
   test("rejects a duplicate SKU", async ({ page }) => {

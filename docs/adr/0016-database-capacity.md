@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-09-26
-- Requirements: PRD §3.13, FR-CAP-01..04, FR-DSH-01
+- Requirements: PRD §3.13, FR-CAP-01..05, FR-DSH-01
 
 ## Context
 
@@ -28,3 +28,11 @@ catalogue.
 
 - Archiving (ADR-0015) marks rows but frees no space; if the database keeps
   growing, deleting archived rows is the follow-up.
+
+## Amendment (2026-10-01): manual refresh
+
+- The capacity card has a "Perbarui" button (FR-CAP-05). It measures again
+  right away and restarts the one-hour cache, so the hourly refresh keeps
+  running. A click within 10 seconds of the last reading reuses that
+  reading. The result shows as a new "Diperiksa pukul" time, with no
+  pop-up.

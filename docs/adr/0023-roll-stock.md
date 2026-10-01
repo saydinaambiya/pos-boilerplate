@@ -1,6 +1,6 @@
 # ADR-0023: Rolls cut into pieces
 
-- Status: Accepted
+- Status: Accepted, amended by [ADR-0038](./0038-grouped-product-and-stock-lists.md)
 - Date: 2026-09-29
 - Requirements: PRD §3.1.2 FR-ROL-01..04, FR-PRD-01/04/06, FR-STK-01; BRD BR-28, BR-29, Q-12..Q-15
 - Supersedes: the one-size-per-product part of [ADR-0021](./0021-product-details.md)

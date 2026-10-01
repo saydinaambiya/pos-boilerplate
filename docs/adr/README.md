@@ -28,7 +28,7 @@ Records are immutable once accepted; a new record supersedes an old one.
 | [0020](./0020-field-sales-consignments.md)             | Field sales consignments                                   | Accepted        |
 | [0021](./0021-product-details.md)                      | Product brand, motif and size                              | Amended by 0023 |
 | [0022](./0022-remove-categories.md)                    | Remove product categories in favour of brands              | Accepted        |
-| [0023](./0023-roll-stock.md)                           | Rolls cut into pieces                                      | Accepted        |
+| [0023](./0023-roll-stock.md)                           | Rolls cut into pieces                                      | Amended by 0038 |
 | [0024](./0024-consignment-roles.md)                    | Store staff record salespeople's goods                     | Accepted        |
 | [0025](./0025-qris-and-marketplace-prices.md)          | QRIS payments and marketplace prices                       | Accepted        |
 | [0026](./0026-listed-motifs-colours-and-defects.md)    | Listed motifs and colours, and defect pieces               | Amended by 0034 |
@@ -43,3 +43,5 @@ Records are immutable once accepted; a new record supersedes an old one.
 | [0035](./0035-installments-at-the-cashier.md)          | Store credit payments settle at the cashier                | Amended by 0036 |
 | [0036](./0036-no-transactions-after-hours.md)          | No transactions after hours, with a way to close the shift | Accepted        |
 | [0037](./0037-owner-password-recovery.md)              | Owner password change and recovery                         | Accepted        |
+| [0038](./0038-grouped-product-and-stock-lists.md)      | Grouped product and stock lists, with a minimum for 93×47  | Accepted        |
+| [0039](./0039-audit-log-purge.md)                      | Audit log purge after a CSV download                       | Accepted        |
