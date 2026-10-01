@@ -1,3 +1,4 @@
+import { E2E_BRAND } from "./accounts";
 import { expect, test } from "./fixtures";
 import { choose, cutPieces, expectResult, fillProductDetails } from "./helpers";
 
@@ -110,7 +111,7 @@ test.describe("stock ledger (FR-STK)", () => {
     ).toHaveCount(1);
 
     await page.goto(`/id/stock?q=${sku}&defect=1`);
-    await expect(page.getByRole("row")).toHaveCount(3);
+    await expect(page.getByRole("row")).toHaveCount(4);
     await expect(
       page.getByRole("row", { name: new RegExp(`${product} · Red · 93cm x 47cm · Cacat`) }),
     ).toContainText("1");
@@ -128,8 +129,12 @@ test.describe("stock ledger (FR-STK)", () => {
     await expect(dialog.getByRole("alert")).toHaveText("Roll tidak cukup. Butuh 4m, tersisa 2,5m.");
   });
 
-  test("folds a roll's pieces under its row (FR-STK-08)", async ({ page }) => {
+  test("groups stock per brand and folds a roll's pieces under its row (FR-STK-08)", async ({
+    page,
+  }) => {
     await page.goto(`/id/stock?q=${sku}`);
+    const brand = page.getByRole("button", { name: new RegExp(`^${E2E_BRAND}\\s*1 item`) });
+    await expect(brand).toHaveAttribute("aria-expanded", "true");
     const toggle = page.getByRole("button", { name: new RegExp(`^Potongan ${product} · Red`) });
     const piece = page.getByRole("link", {
       name: `Buka stok ${product} · Red · 93cm x 47cm`,
@@ -143,6 +148,29 @@ test.describe("stock ledger (FR-STK)", () => {
     await expect(
       page.getByRole("link", { name: `Buka stok ${product} · Red · Roll`, exact: true }),
     ).toBeVisible();
+    await brand.click();
+    await expect(
+      page.getByRole("link", { name: `Buka stok ${product} · Red · Roll`, exact: true }),
+    ).toHaveCount(0);
+  });
+
+  test("groups rolls per brand with colour and pieces on Cut Rolls (FR-ROL-03)", async ({
+    page,
+  }) => {
+    await page.goto(`/id/cutting?q=${encodeURIComponent(product)}`);
+    const rolls = page.getByRole("table", { name: "Daftar roll" });
+    const roll = rolls.getByRole("row", { name: new RegExp(`Potong ${product} · Red`) });
+    await expect(roll).toContainText("Red");
+    const toggle = rolls.getByRole("button", { name: new RegExp(`^Potongan ${product} · Red`) });
+    await expect(toggle).toHaveAttribute("aria-expanded", "true");
+    await expect(rolls.getByRole("row", { name: /93cm x 47cm/ }).first()).toContainText("pcs");
+    await toggle.click();
+    await expect(rolls.getByRole("row", { name: /93cm x 47cm/ })).toHaveCount(0);
+
+    await page.goto("/id/cutting");
+    await expect(
+      page.getByRole("table", { name: "Daftar roll" }).getByRole("button", { expanded: true }),
+    ).toHaveCount(0);
   });
 
   test("starts on stock with a minimum, folded, and remembers unticking it (FR-STK-09)", async ({

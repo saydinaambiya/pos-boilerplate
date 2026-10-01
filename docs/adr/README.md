@@ -43,5 +43,6 @@ Records are immutable once accepted; a new record supersedes an old one.
 | [0035](./0035-installments-at-the-cashier.md)          | Store credit payments settle at the cashier                | Amended by 0036 |
 | [0036](./0036-no-transactions-after-hours.md)          | No transactions after hours, with a way to close the shift | Accepted        |
 | [0037](./0037-owner-password-recovery.md)              | Owner password change and recovery                         | Accepted        |
-| [0038](./0038-grouped-product-and-stock-lists.md)      | Grouped product and stock lists, with a minimum for 93×47  | Accepted        |
+| [0038](./0038-grouped-product-and-stock-lists.md)      | Grouped product and stock lists, with a minimum for 93×47  | Amended by 0040 |
 | [0039](./0039-audit-log-purge.md)                      | Audit log purge after a CSV download                       | Accepted        |
+| [0040](./0040-brand-first-stock-and-cutting-lists.md)  | Brand-first stock and cutting lists, colours on products   | Accepted        |

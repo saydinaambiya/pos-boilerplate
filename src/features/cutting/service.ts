@@ -9,7 +9,14 @@ import { assertPermission } from "@/lib/auth/authorize";
 import type { Session } from "@/lib/auth/session";
 import type { RequestContext } from "@/lib/http/request-context";
 
-import { cutExists, findRoll, listRollPieces, queryRecentCuts, queryRolls } from "./repository";
+import {
+  cutExists,
+  findRoll,
+  listPiecesOfRolls,
+  listRollPieces,
+  queryRecentCuts,
+  queryRolls,
+} from "./repository";
 import type { CutRollInput, RollFilters } from "./schemas";
 
 export const ROLL_PAGE_SIZE = 100;
@@ -26,9 +33,15 @@ class CutAbort extends Error {
   }
 }
 
+/** Active rolls, each with its active pieces (FR-ROL-03, ADR-0040). */
 export async function getRolls(session: Session, filters: RollFilters) {
   assertPermission(session, "page:cutting");
-  return queryRolls(filters, ROLL_PAGE_SIZE);
+  const rolls = await queryRolls(filters, ROLL_PAGE_SIZE);
+  const pieces = await listPiecesOfRolls(rolls.map((roll) => roll.id));
+  return rolls.map((roll) => ({
+    ...roll,
+    pieces: pieces.filter((piece) => piece.parentId === roll.id),
+  }));
 }
 
 /** A roll with its pieces, for the cut form. */

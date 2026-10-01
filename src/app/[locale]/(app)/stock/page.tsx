@@ -1,4 +1,4 @@
-import { Boxes } from "lucide-react";
+import { Boxes, Tag } from "lucide-react";
 import type { Metadata } from "next";
 import { getLocale, getTranslations } from "next-intl/server";
 
@@ -17,7 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { TableGroup } from "@/components/ui/table-group";
+import { TableGroup, TableSubGroup } from "@/components/ui/table-group";
 import { StockCell } from "@/features/catalog/components/stock-cell";
 import { stockFilters } from "@/features/stock/schemas";
 import { formatSize } from "@/features/catalog/sizes";
@@ -33,10 +33,11 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * Stock grouped per product, motif and colour with search, a low-stock, a
- * defect and a minimum-set filter (FR-STK-07/08/09, FR-ROL-05): each roll
- * in meters, its pieces folded under it and shown on a click or once a
- * search or filter is applied (ADR-0023, ADR-0038). A plain visit starts
+ * Stock grouped per brand, then product, motif and colour, with search, a
+ * low-stock, a defect and a minimum-set filter (FR-STK-07/08/09,
+ * FR-ROL-05): brands start closed, each roll in meters with its pieces
+ * folded under it, all shown on a click or once a search or filter is
+ * applied (ADR-0023, ADR-0038, ADR-0040). A plain visit starts
  * with only stock that has a minimum; unticking it sends `minimum=0`, so
  * the hidden field keeps the choice in the URL.
  */
@@ -64,6 +65,9 @@ export default async function StockPage({ searchParams }: PageProps<"/[locale]/s
   const searched = filters.q !== "" || filters.low !== undefined || filters.defect !== undefined;
   const filtered = searched || filters.minimum !== undefined;
   const changed = searched || filters.minimum === undefined;
+  const brandGroups = Object.values(
+    Object.groupBy(page.groups, (group) => group.brandId ?? ""),
+  ).filter((group) => group !== undefined);
   const query = (pageNumber: number) => ({
     ...(filters.q ? { q: filters.q } : {}),
     ...(filters.low ? { low: filters.low } : {}),
@@ -150,88 +154,111 @@ export default async function StockPage({ searchParams }: PageProps<"/[locale]/s
                 <TableHead className="text-right">{t("minStock")}</TableHead>
               </TableRow>
             </TableHeader>
-            {page.groups.map((group) => {
-              const name = stockItemLabel(group, t("defect"));
+            {brandGroups.map((brandGroup) => {
+              const brand = brandGroup[0]?.brandName ?? t("noBrand");
               return (
                 <TableGroup
-                  key={`${group.variantId}-${String(searched)}`}
+                  key={`${brandGroup[0]?.brandId ?? "none"}-${String(searched)}`}
                   defaultOpen={searched}
-                  toggleLabel={t("togglePieces", {
-                    name: variantLabel(group.productName, group.colorName),
-                    count: group.pieces.length,
-                  })}
-                  lead={group.brandName ?? "—"}
-                  cells={
+                  leadColSpan={6}
+                  className="bg-surface-muted/60"
+                  toggleLabel={t("toggleBrand", { brand })}
+                  toggleContent={
                     <>
-                      <TableCell className="font-medium">
-                        <Link
-                          href={`/stock/${group.variantId}`}
-                          aria-label={t("open", { name })}
-                          className="underline-offset-4 hover:underline"
-                        >
-                          {group.productName}
-                        </Link>
-                        <span className="block text-xs font-normal text-ink-muted">
-                          {group.isRoll ? t("rollUnit") : group.unit}
-                        </span>
-                      </TableCell>
-                      <TableCell>{group.motif ?? "—"}</TableCell>
-                      <TableCell>{group.colorName ?? "—"}</TableCell>
-                      <TableCell>
-                        <StockCell
-                          trackStock
-                          stockQty={group.stockQty}
-                          minStock={group.minStock}
-                          low={group.stockQty <= group.minStock}
-                          label={amount(group, group.stockQty)}
-                        />
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {amount(group, group.minStock)}
-                      </TableCell>
+                      <Tag aria-hidden="true" className="size-4 shrink-0 text-primary" />
+                      <span>{brand}</span>
+                      <span className="text-xs font-normal text-ink-muted">
+                        {t("brandGroup", { count: brandGroup.length })}
+                      </span>
                     </>
                   }
                 >
-                  {group.pieces.length > 0
-                    ? group.pieces.map((piece) => (
-                        <TableRow key={piece.variantId} className="bg-surface-muted/40">
-                          <TableCell />
-                          <TableCell className="pl-8 font-medium">
-                            <Link
-                              href={`/stock/${piece.variantId}`}
-                              aria-label={t("open", { name: stockItemLabel(piece, t("defect")) })}
-                              className="underline-offset-4 hover:underline"
-                            >
-                              {[
-                                piece.size ? formatSize(piece.size) : piece.sku,
-                                piece.isDefect ? t("defect") : null,
-                              ]
-                                .filter(Boolean)
-                                .join(" · ")}
-                            </Link>
-                            <span className="block text-xs font-normal text-ink-muted">
-                              {"pcs"}
-                            </span>
-                          </TableCell>
-                          <TableCell />
-                          <TableCell />
-                          <TableCell>
-                            <StockCell
-                              trackStock
-                              stockQty={piece.stockQty}
-                              minStock={piece.minStock}
-                              low={piece.minStock > 0 && piece.stockQty <= piece.minStock}
-                              label={String(piece.stockQty)}
-                            />
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums">
-                            {piece.minStock > 0 || takesPieceMinimum(piece)
-                              ? String(piece.minStock)
-                              : "—"}
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    : null}
+                  {brandGroup.map((group) => {
+                    const name = stockItemLabel(group, t("defect"));
+                    return (
+                      <TableSubGroup
+                        key={`${group.variantId}-${String(searched)}`}
+                        defaultOpen={searched}
+                        toggleLabel={t("togglePieces", {
+                          name: variantLabel(group.productName, group.colorName),
+                          count: group.pieces.length,
+                        })}
+                        cells={
+                          <>
+                            <TableCell className="font-medium">
+                              <Link
+                                href={`/stock/${group.variantId}`}
+                                aria-label={t("open", { name })}
+                                className="underline-offset-4 hover:underline"
+                              >
+                                {group.productName}
+                              </Link>
+                              <span className="block text-xs font-normal text-ink-muted">
+                                {group.isRoll ? t("rollUnit") : group.unit}
+                              </span>
+                            </TableCell>
+                            <TableCell>{group.motif ?? "—"}</TableCell>
+                            <TableCell>{group.colorName ?? "—"}</TableCell>
+                            <TableCell>
+                              <StockCell
+                                trackStock
+                                stockQty={group.stockQty}
+                                minStock={group.minStock}
+                                low={group.stockQty <= group.minStock}
+                                label={amount(group, group.stockQty)}
+                              />
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums">
+                              {amount(group, group.minStock)}
+                            </TableCell>
+                          </>
+                        }
+                      >
+                        {group.pieces.length > 0
+                          ? group.pieces.map((piece) => (
+                              <TableRow key={piece.variantId} className="bg-surface-muted/40">
+                                <TableCell />
+                                <TableCell className="pl-8 font-medium">
+                                  <Link
+                                    href={`/stock/${piece.variantId}`}
+                                    aria-label={t("open", {
+                                      name: stockItemLabel(piece, t("defect")),
+                                    })}
+                                    className="underline-offset-4 hover:underline"
+                                  >
+                                    {[
+                                      piece.size ? formatSize(piece.size) : piece.sku,
+                                      piece.isDefect ? t("defect") : null,
+                                    ]
+                                      .filter(Boolean)
+                                      .join(" · ")}
+                                  </Link>
+                                  <span className="block text-xs font-normal text-ink-muted">
+                                    {"pcs"}
+                                  </span>
+                                </TableCell>
+                                <TableCell />
+                                <TableCell>{piece.colorName ?? "—"}</TableCell>
+                                <TableCell>
+                                  <StockCell
+                                    trackStock
+                                    stockQty={piece.stockQty}
+                                    minStock={piece.minStock}
+                                    low={piece.minStock > 0 && piece.stockQty <= piece.minStock}
+                                    label={String(piece.stockQty)}
+                                  />
+                                </TableCell>
+                                <TableCell className="text-right tabular-nums">
+                                  {piece.minStock > 0 || takesPieceMinimum(piece)
+                                    ? String(piece.minStock)
+                                    : "—"}
+                                </TableCell>
+                              </TableRow>
+                            ))
+                          : null}
+                      </TableSubGroup>
+                    );
+                  })}
                 </TableGroup>
               );
             })}
