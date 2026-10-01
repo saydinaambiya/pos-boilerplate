@@ -123,7 +123,8 @@ function productQuery() {
 
 /**
  * One page of products with their default variant and stock totals across
- * active variants. Search matches product name, SKU and colour name via the
+ * active variants, by brand then name so the list groups per brand,
+ * unbranded last. Search matches product name, SKU and colour name via the
  * trigram indexes on `lower(...)`, plus brand and motif (FR-PRD-04,
  * FR-PRD-06, FR-VAR-07).
  */
@@ -156,7 +157,12 @@ export async function queryProducts(filters: ProductFilters, pageSize: number) {
 
   return productQuery()
     .where(and(...conditions))
-    .orderBy(asc(products.name), asc(products.id))
+    .orderBy(
+      sql`lower(${brands.name}) ASC NULLS LAST`,
+      asc(products.brandId),
+      asc(products.name),
+      asc(products.id),
+    )
     .limit(pageSize + 1)
     .offset((filters.page - 1) * pageSize);
 }

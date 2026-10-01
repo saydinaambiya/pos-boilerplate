@@ -19,6 +19,16 @@ test.describe("housekeeping (FR-HK)", () => {
     await expect(page.getByLabel("Tampilkan data arsip")).toBeChecked();
   });
 
+  test("refreshes the capacity card on the dashboard on request (FR-CAP-05)", async ({ page }) => {
+    await page.goto("/id/dashboard");
+    const card = page.locator("section").filter({ has: page.getByRole("meter") });
+    await expect(card.getByText(/diperbarui otomatis tiap jam/)).toBeVisible();
+    await card.getByRole("button", { name: "Perbarui" }).click();
+    await expect(card.getByRole("button", { name: "Perbarui" })).toBeEnabled();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(card.getByRole("meter", { name: "Kapasitas database" })).toBeVisible();
+  });
+
   test("a month that is too recent cannot be downloaded", async ({ page }) => {
     const response = await page.request.get("/api/v1/housekeeping/2099-01");
     expect(response.status()).toBe(404);

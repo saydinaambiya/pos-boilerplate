@@ -1,8 +1,12 @@
+import { RefreshCw } from "lucide-react";
 import { getFormatter, getLocale, getTranslations } from "next-intl/server";
 
+import { ActionForm } from "@/components/form/action-form";
+import { SubmitButton } from "@/components/form/submit-button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Chip } from "@/components/ui/chip";
 
+import { refreshCapacityAction } from "../actions";
 import type { CapacitySnapshot } from "../service";
 
 const tones = { ok: "success", info: "info", warning: "warning", critical: "danger" } as const;
@@ -15,8 +19,9 @@ const bars = {
 
 /**
  * Database usage against the quota with the largest tables, named in plain
- * words, as housekeeping hints (FR-CAP-02/04, FR-DSH-01). The bar is an SVG so it needs no inline
- * style under the nonce CSP.
+ * words, as housekeeping hints (FR-CAP-02/04, FR-DSH-01). It refreshes
+ * itself hourly and on the refresh button (FR-CAP-05). The bar is an SVG so
+ * it needs no inline style under the nonce CSP.
  */
 export async function CapacityWidget({ capacity }: { capacity: CapacitySnapshot }) {
   const [t, format, locale] = await Promise.all([
@@ -40,7 +45,15 @@ export async function CapacityWidget({ capacity }: { capacity: CapacitySnapshot 
     <Card className="mb-6 flex flex-col gap-3">
       <CardHeader>
         <CardTitle>{t("title")}</CardTitle>
-        <Chip tone={tones[capacity.level]}>{t(`levels.${capacity.level}`)}</Chip>
+        <span className="flex items-center gap-2">
+          <Chip tone={tones[capacity.level]}>{t(`levels.${capacity.level}`)}</Chip>
+          <ActionForm action={refreshCapacityAction} locale={locale} successDialog={false}>
+            <SubmitButton variant="ghost" size="sm">
+              <RefreshCw aria-hidden="true" />
+              {t("refresh")}
+            </SubmitButton>
+          </ActionForm>
+        </span>
       </CardHeader>
       <div
         role="meter"

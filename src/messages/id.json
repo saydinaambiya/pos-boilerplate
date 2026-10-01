@@ -343,7 +343,8 @@
       "voucher": "Voucher",
       "kasbon": "Kas bon",
       "online-order": "Pesanan online",
-      "archive-batch": "Batch arsip"
+      "archive-batch": "Batch arsip",
+      "audit-purge": "Penghapusan audit log"
     },
     "actions": {
       "auth_login_succeeded": "Login berhasil",
@@ -381,6 +382,7 @@
       "product_activated": "Produk diaktifkan",
       "product_deactivated": "Produk dinonaktifkan",
       "stock_moved": "Stok berubah",
+      "stock_minimum-set": "Stok minimum diubah",
       "product_variants-enabled": "Varian warna diaktifkan",
       "variant_created": "Varian ditambah",
       "variant_updated": "Varian diubah",
@@ -419,8 +421,35 @@
       "auth_password_recovered": "Password dipulihkan dengan kode",
       "auth_password_recovery-failed": "Pemulihan password gagal",
       "auth_password_reset": "Password Owner direset developer",
-      "auth_recovery-codes_generated": "Kode pemulihan dibuat"
-    }
+      "auth_recovery-codes_generated": "Kode pemulihan dibuat",
+      "audit_exported": "Audit log diunduh",
+      "audit_purged": "Audit log dihapus"
+    },
+    "purgeOpen": "Hapus log lama",
+    "purgeTitle": "Hapus audit log lama",
+    "purgeDescription": "Pilih rentang tanggal, unduh CSV-nya dulu, lalu hapus. Log hari ini tidak bisa dihapus.",
+    "purgeFrom": "Dari tanggal",
+    "purgeTo": "Sampai tanggal",
+    "purgeChooseRange": "Pilih tanggal awal dan akhir. Paling akhir kemarin.",
+    "purgeSummary": "{count, plural, =0 {Tidak ada log} other {# log}} dari {from} sampai {to}.",
+    "purgeStepDownload": "1. Unduh CSV",
+    "purgeNotDownloaded": "Belum diunduh",
+    "purgeDownloadedAt": "Diunduh {time}",
+    "purgeDownload": "Unduh CSV",
+    "purgeDownloading": "Mengunduh…",
+    "purgeDownloaded": "CSV sudah diunduh. Sekarang log bisa dihapus.",
+    "purgeDownloadFailed": "CSV gagal diunduh. Coba lagi.",
+    "purgeStepDelete": "2. Hapus log",
+    "purgeDelete": "Hapus {count} log",
+    "purgeLocked": "Unduh CSV dulu sebelum menghapus.",
+    "purgeConfirmDescription": "Log dari {from} sampai {to} dihapus permanen dan tidak bisa dikembalikan. Pastikan file CSV-nya sudah disimpan.",
+    "purged": "{count} log dihapus.",
+    "purgeErrorRange": "Rentang tidak valid. Pilih tanggal sebelum hari ini, dengan tanggal awal tidak setelah tanggal akhir.",
+    "purgeErrorNotExported": "Unduh CSV rentang ini dulu sebelum menghapus.",
+    "purgeErrorChanged": "Isi log berubah sejak diunduh. Unduh CSV lagi.",
+    "purgeErrorEmpty": "Tidak ada log di rentang ini.",
+    "purgeConfirmCheck": "Saya sudah menyimpan file CSV-nya",
+    "purgeErrorConfirm": "Centang dulu bahwa file CSV sudah disimpan."
   },
   "Settings": {
     "title": "Pengaturan",
@@ -434,7 +463,7 @@
     "save": "Simpan",
     "saved": "Pengaturan disimpan.",
     "readOnly": "Anda hanya dapat melihat pengaturan ini.",
-    "brandNote": "Nama aplikasi, nama toko, logo, dan tampilan diatur developer di src/config/app.config.ts.",
+    "brandNote": "Nama aplikasi, nama toko, logo, dan tampilan diatur developer",
     "address": "Alamat",
     "phone": "Telepon",
     "phoneHint": "Format internasional, contoh +6281234567890.",
@@ -642,19 +671,21 @@
     "otherColor": "Tulis warna lain",
     "defectPrices": "Harga barang cacat per potong",
     "defectPricesHint": "Untuk potongan yang ditandai cacat saat dipotong. Sama untuk semua warna.",
-    "defectPrice": "Harga cacat {size}"
+    "defectPrice": "Harga cacat {size}",
+    "noBrand": "Tanpa merk",
+    "brandGroup": "{count, plural, other {# produk}}",
+    "toggleBrand": "Tampilkan atau sembunyikan produk {brand}"
   },
   "Stock": {
     "title": "Stok",
-    "subtitle": "Stok per varian dan riwayat pergerakannya.",
+    "subtitle": "Stok per produk, motif, dan warna. Klik panah untuk melihat potongannya.",
     "search": "Cari",
-    "searchPlaceholder": "Nama produk atau SKU",
+    "searchPlaceholder": "Produk, merk, motif, warna, atau SKU",
     "lowOnly": "Hanya stok menipis",
     "filter": "Terapkan",
     "reset": "Reset",
     "listCaption": "Daftar stok",
     "product": "Produk",
-    "sku": "SKU",
     "stock": "Stok",
     "minStock": "Minimum",
     "lowStock": "Stok menipis",
@@ -726,7 +757,18 @@
     "errorCutOnly": "Stok potongan hanya bertambah lewat Potong Roll.",
     "cutThisRoll": "Potong roll ini",
     "defect": "Cacat",
-    "defectOnly": "Hanya stok cacat"
+    "defectOnly": "Hanya stok cacat",
+    "motif": "Motif",
+    "color": "Warna",
+    "rollUnit": "Roll (m)",
+    "togglePieces": "Potongan {name} ({count})",
+    "minimumOnly": "Hanya yang ada stok minimum",
+    "pieceMinimumTitle": "Stok minimum",
+    "pieceMinimumDescription": "Ukuran 93cm x 47cm harus selalu ada. Diberi tanda stok menipis bila jumlahnya sampai di angka ini.",
+    "pieceMinimum": "Stok minimum (pcs)",
+    "pieceMinimumHint": "Isi 0 bila tidak perlu diingatkan.",
+    "saveMinimum": "Simpan minimum",
+    "minimumSaved": "Stok minimum disimpan: {qty} pcs."
   },
   "Variants": {
     "title": "Varian warna",
@@ -1634,7 +1676,7 @@
     "title": "Kapasitas database",
     "usage": "{used} dari {limit} terpakai ({percent}%)",
     "largestTables": "Data yang paling banyak memakai ruang",
-    "checkedAt": "Diperiksa pukul {time}; diperbarui tiap jam.",
+    "checkedAt": "Diperiksa pukul {time}; diperbarui otomatis tiap jam.",
     "levels": {
       "ok": "Aman",
       "info": "Perhatian",
@@ -1676,7 +1718,8 @@
       "voucher_revisions": "Riwayat voucher",
       "vouchers": "Voucher",
       "other": "Data lainnya"
-    }
+    },
+    "refresh": "Perbarui"
   },
   "Feedback": {
     "successTitle": "Berhasil",

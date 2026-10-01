@@ -29,11 +29,12 @@ import { StockCell } from "@/features/catalog/components/stock-cell";
 import {
   countStockAction,
   receiveStockAction,
+  setPieceMinimumAction,
   writeOffStockAction,
 } from "@/features/stock/actions";
 import { ShowArchivedField } from "@/features/housekeeping/components/show-archived-field";
 import { movementFilters } from "@/features/stock/schemas";
-import { getMovements, getVariantStock } from "@/features/stock/service";
+import { getMovements, getVariantStock, takesPieceMinimum } from "@/features/stock/service";
 import { Link } from "@/i18n/navigation";
 import { requirePermission } from "@/lib/auth/guard";
 import { formatMeters } from "@/lib/format/length";
@@ -48,7 +49,9 @@ export async function generateMetadata(): Promise<Metadata> {
 /**
  * One variant's stock: manual movements and the filtered ledger
  * (FR-STK-01/05/06). A roll counts meters, typed with decimals; its pieces
- * gain stock only by cutting (FR-ROL-03).
+ * gain stock only by cutting (FR-ROL-03). On the 93×47 piece the minimum
+ * stock form takes the goods-received card's place, with the cutting tip
+ * at its foot (FR-STK-09).
  */
 export default async function VariantStockPage({
   params,
@@ -137,21 +140,48 @@ export default async function VariantStockPage({
 
       {canAdjust ? (
         <div className="mb-6 grid gap-6 lg:grid-cols-3">
-          <Card>
-            <CardHeader className="flex-col gap-1">
-              <CardTitle>{t("receiveTitle")}</CardTitle>
-              <CardDescription>
-                {piece ? t("receivePieceDescription") : t("receiveDescription")}
-              </CardDescription>
-            </CardHeader>
-            {piece ? null : (
-              <ActionForm action={receiveStockAction.bind(null, variantId)} locale={locale}>
-                <FormField name="qty" label={quantityLabel} {...quantityProps} />
-                <FormField name="note" label={t("note")} hint={t("noteHint")} maxLength={200} />
-                <SubmitButton className="self-start">{t("receive")}</SubmitButton>
+          {takesPieceMinimum(variant) ? (
+            <Card className="flex flex-col gap-4">
+              <CardHeader className="flex-col gap-1">
+                <CardTitle>{t("pieceMinimumTitle")}</CardTitle>
+                <CardDescription>{t("pieceMinimumDescription")}</CardDescription>
+              </CardHeader>
+              <ActionForm action={setPieceMinimumAction.bind(null, variantId)} locale={locale}>
+                <FormField
+                  name="minStock"
+                  label={t("pieceMinimum")}
+                  hint={t("pieceMinimumHint")}
+                  defaultValue={String(variant.minStock)}
+                  inputMode="numeric"
+                  maxLength={7}
+                  autoComplete="off"
+                  className="max-w-40"
+                />
+                <SubmitButton variant="secondary" className="self-start">
+                  {t("saveMinimum")}
+                </SubmitButton>
               </ActionForm>
-            )}
-          </Card>
+              <p className="mt-auto border-t border-border pt-3 text-xs text-ink-muted">
+                {t("receivePieceDescription")}
+              </p>
+            </Card>
+          ) : (
+            <Card>
+              <CardHeader className="flex-col gap-1">
+                <CardTitle>{t("receiveTitle")}</CardTitle>
+                <CardDescription>
+                  {piece ? t("receivePieceDescription") : t("receiveDescription")}
+                </CardDescription>
+              </CardHeader>
+              {piece ? null : (
+                <ActionForm action={receiveStockAction.bind(null, variantId)} locale={locale}>
+                  <FormField name="qty" label={quantityLabel} {...quantityProps} />
+                  <FormField name="note" label={t("note")} hint={t("noteHint")} maxLength={200} />
+                  <SubmitButton className="self-start">{t("receive")}</SubmitButton>
+                </ActionForm>
+              )}
+            </Card>
+          )}
           <Card>
             <CardHeader className="flex-col gap-1">
               <CardTitle>{t("countTitle")}</CardTitle>

@@ -1,6 +1,22 @@
 import "server-only";
 
-import { and, asc, desc, eq, gte, isNull, like, lt, or, type SQL, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  exists,
+  gt,
+  gte,
+  inArray,
+  isNull,
+  like,
+  lt,
+  or,
+  type SQL,
+  sql,
+} from "drizzle-orm";
+import { alias, type AnyPgColumn } from "drizzle-orm/pg-core";
 
 import { db, type Executor } from "@/db/client";
 import { containsPattern } from "@/db/like";
@@ -69,14 +85,12 @@ export async function insertMovement(
   return row.id;
 }
 
-/** Display order of a piece's roll, so pieces list under their colour. */
-const parentSort = sql`(SELECT "roll"."sort_order" FROM "product_variants" AS "roll" WHERE "roll"."id" = ${productVariants.parentId})`;
-
 const levelColumns = {
   variantId: productVariants.id,
   productId: products.id,
   productName: products.name,
   brandName: brands.name,
+  motif: products.motif,
   unit: products.unit,
   sku: productVariants.sku,
   colorName: sql<string | null>`${productVariants.attributes} -> 'color' ->> 'name'`,
@@ -90,28 +104,68 @@ const levelColumns = {
   isActive: products.isActive,
 };
 
+/** Stock columns of `product_variants` or an alias of it. */
+interface VariantTable {
+  stockQty: AnyPgColumn;
+  minStock: AnyPgColumn;
+  parentId: AnyPgColumn;
+  isDefect: AnyPgColumn;
+}
+
 /** At or below the minimum; a piece only once a minimum is set (ADR-0023). */
-const isLow = sql`(${productVariants.stockQty} <= ${productVariants.minStock} AND (${productVariants.parentId} IS NULL OR ${productVariants.minStock} > 0))`;
+const lowStock = (table: VariantTable) =>
+  sql`(${table.stockQty} <= ${table.minStock} AND (${table.parentId} IS NULL OR ${table.minStock} > 0))`;
+
+const isLow = lowStock(productVariants);
+
+/** The low, defect and minimum filters, applied to one stock row (FR-STK-07/09, FR-ROL-05). */
+function rowConditions(table: VariantTable, filters: StockFilters): SQL[] {
+  const conditions: SQL[] = [];
+  if (filters.low) conditions.push(lowStock(table));
+  if (filters.defect) conditions.push(eq(table.isDefect, true));
+  if (filters.minimum) conditions.push(gt(table.minStock, 0));
+  return conditions;
+}
+
+const piece = alias(productVariants, "piece");
 
 /**
- * Stock levels of active variants of stock-tracked products: rolls and
- * their pieces, each colour's roll first (ADR-0023).
+ * One page of stock groups: a roll or a plain variant of an active,
+ * stock-tracked product, by product name and colour order (FR-STK-08).
+ * The search matches the product, brand, motif, colour or SKU; a group is
+ * listed when it or one of its pieces passes the other filters.
  */
-export async function queryStockLevels(filters: StockFilters, pageSize: number) {
+export async function queryStockGroups(filters: StockFilters, pageSize: number) {
   const conditions: SQL[] = [
     eq(products.trackStock, true),
     eq(products.isActive, true),
     eq(productVariants.isActive, true),
+    isNull(productVariants.parentId),
   ];
-  if (filters.low) conditions.push(isLow);
-  if (filters.defect) conditions.push(eq(productVariants.isDefect, true));
   if (filters.q) {
     const pattern = containsPattern(filters.q);
     const match = or(
       like(sql`lower(${products.name})`, pattern),
+      like(sql`lower(${brands.name})`, pattern),
+      like(sql`lower(${products.motif})`, pattern),
       like(sql`lower(${productVariants.sku})`, pattern),
       like(sql`lower(${productVariants.attributes} -> 'color' ->> 'name')`, pattern),
     );
+    if (match) conditions.push(match);
+  }
+  const own = rowConditions(productVariants, filters);
+  if (own.length > 0) {
+    const matchingPiece = db
+      .select({ id: piece.id })
+      .from(piece)
+      .where(
+        and(
+          eq(piece.parentId, productVariants.id),
+          eq(piece.isActive, true),
+          ...rowConditions(piece, filters),
+        ),
+      );
+    const match = or(and(...own), exists(matchingPiece));
     if (match) conditions.push(match);
   }
   return db
@@ -120,15 +174,32 @@ export async function queryStockLevels(filters: StockFilters, pageSize: number) 
     .innerJoin(products, eq(products.id, productVariants.productId))
     .leftJoin(brands, eq(brands.id, products.brandId))
     .where(and(...conditions))
-    .orderBy(
-      asc(products.name),
-      asc(sql`coalesce(${parentSort}, ${productVariants.sortOrder})`),
-      asc(sql`${productVariants.parentId} IS NOT NULL`),
-      asc(productVariants.sortOrder),
-      asc(productVariants.id),
-    )
+    .orderBy(asc(products.name), asc(productVariants.sortOrder), asc(productVariants.id))
     .limit(pageSize + 1)
     .offset((filters.page - 1) * pageSize);
+}
+
+/** Active pieces of the given rolls that pass the stock filters, in size order (ADR-0023). */
+export async function queryStockPieces(rollIds: readonly string[], filters: StockFilters) {
+  if (rollIds.length === 0) return [];
+  return db
+    .select(levelColumns)
+    .from(productVariants)
+    .innerJoin(products, eq(products.id, productVariants.productId))
+    .leftJoin(brands, eq(brands.id, products.brandId))
+    .where(
+      and(
+        inArray(productVariants.parentId, [...rollIds]),
+        eq(productVariants.isActive, true),
+        ...rowConditions(productVariants, filters),
+      ),
+    )
+    .orderBy(asc(productVariants.sortOrder), asc(productVariants.id));
+}
+
+/** Sets a variant's minimum stock (FR-STK-09). */
+export async function updateMinStock(executor: Executor, variantId: string, minStock: number) {
+  await executor.update(productVariants).set({ minStock }).where(eq(productVariants.id, variantId));
 }
 
 /** Variants at or below their minimum, most depleted first (FR-STK-07). */
@@ -153,8 +224,8 @@ export async function queryLowStock(limit: number) {
     .limit(limit);
 }
 
-export async function findVariantStock(variantId: string) {
-  const [row] = await db
+export async function findVariantStock(variantId: string, executor: Executor = db) {
+  const [row] = await executor
     .select(levelColumns)
     .from(productVariants)
     .innerJoin(products, eq(products.id, productVariants.productId))

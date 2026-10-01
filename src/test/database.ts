@@ -17,7 +17,7 @@ export const fixtures = {
 /** Empties every table and re-seeds the fixtures; call in `beforeEach`. */
 export async function resetDatabase(): Promise<void> {
   await db.execute(
-    sql`TRUNCATE archive_batches, consignment_items, consignment_batches, consignments, online_order_events, online_order_items, online_orders, approvals, kasbons, customers, voucher_revisions, vouchers, idempotency_keys, payments, sale_items, sales, shifts, invoice_counters, audit_logs, sessions, users, role_permissions, roles, settings, bank_accounts, marketplaces, stock_movements, product_variants, products, brands RESTART IDENTITY CASCADE`,
+    sql`TRUNCATE audit_purges, archive_batches, consignment_items, consignment_batches, consignments, online_order_events, online_order_items, online_orders, approvals, kasbons, customers, voucher_revisions, vouchers, idempotency_keys, payments, sale_items, sales, shifts, invoice_counters, audit_logs, sessions, users, role_permissions, roles, settings, bank_accounts, marketplaces, stock_movements, product_variants, products, brands RESTART IDENTITY CASCADE`,
   );
   clearSettingsCache();
   forgetSignIns();

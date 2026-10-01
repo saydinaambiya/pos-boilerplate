@@ -10,6 +10,8 @@ import type { Session } from "@/lib/auth/session";
 import { type CapacityLevel, capacityLevel, usedPercent } from "./levels";
 
 const CACHE_TTL_MS = 60 * 60 * 1000;
+/** A manual refresh within this window reuses the last reading, so repeated clicks stay cheap. */
+const REFRESH_COOLDOWN_MS = 10 * 1000;
 const MB = 1024 * 1024;
 
 export interface CapacitySnapshot {
@@ -63,6 +65,19 @@ async function snapshot(now = Date.now()): Promise<CapacitySnapshot> {
 export async function getCapacity(session: Session) {
   assertPermission(session, "page:housekeeping");
   return snapshot();
+}
+
+/**
+ * Measures again now on request (FR-CAP-05) and restarts the hourly cache,
+ * so the automatic refresh keeps running. Clicks within a few seconds of
+ * the last reading reuse it.
+ */
+export async function refreshCapacity(session: Session, now = Date.now()) {
+  assertPermission(session, "page:housekeeping");
+  if (cached && now - cached.value.checkedAt.getTime() < REFRESH_COOLDOWN_MS) return cached.value;
+  const value = await measure();
+  cached = { value, expiresAt: now + CACHE_TTL_MS };
+  return value;
 }
 
 /**

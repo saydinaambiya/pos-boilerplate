@@ -343,7 +343,8 @@
       "voucher": "Voucher",
       "kasbon": "Store credit",
       "online-order": "Online order",
-      "archive-batch": "Archive batch"
+      "archive-batch": "Archive batch",
+      "audit-purge": "Audit log deletion"
     },
     "actions": {
       "auth_login_succeeded": "Signed in",
@@ -381,6 +382,7 @@
       "product_activated": "Product activated",
       "product_deactivated": "Product deactivated",
       "stock_moved": "Stock changed",
+      "stock_minimum-set": "Minimum stock changed",
       "product_variants-enabled": "Colour variants enabled",
       "variant_created": "Variant added",
       "variant_updated": "Variant updated",
@@ -419,8 +421,35 @@
       "auth_password_recovered": "Password recovered with a code",
       "auth_password_recovery-failed": "Password recovery failed",
       "auth_password_reset": "Owner password reset by the developer",
-      "auth_recovery-codes_generated": "Recovery codes created"
-    }
+      "auth_recovery-codes_generated": "Recovery codes created",
+      "audit_exported": "Audit log downloaded",
+      "audit_purged": "Audit log deleted"
+    },
+    "purgeOpen": "Delete old logs",
+    "purgeTitle": "Delete old audit logs",
+    "purgeDescription": "Choose a date range, download its CSV first, then delete. Today's logs cannot be deleted.",
+    "purgeFrom": "From date",
+    "purgeTo": "To date",
+    "purgeChooseRange": "Choose a start and end date. The latest is yesterday.",
+    "purgeSummary": "{count, plural, =0 {No logs} one {# log} other {# logs}} from {from} to {to}.",
+    "purgeStepDownload": "1. Download CSV",
+    "purgeNotDownloaded": "Not downloaded yet",
+    "purgeDownloadedAt": "Downloaded {time}",
+    "purgeDownload": "Download CSV",
+    "purgeDownloading": "Downloading…",
+    "purgeDownloaded": "CSV downloaded. The logs can now be deleted.",
+    "purgeDownloadFailed": "The CSV could not be downloaded. Try again.",
+    "purgeStepDelete": "2. Delete logs",
+    "purgeDelete": "Delete {count, plural, one {# log} other {# logs}}",
+    "purgeLocked": "Download the CSV before deleting.",
+    "purgeConfirmDescription": "Logs from {from} to {to} are deleted for good and cannot be restored. Make sure the CSV file is saved.",
+    "purged": "{count, plural, one {# log} other {# logs}} deleted.",
+    "purgeErrorRange": "Invalid range. Choose dates before today, with the start date not after the end date.",
+    "purgeErrorNotExported": "Download this range's CSV before deleting.",
+    "purgeErrorChanged": "The logs changed since the download. Download the CSV again.",
+    "purgeErrorEmpty": "There are no logs in this range.",
+    "purgeConfirmCheck": "I have saved the CSV file",
+    "purgeErrorConfirm": "Tick that the CSV file is saved first."
   },
   "Settings": {
     "title": "Settings",
@@ -434,7 +463,7 @@
     "save": "Save",
     "saved": "Settings saved.",
     "readOnly": "You can only view these settings.",
-    "brandNote": "App name, store name, logo and appearance are set by the developer in src/config/app.config.ts.",
+    "brandNote": "App name, store name, logo and appearance are set by the developer",
     "address": "Address",
     "phone": "Phone",
     "phoneHint": "International format, e.g. +6281234567890.",
@@ -642,19 +671,21 @@
     "otherColor": "Type another colour",
     "defectPrices": "Defect price per piece",
     "defectPricesHint": "For pieces flagged as defect when cut. The same for every colour.",
-    "defectPrice": "Defect price {size}"
+    "defectPrice": "Defect price {size}",
+    "noBrand": "No brand",
+    "brandGroup": "{count, plural, one {# product} other {# products}}",
+    "toggleBrand": "Show or hide {brand} products"
   },
   "Stock": {
     "title": "Stock",
-    "subtitle": "Stock per variant and its movement history.",
+    "subtitle": "Stock per product, motif and colour. Click the arrow to see its pieces.",
     "search": "Search",
-    "searchPlaceholder": "Product name or SKU",
+    "searchPlaceholder": "Product, brand, motif, colour or SKU",
     "lowOnly": "Low stock only",
     "filter": "Apply",
     "reset": "Reset",
     "listCaption": "Stock list",
     "product": "Product",
-    "sku": "SKU",
     "stock": "Stock",
     "minStock": "Minimum",
     "lowStock": "Low stock",
@@ -726,7 +757,18 @@
     "errorCutOnly": "Piece stock only goes up through Cut Rolls.",
     "cutThisRoll": "Cut this roll",
     "defect": "Defect",
-    "defectOnly": "Defect stock only"
+    "defectOnly": "Defect stock only",
+    "motif": "Motif",
+    "color": "Colour",
+    "rollUnit": "Roll (m)",
+    "togglePieces": "Pieces of {name} ({count})",
+    "minimumOnly": "Only stock with a minimum",
+    "pieceMinimumTitle": "Minimum stock",
+    "pieceMinimumDescription": "The 93cm x 47cm size must always be in stock. It is flagged as low stock once it reaches this number.",
+    "pieceMinimum": "Minimum stock (pcs)",
+    "pieceMinimumHint": "Enter 0 to turn the reminder off.",
+    "saveMinimum": "Save minimum",
+    "minimumSaved": "Minimum stock saved: {qty} pcs."
   },
   "Variants": {
     "title": "Colour variants",
@@ -1634,7 +1676,7 @@
     "title": "Database capacity",
     "usage": "{used} of {limit} used ({percent}%)",
     "largestTables": "What uses the most space",
-    "checkedAt": "Checked at {time}; refreshed hourly.",
+    "checkedAt": "Checked at {time}; refreshed automatically every hour.",
     "levels": {
       "ok": "Healthy",
       "info": "Notice",
@@ -1676,7 +1718,8 @@
       "voucher_revisions": "Voucher history",
       "vouchers": "Vouchers",
       "other": "Other data"
-    }
+    },
+    "refresh": "Refresh"
   },
   "Feedback": {
     "successTitle": "Success",

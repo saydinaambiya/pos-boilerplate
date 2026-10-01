@@ -20,12 +20,19 @@ export type ReceiveStockInput = z.infer<typeof receiveStockInput>;
 export type CountStockInput = z.infer<typeof countStockInput>;
 export type WriteOffStockInput = z.infer<typeof writeOffStockInput>;
 
+/** Minimum stock of a 93×47 piece in pcs (FR-STK-09). */
+export const pieceMinimumInput = z.object({ minStock: z.int().min(0).max(1_000_000) }).strict();
+
+export type PieceMinimumInput = z.infer<typeof pieceMinimumInput>;
+
 /** Stock list filters from the query string. */
 export const stockFilters = z.object({
   q: z.string().trim().max(60).catch(""),
   low: z.enum(["1"]).optional().catch(undefined),
   /** Only defect pieces (FR-ROL-05). */
   defect: z.enum(["1"]).optional().catch(undefined),
+  /** Only stock with a minimum set: rolls and 93×47 pieces (FR-STK-09). */
+  minimum: z.enum(["1"]).optional().catch(undefined),
   page: z.coerce.number().int().min(1).max(1000).catch(1),
 });
 

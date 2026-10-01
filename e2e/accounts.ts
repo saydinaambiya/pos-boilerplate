@@ -19,3 +19,6 @@ export const E2E_BRAND = "Merk Uji";
 
 /** Deterministic sale with extreme data for invoice layout tests (FR-INV-03). */
 export const EXTREME_SALE_ID = "0199a000-0000-7000-8000-00000000c005";
+
+/** Store-local day of the seeded audit entries the purge test deletes (FR-AUD-05). */
+export const OLD_AUDIT_DAY = "2020-01-15";

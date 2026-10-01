@@ -1,9 +1,9 @@
 import "server-only";
 
-import { and, asc, desc, eq, gte, lt, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, isNull, lt, type SQL, sql } from "drizzle-orm";
 
-import { db } from "@/db/client";
-import { auditLogs, users } from "@/db/schema";
+import { db, type Executor } from "@/db/client";
+import { auditLogs, auditPurges, users } from "@/db/schema";
 
 export interface AuditQuery {
   actorId?: string;
@@ -55,4 +55,92 @@ export async function listActors() {
     .select({ id: users.id, name: users.name, username: users.username })
     .from(users)
     .orderBy(asc(users.name));
+}
+
+/** A half-open time window `[start, end)` of store-local days. */
+export interface AuditWindow {
+  start: Date;
+  end: Date;
+}
+
+const inWindow = (window: AuditWindow) =>
+  and(gte(auditLogs.createdAt, window.start), lt(auditLogs.createdAt, window.end));
+
+export async function countAuditLogs(executor: Executor, window: AuditWindow) {
+  const [row] = await executor
+    .select({ count: sql<number>`count(*)`.mapWith(Number) })
+    .from(auditLogs)
+    .where(inWindow(window));
+  return row?.count ?? 0;
+}
+
+/** Entries of the window in id order, read in batches so exports stay bounded in memory. */
+export async function* auditRows(window: AuditWindow, batchSize = 1000) {
+  let after: string | null = null;
+  for (;;) {
+    const rows = await db
+      .select({
+        id: auditLogs.id,
+        createdAt: auditLogs.createdAt,
+        actorUsername: users.username,
+        actorName: users.name,
+        action: auditLogs.action,
+        entity: auditLogs.entity,
+        entityId: auditLogs.entityId,
+        diff: auditLogs.diff,
+        ip: auditLogs.ip,
+        userAgent: auditLogs.userAgent,
+        requestId: auditLogs.requestId,
+      })
+      .from(auditLogs)
+      .leftJoin(users, eq(users.id, auditLogs.actorId))
+      .where(and(inWindow(window), after ? gt(auditLogs.id, after) : undefined))
+      .orderBy(asc(auditLogs.id))
+      .limit(batchSize);
+    yield* rows;
+    const last = rows.at(-1);
+    if (rows.length < batchSize || !last) return;
+    after = last.id;
+  }
+}
+
+export async function insertAuditPurge(values: typeof auditPurges.$inferInsert) {
+  const [row] = await db.insert(auditPurges).values(values).returning({ id: auditPurges.id });
+  if (!row) throw new Error("Audit export insert returned no row");
+  return row.id;
+}
+
+/** The latest export of exactly this range that has not been deleted yet, locked when in a transaction. */
+export async function findOpenExport(
+  executor: Executor,
+  fromDate: string,
+  toDate: string,
+  lock = false,
+) {
+  const query = executor
+    .select()
+    .from(auditPurges)
+    .where(
+      and(
+        eq(auditPurges.fromDate, fromDate),
+        eq(auditPurges.toDate, toDate),
+        isNull(auditPurges.purgedAt),
+      ),
+    )
+    .orderBy(desc(auditPurges.exportedAt))
+    .limit(1);
+  const [row] = lock ? await query.for("update") : await query;
+  return row;
+}
+
+/** Deletes the window's entries (FR-AUD-05). */
+export async function deleteAuditLogs(executor: Executor, window: AuditWindow) {
+  await executor.delete(auditLogs).where(inWindow(window));
+}
+
+export async function markPurged(executor: Executor, id: string, by: string, at: Date) {
+  await executor
+    .update(auditPurges)
+    .set({ purgedAt: at, purgedBy: by })
+    .where(eq(auditPurges.id, id));
 }

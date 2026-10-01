@@ -2,8 +2,8 @@
 
 | Atribut         | Nilai              |
 | --------------- | ------------------ |
-| Versi dokumen   | 0.21.0 (draft)     |
-| Tanggal         | 2026-09-30         |
+| Versi dokumen   | 0.23.0 (draft)     |
+| Tanggal         | 2026-10-01         |
 | Pemilik         | Owner              |
 | Status          | Menunggu review    |
 | Dokumen terkait | [PRD.md](./PRD.md) |
@@ -33,6 +33,8 @@
 | 0.19.0 | 2026-09-30 | Cicilan kas bon di kasir tanpa menunggu persetujuan (BR-12, Q-41)                                                                                     |
 | 0.20.0 | 2026-09-30 | Transaksi di luar jam buka ditolak dengan ajakan tutup shift (BR-24, Q-42)                                                                            |
 | 0.21.0 | 2026-09-30 | Pemulihan akun Owner bila lupa password (BR-30, Q-43)                                                                                                 |
+| 0.22.0 | 2026-10-01 | Masukan demo v1.4: produk per merk, stok per produk/motif/warna, roll dan 93×47 harus selalu ada (Q-44)                                               |
+| 0.23.0 | 2026-10-01 | Audit log lama bisa dihapus per rentang tanggal setelah diunduh (Q-45)                                                                                |
 
 ---
 
@@ -288,3 +290,5 @@ Owner pilih rentang (data ≥ 3 bulan) ─▶ Unduh CSV langsung ─▶ Data dit
 | Q-41 | Apakah cicilan kas bon harus menunggu persetujuan?                             | Tidak, bila dicatat pekerja yang sedang buka kasir dan tidak di luar jam kerja. Di luar itu tetap lewat persetujuan.                                                                                  | Diputuskan |
 | Q-42 | Bagaimana jika ada transaksi di luar jam operasional?                          | Ditolak, dengan tombol untuk segera menutup kasir (shift).                                                                                                                                            | Diputuskan |
 | Q-43 | Bagaimana jika Owner lupa password?                                            | Owner menyimpan kode pemulihan untuk membuat password baru sendiri; tanpa email. Bila kodenya juga hilang, developer mereset lewat perintah khusus.                                                   | Diputuskan |
+| Q-44 | Stok apa yang harus selalu ada?                                                | Roll dan potongan 93×47. Keduanya diberi stok minimum dan bisa difilter di halaman stok; ukuran lain tidak.                                                                                           | Diputuskan |
+| Q-45 | Apakah audit log bisa dihapus?                                                 | Ya, oleh Owner per rentang tanggal, kecuali hari ini. File CSV-nya wajib diunduh dulu, baru log bisa dihapus.                                                                                         | Diputuskan |

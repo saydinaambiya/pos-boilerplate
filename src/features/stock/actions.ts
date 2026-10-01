@@ -12,8 +12,20 @@ import { formText } from "@/lib/http/form-data";
 import { currentRequestContext } from "@/lib/http/request-context";
 import { fieldErrors, type FormState, submittedValues } from "@/lib/validation/form-state";
 
-import { countStockInput, receiveStockInput, writeOffStockInput } from "./schemas";
-import { countStock, receiveStock, stockIsRoll, type StockResult, writeOffStock } from "./service";
+import {
+  countStockInput,
+  pieceMinimumInput,
+  receiveStockInput,
+  writeOffStockInput,
+} from "./schemas";
+import {
+  countStock,
+  receiveStock,
+  setPieceMinimum,
+  stockIsRoll,
+  type StockResult,
+  writeOffStock,
+} from "./service";
 
 const variantId = z.uuid();
 
@@ -139,4 +151,21 @@ export async function writeOffStockAction(
   return result.ok
     ? toFormState(result, locale, "qty", roll)
     : { ...(await toFormState(result, locale, "qty", roll)), values };
+}
+
+/** Minimum stock of a 93×47 piece (FR-STK-09). */
+export async function setPieceMinimumAction(
+  id: string,
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const { locale, session, tv, validId, values } = await prepare(id, formData, ["minStock"]);
+  const [t] = await translations(locale);
+  if (!validId) return { status: "error", message: t("errorNotFound") };
+  const parsed = pieceMinimumInput.safeParse({ minStock: integer(formText(formData, "minStock")) });
+  if (!parsed.success) return { status: "error", errors: fieldErrors(parsed.error, tv), values };
+  const result = await setPieceMinimum(session, id, parsed.data, await currentRequestContext());
+  if (!result.ok) return { status: "error", message: t("errorNotFound"), values };
+  revalidatePath("/", "layout");
+  return { status: "success", message: t("minimumSaved", { qty: parsed.data.minStock }) };
 }
