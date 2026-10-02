@@ -1969,7 +1969,7 @@
     "motif": "Motif",
     "color": "Colour",
     "noBrand": "No brand",
-    "brandGroup": "{count, plural, one {# roll} other {# rolls}}",
+    "brandGroup": "{count, plural, one {# product} other {# products}}",
     "toggleBrand": "Show or hide {brand} rolls",
     "togglePieces": "Pieces of {name} ({count})",
     "pieceStock": "{count} pcs",
