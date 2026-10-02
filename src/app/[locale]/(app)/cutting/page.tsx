@@ -141,7 +141,9 @@ export default async function CuttingPage({ searchParams }: PageProps<"/[locale]
                         <Tag aria-hidden="true" className="size-4 shrink-0 text-primary" />
                         <span>{brand}</span>
                         <span className="text-xs font-normal text-ink-muted">
-                          {t("brandGroup", { count: group.length })}
+                          {t("brandGroup", {
+                            count: new Set(group.map((roll) => roll.productId)).size,
+                          })}
                         </span>
                       </>
                     }

@@ -1969,7 +1969,7 @@
     "motif": "Motif",
     "color": "Warna",
     "noBrand": "Tanpa merk",
-    "brandGroup": "{count, plural, other {# roll}}",
+    "brandGroup": "{count, plural, other {# produk}}",
     "toggleBrand": "Tampilkan atau sembunyikan roll {brand}",
     "togglePieces": "Potongan {name} ({count})",
     "pieceStock": "{count} pcs",
