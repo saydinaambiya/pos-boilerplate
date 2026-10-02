@@ -158,13 +158,22 @@ export const variantInput = z
 /** New colour variant with optional opening stock (FR-VAR-01). */
 export const newVariantInput = variantInput.extend({ initialStock: z.int().min(0).max(1_000_000) });
 
-export const productStatuses = ["active", "inactive", "all"] as const;
+/** Order inside each brand on the product and stock lists (ADR-0041). */
+export const listSorts = ["name", "thickness-asc", "thickness-desc"] as const;
+export type ListSort = (typeof listSorts)[number];
+
+/** Sort and thickness filter shared by the product and stock lists (FR-PRD-04, FR-STK-08). */
+export const thicknessFilters = {
+  /** Thickness in mm, one of the listed values. */
+  thickness: z.coerce.number().positive().max(1000).optional().catch(undefined),
+  sort: z.enum(listSorts).catch("name"),
+};
 
 /** List filters from the query string; invalid values fall back to defaults. */
 export const productFilters = z.object({
   q: z.string().trim().max(60).catch(""),
   brand: z.uuid().optional().catch(undefined),
-  status: z.enum(productStatuses).catch("active"),
+  ...thicknessFilters,
   page: z.coerce.number().int().min(1).max(1000).catch(1),
 });
 

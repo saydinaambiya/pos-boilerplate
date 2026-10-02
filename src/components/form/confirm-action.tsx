@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { RouteDialogBoundary } from "@/components/ui/route-dialog";
 import type { Locale } from "@/config/locales";
+import { useRouter as useLocaleRouter } from "@/i18n/navigation";
 import type { FormAction } from "@/lib/validation/form-state";
 
 import { ActionForm } from "./action-form";
@@ -28,6 +29,8 @@ interface ConfirmActionProps {
   variant?: "danger" | "secondary" | "primary";
   /** Extra fields posted with the confirmation, e.g. a reason. */
   children?: ReactNode;
+  /** Where to go on success instead of refreshing, for a target that no longer exists. */
+  successHref?: string;
   labels: {
     trigger: string;
     title: string;
@@ -44,7 +47,8 @@ const subscribeNever = () => () => undefined;
  * Confirmation dialog in front of a destructive Server Action (FR-UX-04).
  * Errors open over the confirmation; on success it closes, the result opens
  * on its own and the page refreshes, so actions whose target leaves the page
- * (an approved request) still show their outcome.
+ * (an approved request) still show their outcome. With `successHref` it
+ * navigates there instead, e.g. back to the list after a delete.
  * The dialog needs JavaScript, so the trigger stays disabled until hydration
  * instead of silently ignoring early clicks.
  */
@@ -53,6 +57,7 @@ export function ConfirmAction({
   locale,
   variant = "danger",
   children,
+  successHref,
   labels,
 }: ConfirmActionProps) {
   const [open, setOpen] = useState(false);
@@ -64,6 +69,7 @@ export function ConfirmAction({
   const [result, setResult] = useState<ActionResult | null>(null);
   const showShared = useShowResult();
   const router = useRouter();
+  const localeRouter = useLocaleRouter();
   const succeeded = useCallback(
     (message: string | undefined) => {
       setOpen(false);
@@ -71,9 +77,10 @@ export function ConfirmAction({
         if (showShared) showShared({ status: "success", message });
         else setResult({ status: "success", message });
       }
-      router.refresh();
+      if (successHref) localeRouter.replace(successHref);
+      else router.refresh();
     },
-    [showShared, router],
+    [showShared, router, localeRouter, successHref],
   );
 
   return (

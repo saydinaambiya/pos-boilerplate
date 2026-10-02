@@ -7,7 +7,7 @@ import { ConfirmAction } from "@/components/form/confirm-action";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
-import { setProductStatusAction, updateProductAction } from "@/features/catalog/actions";
+import { deleteProductAction, updateProductAction } from "@/features/catalog/actions";
 import { ProductForm } from "@/features/catalog/components/product-form";
 import { VariantDialog } from "@/features/catalog/components/variant-dialog";
 import { VariantsSection } from "@/features/catalog/components/variants-section";
@@ -23,8 +23,8 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * Edit a product and its default variant, or change its status
- * (FR-PRD-01/03); `?variant=` opens a variant's edit dialog (ADR-0018).
+ * Edit a product and its default variant, or delete it (FR-PRD-01/03,
+ * ADR-0041); `?variant=` opens a variant's edit dialog (ADR-0018).
  */
 export default async function EditProductPage({
   params,
@@ -96,22 +96,18 @@ export default async function EditProductPage({
         <VariantsSection session={session} product={product} />
         <Card className="max-w-2xl">
           <CardHeader className="flex-col gap-1">
-            <CardTitle>{t("statusSection")}</CardTitle>
-            <CardDescription>
-              {product.isActive ? t("statusActiveNote") : t("statusInactiveNote")}
-            </CardDescription>
+            <CardTitle>{t("deleteSection")}</CardTitle>
+            <CardDescription>{t("deleteNote")}</CardDescription>
           </CardHeader>
           <ConfirmAction
-            action={setProductStatusAction.bind(null, product.id, !product.isActive)}
+            action={deleteProductAction.bind(null, product.id)}
             locale={locale}
-            variant={product.isActive ? "danger" : "secondary"}
+            successHref="/products"
             labels={{
-              trigger: product.isActive ? t("deactivate") : t("activate"),
-              title: product.isActive
-                ? t("deactivateTitle", { name: product.name })
-                : t("activateTitle", { name: product.name }),
-              description: product.isActive ? t("deactivateDescription") : t("activateDescription"),
-              confirm: product.isActive ? t("deactivate") : t("activate"),
+              trigger: t("delete"),
+              title: t("deleteTitle", { name: product.name }),
+              description: t("deleteDescription"),
+              confirm: t("delete"),
               cancel: tCommon("cancel"),
               close: tCommon("close"),
             }}

@@ -25,10 +25,10 @@ import {
 import { PRODUCT_SIZES } from "./sizes";
 import {
   type CatalogResult,
-  changeProductStatus,
   createBrand,
   createProduct,
   deleteBrand,
+  deleteProduct,
   getProduct,
   updateBrand,
   updateProduct,
@@ -255,21 +255,21 @@ export async function updateProductAction(
   return saveProduct(id, formData);
 }
 
-/** Activates or deactivates a product (FR-PRD-03). */
-export async function setProductStatusAction(
+/**
+ * Deletes a product behind a confirmation (FR-PRD-03, ADR-0041). Nothing
+ * is revalidated: that would re-render the open product page as a 404
+ * before the dialog leads back to the list, which renders fresh anyway.
+ */
+export async function deleteProductAction(
   id: string,
-  isActive: boolean,
   _previous: FormState,
   formData: FormData,
 ): Promise<FormState> {
   const locale = localeFromForm(formData);
   const session = await requirePermission("product:update", locale);
-  if (!recordId.safeParse(id).success || typeof isActive !== "boolean") {
-    return failure({ ok: false, reason: "not-found" }, locale);
-  }
-  const result = await changeProductStatus(session, id, isActive, await currentRequestContext());
+  if (!recordId.safeParse(id).success) return failure({ ok: false, reason: "not-found" }, locale);
+  const result = await deleteProduct(session, id, await currentRequestContext());
   if (!result.ok) return failure(result, locale);
-  revalidatePath("/", "layout");
   const tf = await getTranslations({ locale, namespace: "Feedback" });
-  return { status: "success", message: tf(isActive ? "activated" : "deactivated") };
+  return { status: "success", message: tf("productDeleted") };
 }

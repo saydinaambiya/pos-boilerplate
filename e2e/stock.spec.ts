@@ -154,6 +154,17 @@ test.describe("stock ledger (FR-STK)", () => {
     ).toHaveCount(0);
   });
 
+  test("filters and sorts stock by thickness (ADR-0041)", async ({ page }) => {
+    await page.goto(`/id/stock?q=${sku}`);
+    const roll = page.getByRole("row", { name: new RegExp(`^Potongan ${product} · Red`) });
+    await expect(roll.getByRole("cell", { name: "2mm", exact: true })).toBeVisible();
+    await choose(page, "Ketebalan", "2mm");
+    await expect(page).toHaveURL(/thickness=2(&|$)/);
+    await choose(page, "Urutkan", "Ketebalan, tebal ke tipis");
+    await expect(page).toHaveURL(/sort=thickness-desc/);
+    await expect(roll).toBeVisible();
+  });
+
   test("groups rolls per brand with colour and pieces on Cut Rolls (FR-ROL-03)", async ({
     page,
   }) => {

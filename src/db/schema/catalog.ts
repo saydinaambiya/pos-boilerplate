@@ -14,7 +14,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import { id, timestamps } from "./columns";
+import { id, timestamps, timestamptz } from "./columns";
 
 /** Integer rupiah (PRD §5); `number` mode is exact up to 2^53. */
 const money = () => bigint({ mode: "number" });
@@ -40,6 +40,9 @@ export const brands = pgTable(
  * cut into pieces: `price` and `cost` are then per meter, and `size_prices`
  * holds the piece price of every size in `PRODUCT_SIZES`, the same for
  * every colour.
+ *
+ * A deleted product (`deleted_at`, FR-PRD-03, ADR-0041) is also inactive,
+ * so every list and the POS skip it while past sales keep their rows.
  */
 export const products = pgTable(
   "products",
@@ -61,6 +64,7 @@ export const products = pgTable(
     trackStock: boolean().notNull().default(true),
     hasVariants: boolean().notNull().default(false),
     isActive: boolean().notNull().default(true),
+    deletedAt: timestamptz(),
     ...timestamps,
   },
   (table) => [

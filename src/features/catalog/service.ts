@@ -17,8 +17,9 @@ import {
   insertBrand,
   insertProductWithDefaultVariant,
   listBrands,
+  listThicknesses,
+  markProductDeleted,
   queryProducts,
-  setProductActive,
   updateBrandRow,
   updateProductWithDefaultVariant,
 } from "./repository";
@@ -29,8 +30,6 @@ import type {
   ProductInput,
   SizePrices,
 } from "./schemas";
-
-export const PRODUCT_PAGE_SIZE = 50;
 
 export type CatalogResult =
   | { ok: true; id: string }
@@ -132,14 +131,17 @@ export async function deleteBrand(
   return { ok: true, id };
 }
 
-/** Product list with search and filters (FR-PRD-04). */
+/** Product list with search, filters and sort, ten brands a page (FR-PRD-04, ADR-0041). */
 export async function listProducts(session: Session, filters: ProductFilters) {
   assertPermission(session, "page:products");
-  const rows = await queryProducts(filters, PRODUCT_PAGE_SIZE);
-  return {
-    products: rows.slice(0, PRODUCT_PAGE_SIZE),
-    hasNextPage: rows.length > PRODUCT_PAGE_SIZE,
-  };
+  const page = await queryProducts(filters);
+  return { products: page.rows, hasNextPage: page.hasNextPage };
+}
+
+/** Thicknesses for the product and stock filters (ADR-0041). */
+export async function getThicknesses(session: Session) {
+  if (!session.permissions.has("page:products")) assertPermission(session, "page:stock");
+  return listThicknesses();
 }
 
 export async function getProduct(session: Session, id: string) {
@@ -279,26 +281,29 @@ export async function updateProduct(
   }
 }
 
-/** Products are deactivated, never deleted, so sales history stays intact (FR-PRD-03). */
-export async function changeProductStatus(
+/**
+ * Deletes a product in place of deactivating it: it leaves every list and
+ * the POS, while past sales, stock movements and consignments keep their
+ * rows and names (FR-PRD-03, ADR-0041).
+ */
+export async function deleteProduct(
   session: Session,
   id: string,
-  isActive: boolean,
   context: RequestContext,
 ): Promise<CatalogResult> {
   assertPermission(session, "product:update");
   const current = await findProduct(id);
   if (!current) return { ok: false, reason: "not-found" };
-  if (current.isActive === isActive) return { ok: true, id };
   await db.transaction(async (tx) => {
-    await setProductActive(tx, id, isActive);
+    await markProductDeleted(tx, id);
     await recordAudit(
       tx,
       {
         actorId: session.user.id,
-        action: isActive ? "product.activated" : "product.deactivated",
+        action: "product.deleted",
         entity: "product",
         entityId: id,
+        diff: { name: current.name, sku: current.sku },
       },
       context,
     );

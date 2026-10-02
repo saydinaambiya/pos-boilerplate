@@ -1,11 +1,25 @@
 import "server-only";
 
-import { and, asc, count, eq, exists, inArray, isNull, like, or, type SQL, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  eq,
+  exists,
+  inArray,
+  isNotNull,
+  isNull,
+  like,
+  or,
+  type SQL,
+  sql,
+} from "drizzle-orm";
 
 import { db, type Executor } from "@/db/client";
 import { containsPattern } from "@/db/like";
 import { brands, products, productVariants } from "@/db/schema";
 
+import { brandOrder, brandPage, brandWindow, productOrder } from "./brand-page";
 import { variantPriceSql } from "./pricing-sql";
 import type { BrandInput, ProductFilters, SizePrices } from "./schemas";
 import { PRODUCT_SIZES } from "./sizes";
@@ -43,16 +57,32 @@ export async function updateBrandRow(executor: Executor, id: string, values: Bra
   await executor.update(brands).set(values).where(eq(brands.id, id));
 }
 
+/** Deletes a brand, first detaching the deleted products that still name it (ADR-0041). */
 export async function deleteBrandRow(executor: Executor, id: string) {
+  await executor
+    .update(products)
+    .set({ brandId: null })
+    .where(and(eq(products.brandId, id), isNotNull(products.deletedAt)));
   await executor.delete(brands).where(eq(brands.id, id));
 }
 
+/** Products of a brand, not counting deleted ones (FR-CAT-02, ADR-0041). */
 export async function countProductsOfBrand(brandId: string): Promise<number> {
   const [row] = await db
     .select({ total: count() })
     .from(products)
-    .where(eq(products.brandId, brandId));
+    .where(and(eq(products.brandId, brandId), isNull(products.deletedAt)));
   return row?.total ?? 0;
+}
+
+/** Thicknesses in use by products that are not deleted, thinnest first (ADR-0041). */
+export async function listThicknesses(): Promise<number[]> {
+  const rows = await db
+    .selectDistinct({ thickness: products.thickness })
+    .from(products)
+    .where(and(isNull(products.deletedAt), isNotNull(products.thickness)))
+    .orderBy(asc(products.thickness));
+  return rows.flatMap((row) => (row.thickness === null ? [] : [row.thickness]));
 }
 
 /**
@@ -129,16 +159,17 @@ function productQuery() {
 }
 
 /**
- * One page of products with their default variant and stock totals across
- * active variants, by brand then name so the list groups per brand,
- * unbranded last. Search matches product name, SKU and colour name via the
- * trigram indexes on `lower(...)`, plus brand and motif (FR-PRD-04,
- * FR-PRD-06, FR-VAR-07).
+ * One page of products that are not deleted, with their default variant
+ * and stock totals across active variants. A page holds ten brands
+ * (unbranded last) with all their products, by thickness when asked and
+ * then name (ADR-0041). Search matches product name, SKU and colour name
+ * via the trigram indexes on `lower(...)`, plus brand and motif
+ * (FR-PRD-04, FR-PRD-06, FR-VAR-07).
  */
-export async function queryProducts(filters: ProductFilters, pageSize: number) {
-  const conditions: SQL[] = [];
-  if (filters.status !== "all") conditions.push(eq(products.isActive, filters.status === "active"));
+export async function queryProducts(filters: ProductFilters) {
+  const conditions: SQL[] = [isNull(products.deletedAt)];
   if (filters.brand) conditions.push(eq(products.brandId, filters.brand));
+  if (filters.thickness !== undefined) conditions.push(eq(products.thickness, filters.thickness));
   if (filters.q) {
     const pattern = containsPattern(filters.q);
     const variantMatch = db
@@ -162,20 +193,30 @@ export async function queryProducts(filters: ProductFilters, pageSize: number) {
     if (match) conditions.push(match);
   }
 
-  return productQuery()
-    .where(and(...conditions))
-    .orderBy(
-      sql`lower(${brands.name}) ASC NULLS LAST`,
-      asc(products.brandId),
-      asc(products.name),
-      asc(products.id),
-    )
-    .limit(pageSize + 1)
-    .offset((filters.page - 1) * pageSize);
+  const window = brandWindow(filters.page);
+  const page = brandPage(
+    await db
+      .select({ brandId: products.brandId })
+      .from(products)
+      .leftJoin(brands, eq(brands.id, products.brandId))
+      .where(and(...conditions))
+      .groupBy(products.brandId, brands.name)
+      .orderBy(...brandOrder)
+      .limit(window.limit)
+      .offset(window.offset),
+  );
+  if (page.empty) return { rows: [], hasNextPage: false };
+  const rows = await productQuery()
+    .where(and(...conditions, page.condition))
+    .orderBy(...brandOrder, ...productOrder(filters.sort));
+  return { rows, hasNextPage: page.hasNextPage };
 }
 
+/** A product that is not deleted. */
 export async function findProduct(id: string) {
-  const [row] = await productQuery().where(eq(products.id, id)).limit(1);
+  const [row] = await productQuery()
+    .where(and(eq(products.id, id), isNull(products.deletedAt)))
+    .limit(1);
   return row;
 }
 
@@ -317,8 +358,23 @@ export async function updateProductWithDefaultVariant(
   if (updated) await syncPieces(executor, updated.id, { sku: variant.sku });
 }
 
-export async function setProductActive(executor: Executor, id: string, isActive: boolean) {
-  await executor.update(products).set({ isActive }).where(eq(products.id, id));
+/**
+ * Deletes a product: it turns inactive with a deletion time, and its
+ * variants turn inactive with a suffixed SKU, so the SKU can be used again
+ * while past sales and movements keep their rows (FR-PRD-03, ADR-0041).
+ */
+export async function markProductDeleted(executor: Executor, id: string) {
+  await executor
+    .update(products)
+    .set({ isActive: false, deletedAt: new Date() })
+    .where(eq(products.id, id));
+  await executor
+    .update(productVariants)
+    .set({
+      isActive: false,
+      sku: sql`${productVariants.sku} || '~' || right(${productVariants.id}::text, 12)`,
+    })
+    .where(eq(productVariants.productId, id));
 }
 
 const variantColumns = {

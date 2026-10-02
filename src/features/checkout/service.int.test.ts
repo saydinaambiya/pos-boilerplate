@@ -13,7 +13,7 @@ import {
   sales,
   stockMovements,
 } from "@/db/schema";
-import { changeProductStatus, createProduct } from "@/features/catalog/service";
+import { createProduct, deleteProduct } from "@/features/catalog/service";
 import { createVariant, enableVariants } from "@/features/catalog/variant-service";
 import {
   changeBankAccountStatus,
@@ -449,7 +449,7 @@ describe("checkout (FR-POS-01..08, FR-PAY-01..04)", () => {
       ok: false,
       reason: "invalid-items",
     });
-    await changeProductStatus(ownerSession, productId, false, testContext());
+    await deleteProduct(ownerSession, productId, testContext());
     expect(
       await checkout(
         session,

@@ -22,6 +22,9 @@ export const cutRollInput = z
   .strict();
 export type CutRollInput = z.infer<typeof cutRollInput>;
 
-/** Roll list search from the query string. */
-export const rollFilters = z.object({ q: z.string().trim().max(60).catch("") });
+/** Roll list search and page from the query string (ADR-0041). */
+export const rollFilters = z.object({
+  q: z.string().trim().max(60).catch(""),
+  page: z.coerce.number().int().min(1).max(1000).catch(1),
+});
 export type RollFilters = z.infer<typeof rollFilters>;

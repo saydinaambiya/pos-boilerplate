@@ -29,6 +29,7 @@ import {
   users,
 } from "@/db/schema";
 
+import { brandOrder, brandPage, brandWindow, productOrder } from "@/features/catalog/brand-page";
 import { isRollRowSql } from "@/features/catalog/pricing-sql";
 
 import type { StockFilters } from "./schemas";
@@ -92,6 +93,7 @@ const levelColumns = {
   brandId: products.brandId,
   brandName: brands.name,
   motif: products.motif,
+  thickness: products.thickness,
   unit: products.unit,
   sku: productVariants.sku,
   colorName: sql<string | null>`${productVariants.attributes} -> 'color' ->> 'name'`,
@@ -132,12 +134,13 @@ const piece = alias(productVariants, "piece");
 
 /**
  * One page of stock groups: a roll or a plain variant of an active,
- * stock-tracked product, by brand (unbranded last), product name and
- * colour order so the list groups per brand (FR-STK-08).
- * The search matches the product, brand, motif, colour or SKU; a group is
- * listed when it or one of its pieces passes the other filters.
+ * stock-tracked product. A page holds ten brands (unbranded last) with all
+ * their groups, by thickness when asked, product name and colour order
+ * (FR-STK-08, ADR-0041). The search matches the product, brand, motif,
+ * colour or SKU; a group is listed when it or one of its pieces passes
+ * the other filters.
  */
-export async function queryStockGroups(filters: StockFilters, pageSize: number) {
+export async function queryStockGroups(filters: StockFilters) {
   const conditions: SQL[] = [
     eq(products.trackStock, true),
     eq(products.isActive, true),
@@ -155,6 +158,7 @@ export async function queryStockGroups(filters: StockFilters, pageSize: number) 
     );
     if (match) conditions.push(match);
   }
+  if (filters.thickness !== undefined) conditions.push(eq(products.thickness, filters.thickness));
   const own = rowConditions(productVariants, filters);
   if (own.length > 0) {
     const matchingPiece = db
@@ -170,22 +174,33 @@ export async function queryStockGroups(filters: StockFilters, pageSize: number) 
     const match = or(and(...own), exists(matchingPiece));
     if (match) conditions.push(match);
   }
-  return db
+  const window = brandWindow(filters.page);
+  const page = brandPage(
+    await db
+      .select({ brandId: products.brandId })
+      .from(productVariants)
+      .innerJoin(products, eq(products.id, productVariants.productId))
+      .leftJoin(brands, eq(brands.id, products.brandId))
+      .where(and(...conditions))
+      .groupBy(products.brandId, brands.name)
+      .orderBy(...brandOrder)
+      .limit(window.limit)
+      .offset(window.offset),
+  );
+  if (page.empty) return { rows: [], hasNextPage: false };
+  const rows = await db
     .select(levelColumns)
     .from(productVariants)
     .innerJoin(products, eq(products.id, productVariants.productId))
     .leftJoin(brands, eq(brands.id, products.brandId))
-    .where(and(...conditions))
+    .where(and(...conditions, page.condition))
     .orderBy(
-      sql`lower(${brands.name}) ASC NULLS LAST`,
-      asc(products.brandId),
-      asc(products.name),
-      asc(products.id),
+      ...brandOrder,
+      ...productOrder(filters.sort),
       asc(productVariants.sortOrder),
       asc(productVariants.id),
-    )
-    .limit(pageSize + 1)
-    .offset((filters.page - 1) * pageSize);
+    );
+  return { rows, hasNextPage: page.hasNextPage };
 }
 
 /** Active pieces of the given rolls that pass the stock filters, in size order (ADR-0023). */

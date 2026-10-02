@@ -29,7 +29,6 @@ import type {
   WriteOffStockInput,
 } from "./schemas";
 
-export const STOCK_PAGE_SIZE = 50;
 export const MOVEMENT_PAGE_SIZE = 50;
 
 export type StockResult =
@@ -173,13 +172,13 @@ export function writeOffStock(
 }
 
 /**
- * Stock grouped per product, motif and colour: each roll or plain variant
- * with the pieces cut from it that pass the filters (FR-STK-08).
+ * Stock grouped per product, motif and colour, ten brands a page: each
+ * roll or plain variant with the pieces cut from it that pass the filters
+ * (FR-STK-08, ADR-0041).
  */
 export async function getStockLevels(session: Session, filters: StockFilters) {
   assertPermission(session, "page:stock");
-  const rows = await queryStockGroups(filters, STOCK_PAGE_SIZE);
-  const heads = rows.slice(0, STOCK_PAGE_SIZE);
+  const { rows: heads, hasNextPage } = await queryStockGroups(filters);
   const pieces = await queryStockPieces(
     heads.filter((head) => head.isRoll).map((head) => head.variantId),
     filters,
@@ -189,7 +188,7 @@ export async function getStockLevels(session: Session, filters: StockFilters) {
       ...head,
       pieces: pieces.filter((item) => item.parentId === head.variantId),
     })),
-    hasNextPage: rows.length > STOCK_PAGE_SIZE,
+    hasNextPage,
   };
 }
 

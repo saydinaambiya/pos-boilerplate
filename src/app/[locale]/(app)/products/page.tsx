@@ -1,11 +1,10 @@
-import { CircleCheck, CircleOff, PackagePlus, PackageSearch, Tag } from "lucide-react";
+import { PackagePlus, PackageSearch, Tag } from "lucide-react";
 import type { Metadata } from "next";
 import { getLocale, getTranslations } from "next-intl/server";
 
 import { FilterForm } from "@/components/form/filter-form";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Chip } from "@/components/ui/chip";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -24,7 +23,8 @@ import { CatalogTabs } from "@/features/catalog/components/catalog-tabs";
 import { NewProductDialog } from "@/features/catalog/components/new-product-dialog";
 import { StockCell } from "@/features/catalog/components/stock-cell";
 import { productFilters } from "@/features/catalog/schemas";
-import { getBrands, listProducts } from "@/features/catalog/service";
+import { ListSortFields } from "@/features/catalog/components/list-sort-fields";
+import { getBrands, getThicknesses, listProducts } from "@/features/catalog/service";
 import { Link } from "@/i18n/navigation";
 import { requirePermission } from "@/lib/auth/guard";
 import { formatCurrency } from "@/lib/format/currency";
@@ -37,11 +37,13 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * Product list with search and a brand filter, grouped per brand in
- * collapsible rows with the brand leftmost, closed until a filter applies, showing motif,
- * colours and thickness in their own columns (FR-PRD-01/02/04/06, ADR-0038, ADR-0040). Roll prices are per
- * meter and roll stock shows meters and cut pieces (FR-ROL-01); `?new=1`
- * opens the create dialog (ADR-0018).
+ * Product list with search, a brand and a thickness filter and a sort,
+ * grouped per brand in collapsible rows with the brand leftmost, closed
+ * until a filter applies, ten brands a page, showing motif, colours and
+ * thickness in their own columns (FR-PRD-01/02/04/06, ADR-0038, ADR-0040,
+ * ADR-0041). Deleted products are not listed (FR-PRD-03). Roll prices are
+ * per meter and roll stock shows meters and cut pieces (FR-ROL-01);
+ * `?new=1` opens the create dialog (ADR-0018).
  */
 export default async function ProductsPage({ searchParams }: PageProps<"/[locale]/products">) {
   const session = await requirePermission("page:products");
@@ -49,29 +51,33 @@ export default async function ProductsPage({ searchParams }: PageProps<"/[locale
   const filters = productFilters.parse({
     q: first(raw.q) ?? "",
     brand: first(raw.brand),
-    status: first(raw.status) ?? "active",
+    thickness: first(raw.thickness),
+    sort: first(raw.sort),
     page: first(raw.page) ?? "1",
   });
 
-  const [t, tVariants, locale, brands, page] = await Promise.all([
+  const [t, tVariants, locale, brands, thicknesses, page] = await Promise.all([
     getTranslations("Catalog"),
     getTranslations("Variants"),
     getLocale(),
     getBrands(session),
+    getThicknesses(session),
     listProducts(session, filters),
   ]);
   const canUpdate = session.permissions.has("product:update");
   const canCreate = session.permissions.has("product:create") && brands.length > 0;
   const noBrands = brands.length === 0;
   const kept = keptQuery(raw, ["new"]);
-  const filtered = filters.q !== "" || filters.brand !== undefined || filters.status !== "active";
+  const filtered =
+    filters.q !== "" || filters.brand !== undefined || filters.thickness !== undefined;
   const brandGroups = Object.values(
     Object.groupBy(page.products, (product) => product.brandId ?? ""),
   ).filter((group) => group !== undefined);
   const query = (pageNumber: number) => ({
     ...(filters.q ? { q: filters.q } : {}),
     ...(filters.brand ? { brand: filters.brand } : {}),
-    ...(filters.status === "active" ? {} : { status: filters.status }),
+    ...(filters.thickness === undefined ? {} : { thickness: String(filters.thickness) }),
+    ...(filters.sort === "name" ? {} : { sort: filters.sort }),
     ...(pageNumber > 1 ? { page: String(pageNumber) } : {}),
   });
 
@@ -123,21 +129,21 @@ export default async function ProductsPage({ searchParams }: PageProps<"/[locale
               />
             )}
           </Field>
-          <Field label={t("status")}>
-            {(control) => (
-              <Select
-                {...control}
-                name="status"
-                defaultValue={filters.status}
-                options={[
-                  { value: "active", label: t("statusActive") },
-                  { value: "inactive", label: t("statusInactive") },
-                  { value: "all", label: t("statusAll") },
-                ]}
-              />
-            )}
-          </Field>
-          {filtered ? (
+          <ListSortFields
+            locale={locale}
+            thicknesses={thicknesses}
+            thickness={filters.thickness}
+            sort={filters.sort}
+            labels={{
+              thickness: t("thicknessFilter"),
+              allThicknesses: t("allThicknesses"),
+              sort: t("sort"),
+              name: t("sortName"),
+              thinFirst: t("sortThinFirst"),
+              thickFirst: t("sortThickFirst"),
+            }}
+          />
+          {filtered || filters.sort !== "name" ? (
             <Button asChild variant="ghost" className="self-end justify-self-start">
               <Link href="/products">{t("reset")}</Link>
             </Button>
@@ -178,7 +184,6 @@ export default async function ProductsPage({ searchParams }: PageProps<"/[locale
                 <TableHead>{t("sku")}</TableHead>
                 <TableHead className="text-right">{t("price")}</TableHead>
                 <TableHead>{t("stock")}</TableHead>
-                <TableHead>{t("status")}</TableHead>
               </TableRow>
             </TableHeader>
             {brandGroups.map((group) => {
@@ -187,7 +192,7 @@ export default async function ProductsPage({ searchParams }: PageProps<"/[locale
                 <TableGroup
                   key={`${group[0]?.brandId ?? "none"}-${String(filtered)}`}
                   defaultOpen={filtered}
-                  leadColSpan={9}
+                  leadColSpan={8}
                   className="bg-surface-muted/60"
                   toggleLabel={t("toggleBrand", { brand })}
                   toggleContent={
@@ -251,17 +256,6 @@ export default async function ProductsPage({ searchParams }: PageProps<"/[locale
                               : undefined
                           }
                         />
-                      </TableCell>
-                      <TableCell>
-                        {product.isActive ? (
-                          <Chip tone="success" icon={<CircleCheck aria-hidden="true" />}>
-                            {t("active")}
-                          </Chip>
-                        ) : (
-                          <Chip tone="neutral" icon={<CircleOff aria-hidden="true" />}>
-                            {t("inactive")}
-                          </Chip>
-                        )}
                       </TableCell>
                     </TableRow>
                   ))}

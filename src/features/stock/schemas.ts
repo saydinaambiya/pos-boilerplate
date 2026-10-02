@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { stockMovementTypes } from "@/db/schema";
+import { thicknessFilters } from "@/features/catalog/schemas";
 import { plainText } from "@/lib/validation/text";
 
 const quantity = z.int().min(1).max(1_000_000);
@@ -33,6 +34,7 @@ export const stockFilters = z.object({
   defect: z.enum(["1"]).optional().catch(undefined),
   /** Only stock with a minimum set: rolls and 93×47 pieces (FR-STK-09). */
   minimum: z.enum(["1"]).optional().catch(undefined),
+  ...thicknessFilters,
   page: z.coerce.number().int().min(1).max(1000).catch(1),
 });
 

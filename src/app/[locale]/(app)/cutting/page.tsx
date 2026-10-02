@@ -40,28 +40,36 @@ export async function generateMetadata(): Promise<Metadata> {
 /**
  * Cut Rolls (FR-ROL-03, ADR-0023): every active roll with the meters left
  * and the latest cuts, grouped per brand like the product list with each
- * roll's pieces folded under it; brands start closed until a search
- * applies (ADR-0040). `?roll=` opens the cut form over the list
- * (ADR-0018).
+ * roll's pieces folded under it, ten brands a page; brands start closed
+ * until a search applies (ADR-0040, ADR-0041). `?roll=` opens the cut
+ * form over the list (ADR-0018).
  */
 export default async function CuttingPage({ searchParams }: PageProps<"/[locale]/cutting">) {
   const session = await requirePermission("page:cutting");
   const raw = await searchParams;
-  const filters = rollFilters.parse({ q: firstParam(raw.q) ?? "" });
+  const filters = rollFilters.parse({
+    q: firstParam(raw.q) ?? "",
+    page: firstParam(raw.page) ?? "1",
+  });
   const rollId = z.uuid().safeParse(firstParam(raw.roll));
 
-  const [t, tCommon, format, locale, messages, rolls, cuts, selected] = await Promise.all([
-    getTranslations("Cutting"),
-    getTranslations("Common"),
-    getFormatter(),
-    getLocale(),
-    getMessages(),
-    getRolls(session, filters),
-    getRecentCuts(session),
-    rollId.success ? getRoll(session, rollId.data) : Promise.resolve(undefined),
-  ]);
+  const [t, tCommon, format, locale, messages, { rolls, hasNextPage }, cuts, selected] =
+    await Promise.all([
+      getTranslations("Cutting"),
+      getTranslations("Common"),
+      getFormatter(),
+      getLocale(),
+      getMessages(),
+      getRolls(session, filters),
+      getRecentCuts(session),
+      rollId.success ? getRoll(session, rollId.data) : Promise.resolve(undefined),
+    ]);
   const meters = (cm: number) => formatMeters(cm, locale);
-  const kept = filters.q ? { q: filters.q } : {};
+  const query = (pageNumber: number) => ({
+    ...(filters.q ? { q: filters.q } : {}),
+    ...(pageNumber > 1 ? { page: String(pageNumber) } : {}),
+  });
+  const kept = query(filters.page);
   const searched = filters.q !== "";
   const brandGroups = Object.values(Object.groupBy(rolls, (roll) => roll.brandId ?? "")).filter(
     (group) => group !== undefined,
@@ -206,6 +214,27 @@ export default async function CuttingPage({ searchParams }: PageProps<"/[locale]
               })}
             </Table>
           )}
+          {filters.page > 1 || hasNextPage ? (
+            <nav aria-label={t("pagination")} className="mt-4 flex items-center justify-end gap-2">
+              {filters.page > 1 ? (
+                <Button asChild variant="ghost">
+                  <Link href={{ pathname: "/cutting", query: query(filters.page - 1) }}>
+                    {t("previous")}
+                  </Link>
+                </Button>
+              ) : null}
+              <span className="text-sm text-ink-muted">
+                {t("pageLabel", { page: filters.page })}
+              </span>
+              {hasNextPage ? (
+                <Button asChild variant="secondary">
+                  <Link href={{ pathname: "/cutting", query: query(filters.page + 1) }}>
+                    {t("next")}
+                  </Link>
+                </Button>
+              ) : null}
+            </nav>
+          ) : null}
         </Card>
 
         <Card>

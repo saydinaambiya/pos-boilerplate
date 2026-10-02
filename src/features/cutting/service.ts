@@ -19,8 +19,6 @@ import {
 } from "./repository";
 import type { CutRollInput, RollFilters } from "./schemas";
 
-export const ROLL_PAGE_SIZE = 100;
-
 export type CutResult =
   | { ok: true; usedCm: number; rollAfter: number; replayed: boolean }
   | { ok: false; reason: "not-found" }
@@ -33,15 +31,18 @@ class CutAbort extends Error {
   }
 }
 
-/** Active rolls, each with its active pieces (FR-ROL-03, ADR-0040). */
+/** One page of active rolls, each with its active pieces (FR-ROL-03, ADR-0040, ADR-0041). */
 export async function getRolls(session: Session, filters: RollFilters) {
   assertPermission(session, "page:cutting");
-  const rolls = await queryRolls(filters, ROLL_PAGE_SIZE);
-  const pieces = await listPiecesOfRolls(rolls.map((roll) => roll.id));
-  return rolls.map((roll) => ({
-    ...roll,
-    pieces: pieces.filter((piece) => piece.parentId === roll.id),
-  }));
+  const { rows, hasNextPage } = await queryRolls(filters);
+  const pieces = await listPiecesOfRolls(rows.map((roll) => roll.id));
+  return {
+    rolls: rows.map((roll) => ({
+      ...roll,
+      pieces: pieces.filter((piece) => piece.parentId === roll.id),
+    })),
+    hasNextPage,
+  };
 }
 
 /** A roll with its pieces, for the cut form. */

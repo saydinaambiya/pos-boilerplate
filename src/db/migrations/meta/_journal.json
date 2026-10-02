@@ -232,6 +232,13 @@
       "when": 1790831976014,
       "tag": "0032_audit_purges",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1790923563546,
+      "tag": "0033_product_deletion",
+      "breakpoints": true
     }
   ]
 }

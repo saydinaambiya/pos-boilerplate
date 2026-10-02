@@ -147,13 +147,15 @@ describe("productFilters", () => {
       productFilters.parse({
         q: "  kopi ",
         brand: "x",
-        status: "deleted",
+        thickness: "tebal",
+        sort: "price",
         page: "-2",
       }),
     ).toEqual({
       q: "kopi",
       brand: undefined,
-      status: "active",
+      thickness: undefined,
+      sort: "name",
       page: 1,
     });
   });
