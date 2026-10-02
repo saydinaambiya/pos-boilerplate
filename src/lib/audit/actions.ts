@@ -41,6 +41,7 @@ export const auditActions = [
   "product.updated",
   "product.activated",
   "product.deactivated",
+  "product.deleted",
   "stock.moved",
   "stock.minimum-set",
   "audit.exported",

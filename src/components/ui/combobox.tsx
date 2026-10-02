@@ -35,6 +35,9 @@ interface ComboboxProps {
   "aria-invalid"?: boolean | "true" | "false" | undefined;
 }
 
+/** Options skipped by Page Up and Page Down. */
+const PAGE_STEP = 5;
+
 function Swatch({ hex }: { hex: string }) {
   return (
     <svg viewBox="0 0 16 16" className="size-4 shrink-0" aria-hidden="true">
@@ -46,7 +49,9 @@ function Swatch({ hex }: { hex: string }) {
 /**
  * Searchable dropdown in the design system's style (FR-UI-01): a trigger
  * like `Select`, and a popover with a search box that filters the options
- * by label or group, with arrow keys, Enter and Escape. Options may be
+ * by label or group, with arrow keys, Page Up/Down, Enter and Escape;
+ * the highlighted option scrolls into view, so the keyboard reaches every
+ * option (FR-UX-06). Options may be
  * grouped under headings. The value posts through a hidden input and a pick
  * fires a bubbling `input` event, like `Select` (ADR-0018). The popover is
  * modal so its list scrolls inside dialogs, which lock scrolling elsewhere.
@@ -114,6 +119,19 @@ export function Combobox({
   };
 
   const optionId = (index: number) => `${listId}-${String(index)}`;
+
+  useEffect(() => {
+    if (!open) return;
+    document.getElementById(`${listId}-${String(active)}`)?.scrollIntoView({ block: "nearest" });
+  }, [open, active, listId, matches]);
+
+  const last = matches.length - 1;
+  const moves: Partial<Record<string, (index: number) => number>> = {
+    ArrowDown: (index) => Math.min(index + 1, last),
+    ArrowUp: (index) => Math.max(index - 1, 0),
+    PageDown: (index) => Math.min(index + PAGE_STEP, last),
+    PageUp: (index) => Math.max(index - PAGE_STEP, 0),
+  };
 
   return (
     <>
@@ -183,12 +201,10 @@ export function Combobox({
                   setActive(0);
                 }}
                 onKeyDown={(event) => {
-                  if (event.key === "ArrowDown") {
+                  const move = moves[event.key];
+                  if (move) {
                     event.preventDefault();
-                    setActive((index) => Math.min(index + 1, matches.length - 1));
-                  } else if (event.key === "ArrowUp") {
-                    event.preventDefault();
-                    setActive((index) => Math.max(index - 1, 0));
+                    setActive(move);
                   } else if (event.key === "Enter") {
                     event.preventDefault();
                     const option = matches[active];

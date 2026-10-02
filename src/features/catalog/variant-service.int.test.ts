@@ -173,14 +173,14 @@ describe("colour variants (FR-VAR-01..05, FR-VAR-08)", () => {
       reason: "sku-taken",
     });
 
-    const listed = await listProducts(session, { q: "", status: "active", page: 1 });
+    const listed = await listProducts(session, { q: "", sort: "name", page: 1 });
     expect(listed.products[0]).toMatchObject({ stockQty: 7, variantCount: 2, hasVariants: true });
   });
 
   it("finds products by colour name (FR-VAR-07)", async () => {
     const { session, productId } = await enabled();
     await createVariant(session, productId, newVariant(), testContext());
-    const found = await listProducts(session, { q: "biru", status: "active", page: 1 });
+    const found = await listProducts(session, { q: "biru", sort: "name", page: 1 });
     expect(found.products.map((product) => product.id)).toEqual([productId]);
     expect(found.products[0]?.colorNames).toEqual(["Merah", "Biru"]);
   });

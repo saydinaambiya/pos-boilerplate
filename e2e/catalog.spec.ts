@@ -130,16 +130,18 @@ test.describe("brands & products (FR-CAT-02, FR-PRD)", () => {
     await context.close();
   });
 
-  test("deactivates a product", async ({ page }) => {
+  test("deletes a product (FR-PRD-03, ADR-0041)", async ({ page }) => {
     await page.goto(`/id/products?q=${sku}`);
     await page.getByRole("link", { name: `Ubah Kopi Susu ${run}` }).click();
-    await page.getByRole("button", { name: "Nonaktifkan" }).click();
-    await page.getByRole("dialog").getByRole("button", { name: "Nonaktifkan" }).click();
-    await expect(page.getByText("Produk nonaktif dan tidak tampil di kasir.")).toBeVisible();
+    await page.getByRole("button", { name: "Hapus" }).click();
+    await page
+      .getByRole("dialog", { name: `Hapus Kopi Susu ${run}?` })
+      .getByRole("button", { name: "Hapus" })
+      .click();
+    await expect(page.getByText("Produk dihapus.")).toBeVisible();
+    await expect(page).toHaveURL(/\/id\/products$/);
 
     await page.goto(`/id/products?q=${sku}`);
     await expect(page.getByText("Tidak ada produk yang cocok")).toBeVisible();
-    await page.goto(`/id/products?q=${sku}&status=inactive`);
-    await expect(page.getByRole("row", { name: new RegExp(`Kopi Susu ${run}`) })).toBeVisible();
   });
 });

@@ -8,11 +8,12 @@ import { fixtures, resetDatabase } from "@/test/database";
 import { signIn, testContext } from "@/test/sessions";
 
 import type { ProductFilters, ProductInput } from "./schemas";
+import { BRAND_PAGE_SIZE } from "./brand-page";
 import {
-  changeProductStatus,
   createBrand,
   createProduct,
   deleteBrand,
+  deleteProduct,
   getBrands,
   getProduct,
   listProducts,
@@ -20,7 +21,7 @@ import {
 } from "./service";
 
 const owner = () => signIn(fixtures.owner.username, fixtures.owner.password);
-const allActive: ProductFilters = { q: "", status: "active", page: 1 };
+const allActive: ProductFilters = { q: "", sort: "name", page: 1 };
 const sizePrices = { "93x47": 150000, "100x70": 180000, "50x140": 175000, "100x140": 320000 };
 
 function product(overrides: Partial<ProductInput> = {}): ProductInput {
@@ -175,7 +176,7 @@ describe("products (FR-PRD-01..04, §3.1.1)", () => {
     ).toEqual({ ok: false, reason: "sku-taken" });
   });
 
-  it("searches name and SKU, filters by brand and status", async () => {
+  it("searches name and SKU, filters by brand", async () => {
     const session = await owner();
     await createProduct(session, product(), testContext());
     const brand = await createBrand(session, { name: "Roti Enak" }, testContext());
@@ -194,11 +195,84 @@ describe("products (FR-PRD-01..04, §3.1.1)", () => {
     expect(await names({ q: "_%" })).toEqual(["Roti Bakar"]);
     expect(await names({ q: "%" })).toEqual(["Roti Bakar"]);
     expect(await names({ brand: brand.id })).toEqual(["Roti Bakar"]);
+  });
 
-    const listed = await listProducts(session, { ...allActive, q: "kopi" });
-    await changeProductStatus(session, listed.products[0]?.id ?? "", false, testContext());
-    expect(await names({ q: "kopi" })).toEqual([]);
-    expect(await names({ q: "kopi", status: "inactive" })).toEqual(["Kopi Susu"]);
+  it("deletes a product and frees its SKU, keeping the brand deletable (FR-PRD-03, ADR-0041)", async () => {
+    const session = await owner();
+    const brand = await createBrand(session, { name: "Hapus" }, testContext());
+    if (!brand.ok) throw new Error(brand.reason);
+    const created = await createProduct(session, product({ brandId: brand.id }), testContext());
+    if (!created.ok) throw new Error(created.reason);
+
+    expect(await deleteProduct(session, created.id, testContext())).toEqual({
+      ok: true,
+      id: created.id,
+    });
+    expect((await listProducts(session, allActive)).products).toEqual([]);
+    expect(await getProduct(session, created.id)).toBeUndefined();
+    expect(await deleteProduct(session, created.id, testContext())).toEqual({
+      ok: false,
+      reason: "not-found",
+    });
+    const [audit] = await db.select().from(auditLogs).orderBy(desc(auditLogs.id)).limit(1);
+    expect(audit).toMatchObject({ action: "product.deleted", entityId: created.id });
+    const variants = await db
+      .select()
+      .from(productVariants)
+      .where(eq(productVariants.productId, created.id));
+    expect(variants.every((variant) => !variant.isActive && variant.sku.includes("~"))).toBe(true);
+
+    expect((await createProduct(session, product(), testContext())).ok).toBe(true);
+    expect(await deleteBrand(session, brand.id, testContext())).toEqual({ ok: true, id: brand.id });
+  });
+
+  it("filters and sorts by thickness inside each brand (ADR-0041)", async () => {
+    const session = await owner();
+    await createProduct(
+      session,
+      product({ name: "Tebal", sku: "T-1", thickness: 8 }),
+      testContext(),
+    );
+    await createProduct(
+      session,
+      product({ name: "Tipis", sku: "T-2", thickness: 2.5 }),
+      testContext(),
+    );
+    await createProduct(
+      session,
+      product({ name: "Sedang", sku: "T-3", thickness: 5 }),
+      testContext(),
+    );
+    const names = async (filters: Partial<ProductFilters>) =>
+      (await listProducts(session, { ...allActive, ...filters })).products.map((row) => row.name);
+
+    expect(await names({})).toEqual(["Sedang", "Tebal", "Tipis"]);
+    expect(await names({ sort: "thickness-asc" })).toEqual(["Tipis", "Sedang", "Tebal"]);
+    expect(await names({ sort: "thickness-desc" })).toEqual(["Tebal", "Sedang", "Tipis"]);
+    expect(await names({ thickness: 2.5 })).toEqual(["Tipis"]);
+  });
+
+  it("pages by brand, keeping all of a brand's products on one page (ADR-0041)", async () => {
+    const session = await owner();
+    for (let index = 0; index <= BRAND_PAGE_SIZE; index += 1) {
+      const label = String(index).padStart(2, "0");
+      const brand = await createBrand(session, { name: `Merk ${label}` }, testContext());
+      if (!brand.ok) throw new Error(brand.reason);
+      for (const color of ["A", "B"]) {
+        await createProduct(
+          session,
+          product({ brandId: brand.id, name: `${label} ${color}`, sku: `P-${label}-${color}` }),
+          testContext(),
+        );
+      }
+    }
+    const first = await listProducts(session, allActive);
+    expect(new Set(first.products.map((row) => row.brandName)).size).toBe(BRAND_PAGE_SIZE);
+    expect(first.products).toHaveLength(BRAND_PAGE_SIZE * 2);
+    expect(first.hasNextPage).toBe(true);
+    const second = await listProducts(session, { ...allActive, page: 2 });
+    expect(second.products.map((row) => row.name)).toEqual(["10 A", "10 B"]);
+    expect(second.hasNextPage).toBe(false);
   });
 
   it("creates a product with its first colour as the default roll (ADR-0026)", async () => {

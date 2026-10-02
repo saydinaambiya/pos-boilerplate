@@ -163,7 +163,9 @@ describe("stock ledger (FR-STK-01..05)", () => {
     await expect(
       receiveStock(cashier, id, { qty: 1, note: "" }, testContext()),
     ).rejects.toBeInstanceOf(ForbiddenError);
-    expect((await getStockLevels(cashier, { q: "", page: 1 })).groups).toHaveLength(1);
+    expect((await getStockLevels(cashier, { q: "", sort: "name", page: 1 })).groups).toHaveLength(
+      1,
+    );
   });
 });
 
@@ -197,9 +199,13 @@ describe("stock views (FR-STK-06/07)", () => {
     await receiveStock(session, fine, { qty: 9, note: "" }, testContext());
 
     expect((await getLowStock(session)).map((item) => item.sku)).toEqual(["LOWER", "LOW"]);
-    expect((await getStockLevels(session, { q: "", low: "1", page: 1 })).groups).toHaveLength(2);
     expect(
-      (await getStockLevels(session, { q: "fine", page: 1 })).groups.map((item) => item.sku),
+      (await getStockLevels(session, { q: "", low: "1", sort: "name", page: 1 })).groups,
+    ).toHaveLength(2);
+    expect(
+      (await getStockLevels(session, { q: "fine", sort: "name", page: 1 })).groups.map(
+        (item) => item.sku,
+      ),
     ).toEqual(["FINE"]);
   });
 });

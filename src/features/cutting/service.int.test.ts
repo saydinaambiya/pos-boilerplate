@@ -100,7 +100,9 @@ describe("cutting rolls (FR-ROL-03, ADR-0023)", () => {
       { size: "100x70", qty: 2 },
       { size: "100x140", qty: 3 },
     ]);
-    const [listed] = await getRolls(session, { q: "mihrab" });
+    const {
+      rolls: [listed],
+    } = await getRolls(session, { q: "mihrab", page: 1 });
     expect(listed?.id).toBe(rollId);
     expect(listed?.pieces.map(({ size, stockQty }) => ({ size, stockQty }))).toEqual([
       { size: "93x47", stockQty: 4 },
@@ -171,7 +173,12 @@ describe("cutting rolls (FR-ROL-03, ADR-0023)", () => {
 
     const [cut] = await getRecentCuts(session);
     expect(cut).toMatchObject({ defect: true, pieces: [{ size: "93x47", qty: 1 }] });
-    const levels = await getStockLevels(session, { q: "mihrab", defect: "1", page: 1 });
+    const levels = await getStockLevels(session, {
+      q: "mihrab",
+      defect: "1",
+      sort: "name",
+      page: 1,
+    });
     expect(levels.groups.map((group) => group.variantId)).toEqual([rollId]);
     expect(levels.groups[0]?.pieces.map((level) => level.variantId)).toEqual([defects[0]?.id]);
     const [pos] = await searchPosCatalog(session, "mihrab");
@@ -186,14 +193,14 @@ describe("cutting rolls (FR-ROL-03, ADR-0023)", () => {
     ).toEqual({ ok: false, reason: "cut-only" });
 
     const cashier = await signIn("kasir", "123456");
-    await expect(getRolls(cashier, { q: "" })).rejects.toThrow(ForbiddenError);
+    await expect(getRolls(cashier, { q: "", page: 1 })).rejects.toThrow(ForbiddenError);
   });
 
   it("groups pieces under their roll and keeps a minimum on the 93x47 piece only (FR-STK-08/09)", async () => {
     const session = await owner();
     const { rollId, piece } = await roll(1000);
 
-    const all = await getStockLevels(session, { q: "mihrab", page: 1 });
+    const all = await getStockLevels(session, { q: "mihrab", sort: "name", page: 1 });
     expect(all.groups.map((group) => group.variantId)).toEqual([rollId]);
     expect(all.groups[0]?.pieces.map((item) => item.size)).toEqual([
       "93x47",
@@ -201,9 +208,9 @@ describe("cutting rolls (FR-ROL-03, ADR-0023)", () => {
       "50x140",
       "100x140",
     ]);
-    expect((await getStockLevels(session, { q: "mihrab", minimum: "1", page: 1 })).groups).toEqual(
-      [],
-    );
+    expect(
+      (await getStockLevels(session, { q: "mihrab", minimum: "1", sort: "name", page: 1 })).groups,
+    ).toEqual([]);
 
     expect(await setPieceMinimum(session, piece("100x70"), { minStock: 3 }, testContext())).toEqual(
       { ok: false, reason: "not-found" },
@@ -216,10 +223,15 @@ describe("cutting rolls (FR-ROL-03, ADR-0023)", () => {
       ok: true,
     });
 
-    const withMinimum = await getStockLevels(session, { q: "", minimum: "1", page: 1 });
+    const withMinimum = await getStockLevels(session, {
+      q: "",
+      minimum: "1",
+      sort: "name",
+      page: 1,
+    });
     expect(withMinimum.groups.map((group) => group.variantId)).toEqual([rollId]);
     expect(withMinimum.groups[0]?.pieces.map((item) => item.variantId)).toEqual([piece("93x47")]);
-    const low = await getStockLevels(session, { q: "", low: "1", page: 1 });
+    const low = await getStockLevels(session, { q: "", low: "1", sort: "name", page: 1 });
     expect(low.groups[0]?.pieces.map((item) => item.variantId)).toEqual([piece("93x47")]);
 
     const cashier = await signIn("kasir", "123456");

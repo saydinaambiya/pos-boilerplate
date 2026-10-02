@@ -5,6 +5,9 @@ import { and, asc, desc, eq, inArray, isNull, like, or, type SQL, sql } from "dr
 import { db, type Executor } from "@/db/client";
 import { containsPattern } from "@/db/like";
 import { brands, products, productVariants, stockMovements, users } from "@/db/schema";
+import { brandOrder, brandPage, brandWindow } from "@/features/catalog/brand-page";
+
+import type { RollFilters } from "./schemas";
 
 const rollColumns = {
   id: productVariants.id,
@@ -27,10 +30,11 @@ const activeRoll = [
 ];
 
 /**
- * Active rolls by brand (unbranded last), product name and colour order,
- * so the list groups per brand (FR-ROL-03, ADR-0040).
+ * One page of active rolls: ten brands (unbranded last) with all their
+ * rolls, by product name and colour order, so the list groups per brand
+ * (FR-ROL-03, ADR-0040, ADR-0041).
  */
-export async function queryRolls(filters: { q: string }, limit: number) {
+export async function queryRolls(filters: RollFilters) {
   const conditions: SQL[] = [...activeRoll];
   if (filters.q) {
     const pattern = containsPattern(filters.q);
@@ -43,21 +47,34 @@ export async function queryRolls(filters: { q: string }, limit: number) {
     );
     if (match) conditions.push(match);
   }
-  return db
+  const window = brandWindow(filters.page);
+  const page = brandPage(
+    await db
+      .select({ brandId: products.brandId })
+      .from(productVariants)
+      .innerJoin(products, eq(products.id, productVariants.productId))
+      .leftJoin(brands, eq(brands.id, products.brandId))
+      .where(and(...conditions))
+      .groupBy(products.brandId, brands.name)
+      .orderBy(...brandOrder)
+      .limit(window.limit)
+      .offset(window.offset),
+  );
+  if (page.empty) return { rows: [], hasNextPage: false };
+  const rows = await db
     .select(rollColumns)
     .from(productVariants)
     .innerJoin(products, eq(products.id, productVariants.productId))
     .leftJoin(brands, eq(brands.id, products.brandId))
-    .where(and(...conditions))
+    .where(and(...conditions, page.condition))
     .orderBy(
-      sql`lower(${brands.name}) ASC NULLS LAST`,
-      asc(products.brandId),
+      ...brandOrder,
       asc(products.name),
       asc(products.id),
       asc(productVariants.sortOrder),
       asc(productVariants.id),
-    )
-    .limit(limit);
+    );
+  return { rows, hasNextPage: page.hasNextPage };
 }
 
 export async function findRoll(executor: Executor, id: string) {

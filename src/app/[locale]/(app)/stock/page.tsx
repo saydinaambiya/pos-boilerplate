@@ -18,13 +18,15 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { TableGroup, TableSubGroup } from "@/components/ui/table-group";
+import { ListSortFields } from "@/features/catalog/components/list-sort-fields";
 import { StockCell } from "@/features/catalog/components/stock-cell";
+import { getThicknesses } from "@/features/catalog/service";
 import { stockFilters } from "@/features/stock/schemas";
 import { formatSize } from "@/features/catalog/sizes";
 import { getStockLevels, takesPieceMinimum } from "@/features/stock/service";
 import { Link } from "@/i18n/navigation";
 import { requirePermission } from "@/lib/auth/guard";
-import { formatMeters } from "@/lib/format/length";
+import { formatMeters, formatThickness } from "@/lib/format/length";
 import { stockItemLabel, variantLabel } from "@/lib/format/variant-label";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -34,10 +36,11 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /**
  * Stock grouped per brand, then product, motif and colour, with search, a
- * low-stock, a defect and a minimum-set filter (FR-STK-07/08/09,
- * FR-ROL-05): brands start closed, each roll in meters with its pieces
- * folded under it, all shown on a click or once a search or filter is
- * applied (ADR-0023, ADR-0038, ADR-0040). A plain visit starts
+ * thickness, a low-stock, a defect and a minimum-set filter and a sort
+ * (FR-STK-07/08/09, FR-ROL-05): ten brands a page, starting closed, each
+ * roll in meters with its pieces folded under it, all shown on a click or
+ * once a search or filter is applied (ADR-0023, ADR-0038, ADR-0040,
+ * ADR-0041). A plain visit starts
  * with only stock that has a minimum; unticking it sends `minimum=0`, so
  * the hidden field keeps the choice in the URL.
  */
@@ -53,18 +56,25 @@ export default async function StockPage({ searchParams }: PageProps<"/[locale]/s
     defect: first(raw.defect),
     minimum:
       minimumChoice.includes("1") || (minimumChoice.length === 0 && plainVisit) ? "1" : undefined,
+    thickness: first(raw.thickness),
+    sort: first(raw.sort),
     page: first(raw.page) ?? "1",
   });
-  const [t, locale, page] = await Promise.all([
+  const [t, locale, thicknesses, page] = await Promise.all([
     getTranslations("Stock"),
     getLocale(),
+    getThicknesses(session),
     getStockLevels(session, filters),
   ]);
   const amount = (level: { isRoll: boolean }, value: number) =>
     level.isRoll ? formatMeters(value, locale) : String(value);
-  const searched = filters.q !== "" || filters.low !== undefined || filters.defect !== undefined;
+  const searched =
+    filters.q !== "" ||
+    filters.low !== undefined ||
+    filters.defect !== undefined ||
+    filters.thickness !== undefined;
   const filtered = searched || filters.minimum !== undefined;
-  const changed = searched || filters.minimum === undefined;
+  const changed = searched || filters.minimum === undefined || filters.sort !== "name";
   const brandGroups = Object.values(
     Object.groupBy(page.groups, (group) => group.brandId ?? ""),
   ).filter((group) => group !== undefined);
@@ -73,6 +83,8 @@ export default async function StockPage({ searchParams }: PageProps<"/[locale]/s
     ...(filters.low ? { low: filters.low } : {}),
     ...(filters.defect ? { defect: filters.defect } : {}),
     minimum: filters.minimum ?? "0",
+    ...(filters.thickness === undefined ? {} : { thickness: String(filters.thickness) }),
+    ...(filters.sort === "name" ? {} : { sort: filters.sort }),
     ...(pageNumber > 1 ? { page: String(pageNumber) } : {}),
   });
 
@@ -82,7 +94,7 @@ export default async function StockPage({ searchParams }: PageProps<"/[locale]/s
       <Card className="mb-6">
         <FilterForm
           applyLabel={t("filter")}
-          className="grid gap-4 sm:grid-cols-2 sm:items-end lg:grid-cols-[1fr_auto_auto_auto_auto]"
+          className="grid gap-4 sm:grid-cols-2 sm:items-end lg:grid-cols-3 xl:grid-cols-[2fr_1fr_1fr]"
         >
           <Field label={t("search")}>
             {(control) => (
@@ -96,6 +108,20 @@ export default async function StockPage({ searchParams }: PageProps<"/[locale]/s
               />
             )}
           </Field>
+          <ListSortFields
+            locale={locale}
+            thicknesses={thicknesses}
+            thickness={filters.thickness}
+            sort={filters.sort}
+            labels={{
+              thickness: t("thicknessFilter"),
+              allThicknesses: t("allThicknesses"),
+              sort: t("sort"),
+              name: t("sortName"),
+              thinFirst: t("sortThinFirst"),
+              thickFirst: t("sortThickFirst"),
+            }}
+          />
           <label className="flex min-h-11 items-center gap-3 text-sm text-ink">
             <input
               type="checkbox"
@@ -150,6 +176,7 @@ export default async function StockPage({ searchParams }: PageProps<"/[locale]/s
                 <TableHead>{t("product")}</TableHead>
                 <TableHead>{t("motif")}</TableHead>
                 <TableHead>{t("color")}</TableHead>
+                <TableHead>{t("thickness")}</TableHead>
                 <TableHead>{t("stock")}</TableHead>
                 <TableHead className="text-right">{t("minStock")}</TableHead>
               </TableRow>
@@ -160,7 +187,7 @@ export default async function StockPage({ searchParams }: PageProps<"/[locale]/s
                 <TableGroup
                   key={`${brandGroup[0]?.brandId ?? "none"}-${String(searched)}`}
                   defaultOpen={searched}
-                  leadColSpan={6}
+                  leadColSpan={7}
                   className="bg-surface-muted/60"
                   toggleLabel={t("toggleBrand", { brand })}
                   toggleContent={
@@ -199,6 +226,9 @@ export default async function StockPage({ searchParams }: PageProps<"/[locale]/s
                             </TableCell>
                             <TableCell>{group.motif ?? "—"}</TableCell>
                             <TableCell>{group.colorName ?? "—"}</TableCell>
+                            <TableCell className="whitespace-nowrap tabular-nums">
+                              {group.thickness ? formatThickness(group.thickness, locale) : "—"}
+                            </TableCell>
                             <TableCell>
                               <StockCell
                                 trackStock
@@ -239,6 +269,7 @@ export default async function StockPage({ searchParams }: PageProps<"/[locale]/s
                                 </TableCell>
                                 <TableCell />
                                 <TableCell>{piece.colorName ?? "—"}</TableCell>
+                                <TableCell />
                                 <TableCell>
                                   <StockCell
                                     trackStock
