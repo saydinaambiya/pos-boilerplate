@@ -22,14 +22,18 @@ import { TableGroup } from "@/components/ui/table-group";
 import { CatalogTabs } from "@/features/catalog/components/catalog-tabs";
 import { NewProductDialog } from "@/features/catalog/components/new-product-dialog";
 import { StockCell } from "@/features/catalog/components/stock-cell";
-import { productFilters } from "@/features/catalog/schemas";
+import { productFilters, type SizePrices } from "@/features/catalog/schemas";
 import { ListSortFields } from "@/features/catalog/components/list-sort-fields";
 import { getBrands, getThicknesses, listProducts } from "@/features/catalog/service";
+import { formatSize } from "@/features/catalog/sizes";
 import { Link } from "@/i18n/navigation";
 import { requirePermission } from "@/lib/auth/guard";
 import { formatCurrency } from "@/lib/format/currency";
 import { formatMeters, formatThickness } from "@/lib/format/length";
 import { firstParam as first, keptQuery } from "@/lib/utils/search-params";
+
+/** The one piece size whose price the list shows next to the meter price (FR-ROL-02). */
+const LISTED_SIZE = "93x47";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Catalog");
@@ -42,7 +46,8 @@ export async function generateMetadata(): Promise<Metadata> {
  * until a filter applies, ten brands a page, showing motif, colours and
  * thickness in their own columns (FR-PRD-01/02/04/06, ADR-0038, ADR-0040,
  * ADR-0041). Deleted products are not listed (FR-PRD-03). Roll prices are
- * per meter and roll stock shows meters and cut pieces (FR-ROL-01);
+ * per meter with the 93×47 piece price below (FR-ROL-02) and roll stock
+ * shows meters and cut pieces (FR-ROL-01);
  * `?new=1` opens the create dialog (ADR-0018).
  */
 export default async function ProductsPage({ searchParams }: PageProps<"/[locale]/products">) {
@@ -80,6 +85,13 @@ export default async function ProductsPage({ searchParams }: PageProps<"/[locale
     ...(filters.sort === "name" ? {} : { sort: filters.sort }),
     ...(pageNumber > 1 ? { page: String(pageNumber) } : {}),
   });
+
+  const listedPiecePrice = (sizePrices: unknown) => {
+    const price = (sizePrices as SizePrices | null)?.[LISTED_SIZE];
+    return price === undefined
+      ? null
+      : t("piecePrice", { size: formatSize(LISTED_SIZE), price: formatCurrency(price, locale) });
+  };
 
   return (
     <>
@@ -240,6 +252,11 @@ export default async function ProductsPage({ searchParams }: PageProps<"/[locale
                         {product.isRoll
                           ? t("perMeter", { price: formatCurrency(product.price, locale) })
                           : formatCurrency(product.price, locale)}
+                        {product.isRoll ? (
+                          <span className="block text-xs text-ink-muted">
+                            {listedPiecePrice(product.sizePrices)}
+                          </span>
+                        ) : null}
                       </TableCell>
                       <TableCell>
                         <StockCell

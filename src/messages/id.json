@@ -662,6 +662,7 @@
     "rollMinStock": "Stok minimum roll (m)",
     "rollProduct": "Roll · dipotong per ukuran",
     "perMeter": "{price} / m",
+    "piecePrice": "{size}: {price}",
     "rollStock": "{meters} · {pieces} pcs",
     "motifPlaceholder": "Pilih motif",
     "searchChoice": "Cari…",
