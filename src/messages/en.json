@@ -662,6 +662,7 @@
     "rollMinStock": "Minimum roll stock (m)",
     "rollProduct": "Roll · cut to size",
     "perMeter": "{price} / m",
+    "piecePrice": "{size}: {price}",
     "rollStock": "{meters} · {pieces} pcs",
     "motifPlaceholder": "Choose a motif",
     "searchChoice": "Search…",

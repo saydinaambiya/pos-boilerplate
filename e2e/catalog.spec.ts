@@ -69,6 +69,8 @@ test.describe("brands & products (FR-CAT-02, FR-PRD)", () => {
     await expect(page).toHaveURL(new RegExp(`q=${sku.toLowerCase()}`));
     const row = page.getByRole("row", { name: new RegExp(`Kopi Susu ${run}`) });
     await expect(row).toContainText(/Rp\s18\.000 \/ m/);
+    await expect(row).toContainText(/93cm x 47cm: Rp\s9\.000/);
+    await expect(row).not.toContainText(/Rp\s10\.000/);
     await expect(row.getByText("Stok menipis")).toBeVisible();
     await expect(row).toContainText("3D Catur");
     await expect(row.getByRole("cell", { name: "Navy", exact: true })).toBeVisible();
