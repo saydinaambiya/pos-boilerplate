@@ -411,6 +411,7 @@
       "housekeeping_archived": "Monthly data marked archived",
       "consignment_taken": "Goods taken by salesperson",
       "consignment_settled": "Salesperson goods sold / returned",
+      "consignment_reduced": "Salesperson goods reduced",
       "stock_cut": "Roll cut",
       "bank-account_qris-set": "Account set for QRIS",
       "bank-account_qris-cleared": "Account removed from QRIS",
@@ -1861,13 +1862,15 @@
     "historyEmpty": "Nothing recorded yet.",
     "batches": {
       "TAKE": "Goods taken",
-      "SETTLE": "Sold / returned"
+      "SETTLE": "Sold / returned",
+      "REDUCE": "Correction of goods carried"
     },
     "batchBy": "{time} · by {name}",
     "items": {
       "TAKE": "{qty} taken",
       "SOLD": "{qty} sold",
-      "RETURN": "{qty} brought back"
+      "RETURN": "{qty} brought back",
+      "REDUCE": "{qty} reduced"
     },
     "invoice": "Sale {invoiceNo}",
     "units": "{count} items",
@@ -1910,7 +1913,17 @@
     "methodSplitTransfer": "Cash + transfer",
     "splitCash": "Cash received",
     "splitRest": "The remaining {amount} by transfer or QRIS",
-    "splitRestMethod": "Rest paid by"
+    "splitRestMethod": "Rest paid by",
+    "recordReduce": "Reduce goods",
+    "reduceTitle": "Reduce goods carried",
+    "reduceDescription": "To fix a wrong entry. Enter how many the salesperson did not take after all. They go straight back into stock.",
+    "reduced": "The goods carried were reduced.",
+    "reducedField": "Reduced",
+    "reducedOf": "Reduced, {name}",
+    "saveReduced": "Save reduction",
+    "nothingReduced": "Enter a reduced quantity for at least one item.",
+    "tooManyReduced": "The reduced quantity for {name} is more than the {count} still carried.",
+    "colMotif": "Motif"
   },
   "Cutting": {
     "title": "Cut Rolls",

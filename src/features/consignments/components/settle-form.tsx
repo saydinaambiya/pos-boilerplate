@@ -30,7 +30,7 @@ import { parseRupiah } from "@/lib/format/rupiah-input";
 import { calculateSale, type TaxRules } from "@/lib/money/calculate";
 import { cn } from "@/lib/utils/cn";
 
-import { settleGoodsAction } from "../actions";
+import { reduceGoodsAction, settleGoodsAction } from "../actions";
 
 type Method = "CASH" | "TRANSFER" | "QRIS" | "SPLIT" | "KASBON";
 
@@ -44,8 +44,11 @@ export interface OutstandingItem {
 interface SettleFormProps {
   locale: Locale;
   consignmentId: string;
-  /** Sales record what they sold; the shop floor records what came back (ADR-0024). */
-  mode: "sell" | "return";
+  /**
+   * Sales record what they sold, the shop floor what came back (ADR-0024),
+   * and pickup staff take off goods entered by mistake (FR-CSG-07).
+   */
+  mode: "sell" | "return" | "reduce";
   items: readonly OutstandingItem[];
   tax: TaxRules;
   bankAccounts: readonly { id: string; label: string }[];
@@ -61,24 +64,52 @@ const toQty = (text: string) => {
   return Number.isFinite(value) && value > 0 ? value : 0;
 };
 
+type Field = "sold" | "returned" | "reduced";
+
+const fieldOf = { sell: "sold", return: "returned", reduce: "reduced" } as const;
+
+const messagesOf = {
+  sell: {
+    label: "sold",
+    nothing: "nothingSold",
+    tooMany: "tooManySold",
+    itemOf: "soldOf",
+    save: "saveSold",
+  },
+  return: {
+    label: "returned",
+    nothing: "nothingReturned",
+    tooMany: "tooManyReturned",
+    itemOf: "returnedOf",
+    save: "saveReturned",
+  },
+  reduce: {
+    label: "reducedField",
+    nothing: "nothingReduced",
+    tooMany: "tooManyReduced",
+    itemOf: "reducedOf",
+    save: "saveReduced",
+  },
+} as const;
+
 /**
- * Settlement form (FR-CSG-03/04). In `sell` mode the salesperson enters
+ * Settlement form (FR-CSG-03/04/07). In `sell` mode the salesperson enters
  * how many of each item were sold, the buyer (FR-POS-11) and how it is
  * paid, also part cash with the rest by transfer or QRIS (ADR-0033); the
  * total is a preview and the server prices the sale. In `return`
- * mode the shop floor enters how many came back.
+ * mode the shop floor enters how many came back, and in `reduce` mode
+ * pickup staff enter how many were recorded by mistake.
  */
 export function SettleForm(props: SettleFormProps) {
   const { locale, items, mode } = props;
-  const field = mode === "sell" ? "sold" : "returned";
+  const field = fieldOf[mode];
+  const messages = messagesOf[mode];
   const t = useTranslations("Consignments");
   const tPos = useTranslations("Pos");
   const id = useId();
   const router = useRouter();
   const showResult = useShowResult();
-  const [quantities, setQuantities] = useState<Record<string, { sold: string; returned: string }>>(
-    {},
-  );
+  const [quantities, setQuantities] = useState<Record<string, Partial<Record<Field, string>>>>({});
   const [customer, setCustomer] = useState<CustomerDraft>(emptyCustomerDraft);
   const [method, setMethod] = useState<Method>("CASH");
   const [bankAccountId, setBankAccountId] = useState(props.bankAccounts[0]?.id ?? "");
@@ -101,6 +132,7 @@ export function SettleForm(props: SettleFormProps) {
       item,
       sold: toQty(entry?.sold ?? ""),
       returned: toQty(entry?.returned ?? ""),
+      reduced: toQty(entry?.reduced ?? ""),
     };
   });
   const soldLines = lines.filter((line) => line.sold > 0);
@@ -113,14 +145,10 @@ export function SettleForm(props: SettleFormProps) {
   const splitError = method === "SPLIT" && (cash <= 0 || cash >= total);
   const paysQris = method === "QRIS" || (method === "SPLIT" && restMethod === "QRIS");
   const customerErrors = customerDraftErrors(customer, hasSale && method === "KASBON");
-  const set = (variantId: string, field: "sold" | "returned", value: string) => {
+  const set = (variantId: string, value: string) => {
     setQuantities((current) => ({
       ...current,
-      [variantId]: {
-        sold: current[variantId]?.sold ?? "",
-        returned: current[variantId]?.returned ?? "",
-        [field]: value.replace(/\D/g, "").slice(0, 4),
-      },
+      [variantId]: { ...current[variantId], [field]: value.replace(/\D/g, "").slice(0, 4) },
     }));
   };
 
@@ -136,13 +164,13 @@ export function SettleForm(props: SettleFormProps) {
     if (pending) return;
     const entered = lines.filter((line) => line[field] > 0);
     if (entered.length === 0) {
-      setError(t(mode === "sell" ? "nothingSold" : "nothingReturned"));
+      setError(t(messages.nothing));
       return;
     }
     const over = entered.find((line) => line[field] > line.item.outstanding);
     if (over) {
       setError(
-        t(mode === "sell" ? "tooManySold" : "tooManyReturned", {
+        t(messages.tooMany, {
           name: over.item.label,
           count: over.item.outstanding,
         }),
@@ -179,17 +207,27 @@ export function SettleForm(props: SettleFormProps) {
               : { method };
     startTransition(async () => {
       try {
-        const result = await settleGoodsAction(locale, props.consignmentId, {
-          idempotencyKey: idempotencyKey.current,
-          lines: entered.map((line) => ({
-            variantId: line.item.variantId,
-            sold: mode === "sell" ? line.sold : 0,
-            returned: mode === "return" ? line.returned : 0,
-          })),
-          customer: hasSale ? { name: customer.name, phone: customer.phone } : null,
-          payment: hasSale ? payment : { method: "CASH" },
-          note,
-        });
+        const result =
+          mode === "reduce"
+            ? await reduceGoodsAction(locale, props.consignmentId, {
+                idempotencyKey: idempotencyKey.current,
+                lines: entered.map((line) => ({
+                  variantId: line.item.variantId,
+                  qty: line.reduced,
+                })),
+                note,
+              })
+            : await settleGoodsAction(locale, props.consignmentId, {
+                idempotencyKey: idempotencyKey.current,
+                lines: entered.map((line) => ({
+                  variantId: line.item.variantId,
+                  sold: mode === "sell" ? line.sold : 0,
+                  returned: mode === "return" ? line.returned : 0,
+                })),
+                customer: hasSale ? { name: customer.name, phone: customer.phone } : null,
+                payment: hasSale ? payment : { method: "CASH" },
+                note,
+              });
         if (!result.ok) {
           setError(result.message);
           return;
@@ -227,17 +265,15 @@ export function SettleForm(props: SettleFormProps) {
                 htmlFor={`${id}-${item.variantId}-${field}`}
                 className="text-xs font-medium text-ink-muted"
               >
-                <span aria-hidden="true">{t(field)}</span>
-                <span className="sr-only">
-                  {t(mode === "sell" ? "soldOf" : "returnedOf", { name: item.label })}
-                </span>
+                <span aria-hidden="true">{t(messages.label)}</span>
+                <span className="sr-only">{t(messages.itemOf, { name: item.label })}</span>
               </label>
               <Input
                 id={`${id}-${item.variantId}-${field}`}
                 inputMode="numeric"
                 value={quantities[item.variantId]?.[field] ?? ""}
                 onChange={(event) => {
-                  set(item.variantId, field, event.target.value);
+                  set(item.variantId, event.target.value);
                 }}
                 placeholder="0"
                 className="text-center tabular-nums"
@@ -417,7 +453,7 @@ export function SettleForm(props: SettleFormProps) {
         </p>
       ) : null}
       <Button type="submit" disabled={pending} aria-busy={pending} className="self-start">
-        {t(mode === "sell" ? "saveSold" : "saveReturned")}
+        {t(messages.save)}
       </Button>
     </form>
   );

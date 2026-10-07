@@ -30,7 +30,7 @@ import {
   queryConsignments,
   touchConsignment,
 } from "./repository";
-import type { SettleGoodsInput, TakeGoodsInput } from "./schemas";
+import type { ReduceGoodsInput, SettleGoodsInput, TakeGoodsInput } from "./schemas";
 
 export type TakeResult =
   | { ok: true; consignmentId: string; replayed: boolean }
@@ -48,6 +48,13 @@ type SettleReason =
   | "kasbon-forbidden"
   | "split-invalid"
   | "store-closed";
+
+export type ReduceResult =
+  | { ok: true; closed: boolean }
+  | {
+      ok: false;
+      reason: "not-found" | "forbidden" | "closed" | "exceeds-outstanding" | "store-closed";
+    };
 
 export type SettleResult =
   | { ok: true; saleId: string | null; invoiceNo: string | null; closed: boolean }
@@ -205,17 +212,25 @@ export async function takeGoods(
   }
 }
 
+interface OutstandingChange {
+  kind: "SETTLE" | "REDUCE";
+  idempotencyKey: string;
+  note: string;
+  lines: readonly { variantId: string; sold: number; returned: number; reduced: number }[];
+}
+
 /**
- * Writes the settlement batch inside the caller's transaction: checks the
- * quantities against what is still outstanding under a row lock, stores
- * the sold and returned lines, puts returned goods back on the shelf with
- * `CONSIGNMENT_RETURN` and closes the consignment once nothing is left.
+ * Writes a settlement or correction batch inside the caller's transaction:
+ * checks the quantities against what is still outstanding under a row
+ * lock, stores the sold, returned and reduced lines, puts returned and
+ * reduced goods back on the shelf with `CONSIGNMENT_RETURN` and closes the
+ * consignment once nothing is left (FR-CSG-03/07).
  */
 async function recordSettlement(
   tx: Executor,
   session: Session,
   consignmentId: string,
-  input: SettleGoodsInput,
+  input: OutstandingChange,
   sale: { id: string; invoiceNo: string } | null,
   context: RequestContext,
   now: Date,
@@ -226,24 +241,27 @@ async function recordSettlement(
   const balances = new Map(
     (await consignmentBalances(tx, consignmentId)).map((row) => [row.variantId, row]),
   );
-  const requested = new Map<string, { sold: number; returned: number }>();
+  const requested = new Map<string, { sold: number; returned: number; reduced: number }>();
   for (const line of input.lines) {
-    const current = requested.get(line.variantId) ?? { sold: 0, returned: 0 };
+    const current = requested.get(line.variantId) ?? { sold: 0, returned: 0, reduced: 0 };
     requested.set(line.variantId, {
       sold: current.sold + line.sold,
       returned: current.returned + line.returned,
+      reduced: current.reduced + line.reduced,
     });
   }
+  const settled = (line: { sold: number; returned: number; reduced: number }) =>
+    line.sold + line.returned + line.reduced;
   for (const [variantId, line] of requested) {
     const balance = balances.get(variantId);
-    if (!balance || line.sold + line.returned > balance.outstanding) {
+    if (!balance || settled(line) > balance.outstanding) {
       throw new SettleAbort("exceeds-outstanding");
     }
   }
 
   const batchId = await insertBatch(tx, {
     consignmentId,
-    kind: "SETTLE",
+    kind: input.kind,
     actorId: session.user.id,
     saleId: sale?.id ?? null,
     idempotencyKey: input.idempotencyKey,
@@ -277,11 +295,22 @@ async function recordSettlement(
               },
             ]
           : []),
+        ...(line.reduced > 0
+          ? [
+              {
+                ...base,
+                kind: "REDUCE" as const,
+                qty: line.reduced,
+                unitPrice: balance.takenPrice,
+              },
+            ]
+          : []),
       ];
     }),
   );
   for (const variantId of sorted) {
-    const returned = requested.get(variantId)?.returned ?? 0;
+    const line = requested.get(variantId);
+    const returned = line ? line.returned + line.reduced : 0;
     if (returned === 0 || !balances.get(variantId)?.trackStock) continue;
     const moved = await recordStockMovement(
       tx,
@@ -299,7 +328,7 @@ async function recordSettlement(
 
   const left = [...balances.values()].reduce((sum, balance) => {
     const line = requested.get(balance.variantId);
-    return sum + balance.outstanding - (line ? line.sold + line.returned : 0);
+    return sum + balance.outstanding - (line ? settled(line) : 0);
   }, 0);
   if (left === 0) await closeConsignment(tx, consignmentId, now);
   else await touchConsignment(tx, consignmentId, now);
@@ -308,7 +337,7 @@ async function recordSettlement(
     tx,
     {
       actorId: session.user.id,
-      action: "consignment.settled",
+      action: input.kind === "REDUCE" ? "consignment.reduced" : "consignment.settled",
       entity: "consignment",
       entityId: consignmentId,
       diff: {
@@ -320,6 +349,15 @@ async function recordSettlement(
     context,
   );
   return left === 0;
+}
+
+function settlementOf(input: SettleGoodsInput): OutstandingChange {
+  return {
+    kind: "SETTLE",
+    idempotencyKey: input.idempotencyKey,
+    note: input.note,
+    lines: input.lines.map((line) => ({ ...line, reduced: 0 })),
+  };
 }
 
 /**
@@ -360,7 +398,7 @@ export async function settleGoods(
       const earlier = await findBatchByKey(db, session.user.id, input.idempotencyKey);
       if (earlier) return { ok: true, saleId: null, invoiceNo: null, closed: false };
       closed = await db.transaction((tx) =>
-        recordSettlement(tx, session, consignmentId, input, null, context, now),
+        recordSettlement(tx, session, consignmentId, settlementOf(input), null, context, now),
       );
       return { ok: true, saleId: null, invoiceNo: null, closed };
     }
@@ -426,7 +464,15 @@ export async function settleGoods(
     const result = await checkout(session, saleInput, context, now, {
       consignmentId,
       onSale: async (tx, sale) => {
-        closed = await recordSettlement(tx, session, consignmentId, input, sale, context, now);
+        closed = await recordSettlement(
+          tx,
+          session,
+          consignmentId,
+          settlementOf(input),
+          sale,
+          context,
+          now,
+        );
       },
     });
     if (!result.ok) return { ok: false, reason: "sale-failed", sale: result };
@@ -435,6 +481,67 @@ export async function settleGoods(
     if (error instanceof SettleAbort) return { ok: false, reason: error.reason };
     if (uniqueViolationConstraint(error) === "consignment_batches_actor_idempotency_key") {
       return { ok: true, saleId: null, invoiceNo: null, closed: false };
+    }
+    throw error;
+  }
+}
+
+/**
+ * Takes goods off a salesperson's load that were entered by mistake
+ * (FR-CSG-07, ADR-0042). Only pickup staff may do it, up to what is still
+ * outstanding; the goods go back on the shelf and the correction stays in
+ * the history as its own batch. A retry with the same key does nothing.
+ */
+export async function reduceGoods(
+  session: Session,
+  consignmentId: string,
+  input: ReduceGoodsInput,
+  context: RequestContext,
+  now = new Date(),
+): Promise<ReduceResult> {
+  assertPermission(session, "page:consignments");
+  if (!session.permissions.has("consignment:pickup")) return { ok: false, reason: "forbidden" };
+  const consignment = await findConsignment(consignmentId);
+  if (!consignment) return { ok: false, reason: "not-found" };
+  const earlier = await findBatchByKey(db, session.user.id, input.idempotencyKey);
+  if (earlier) return { ok: true, closed: false };
+  if (await storeClosedFor(session, now)) return { ok: false, reason: "store-closed" };
+
+  try {
+    const closed = await db.transaction((tx) =>
+      recordSettlement(
+        tx,
+        session,
+        consignmentId,
+        {
+          kind: "REDUCE",
+          idempotencyKey: input.idempotencyKey,
+          note: input.note,
+          lines: input.lines.map((line) => ({
+            variantId: line.variantId,
+            sold: 0,
+            returned: 0,
+            reduced: line.qty,
+          })),
+        },
+        null,
+        context,
+        now,
+      ),
+    );
+    return { ok: true, closed };
+  } catch (error) {
+    if (error instanceof SettleAbort) {
+      return {
+        ok: false,
+        reason:
+          error.reason === "not-found" || error.reason === "closed"
+            ? error.reason
+            : "exceeds-outstanding",
+      };
+    }
+    if (uniqueViolationConstraint(error) === "consignment_batches_actor_idempotency_key") {
+      return { ok: true, closed: false };
     }
     throw error;
   }

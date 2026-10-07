@@ -35,10 +35,19 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t("title") };
 }
 
+/** Item name with its motif, colour and size, e.g. "Karpet · Mihrab · Merah" (FR-CSG-08). */
+function itemLabel(item: { name: string; motif: string | null; variantName: string | null }) {
+  return variantLabel(
+    item.name,
+    [item.motif, item.variantName].filter(Boolean).join(" · ") || null,
+  );
+}
+
 /**
- * One salesperson's goods (FR-CSG-02..05): what is still out per item and
+ * One salesperson's goods (FR-CSG-02..05, FR-CSG-07/08): what is still out per item and
  * every pickup and settlement grouped by day, newest first. `?take=1` adds
- * goods (pickup staff), `?return=1` records goods brought back (shop
+ * goods and `?reduce=1` takes off goods entered by mistake (pickup staff),
+ * `?return=1` records goods brought back (shop
  * floor) and `?sell=1` lets the salesperson record what they sold; selling
  * takes money, so it needs the salesperson's own open shift, but not the
  * cashier (ADR-0024, ADR-0029).
@@ -51,7 +60,7 @@ export default async function ConsignmentPage({
   const { id } = await params;
   if (!z.uuid().safeParse(id).success) notFound();
   const query = await searchParams;
-  const dialog = (["take", "sell", "return"] as const).find(
+  const dialog = (["take", "reduce", "sell", "return"] as const).find(
     (name) => firstParam(query[name]) === "1",
   );
 
@@ -69,6 +78,7 @@ export default async function ConsignmentPage({
   const open = consignment.status === "OPEN";
   const outstanding = consignment.balances.filter((balance) => balance.outstanding > 0);
   const canTake = open && salespeople.some((person) => person.id === consignment.salespersonId);
+  const canReduce = canTake && outstanding.length > 0;
   const isOwn = consignment.salespersonId === session.user.id;
   const canSell =
     open &&
@@ -93,6 +103,13 @@ export default async function ConsignmentPage({
               <Button asChild variant="secondary">
                 <Link href={`/consignments/${id}?take=1`} scroll={false}>
                   {t("takeMore")}
+                </Link>
+              </Button>
+            ) : null}
+            {canReduce ? (
+              <Button asChild variant="secondary">
+                <Link href={`/consignments/${id}?reduce=1`} scroll={false}>
+                  {t("recordReduce")}
                 </Link>
               </Button>
             ) : null}
@@ -133,6 +150,7 @@ export default async function ConsignmentPage({
             <TableHeader>
               <TableRow>
                 <TableHead>{t("colItem")}</TableHead>
+                <TableHead>{t("colMotif")}</TableHead>
                 <TableHead className="text-right">{t("colTaken")}</TableHead>
                 <TableHead className="text-right">{t("colSold")}</TableHead>
                 <TableHead className="text-right">{t("colReturned")}</TableHead>
@@ -145,6 +163,7 @@ export default async function ConsignmentPage({
                   <TableCell className="[overflow-wrap:anywhere]">
                     {variantLabel(balance.name, balance.variantName)}
                   </TableCell>
+                  <TableCell className="[overflow-wrap:anywhere]">{balance.motif ?? "—"}</TableCell>
                   <TableCell className="text-right tabular-nums">{balance.taken}</TableCell>
                   <TableCell className="text-right tabular-nums">{balance.sold}</TableCell>
                   <TableCell className="text-right tabular-nums">{balance.returned}</TableCell>
@@ -179,7 +198,15 @@ export default async function ConsignmentPage({
                       .map((batch) => (
                         <li key={batch.id} className="rounded-card border border-border p-3">
                           <p className="flex flex-wrap items-center gap-2 text-sm font-medium text-ink">
-                            <Chip tone={batch.kind === "TAKE" ? "info" : "success"}>
+                            <Chip
+                              tone={
+                                batch.kind === "TAKE"
+                                  ? "info"
+                                  : batch.kind === "REDUCE"
+                                    ? "warning"
+                                    : "success"
+                              }
+                            >
                               {t(`batches.${batch.kind}`)}
                             </Chip>
                             <span className="text-xs font-normal text-ink-muted">
@@ -193,7 +220,7 @@ export default async function ConsignmentPage({
                             {batch.items.map((item) => (
                               <li key={item.id} className="flex justify-between gap-3">
                                 <span className="min-w-0 [overflow-wrap:anywhere]">
-                                  {variantLabel(item.name, item.variantName)}
+                                  {itemLabel(item)}
                                 </span>
                                 <span className="shrink-0 text-ink-muted tabular-nums">
                                   {t(`items.${item.kind}`, { qty: item.qty })}
@@ -245,22 +272,24 @@ export default async function ConsignmentPage({
           </ConsignmentMessages>
         </RouteDialog>
       ) : null}
-      {(dialog === "sell" && canSell) || (dialog === "return" && canReturn) ? (
+      {(dialog === "sell" && canSell) ||
+      (dialog === "return" && canReturn) ||
+      (dialog === "reduce" && canReduce) ? (
         <RouteDialog
           closeHref={`/consignments/${id}`}
           closeLabel={tCommon("close")}
           size="lg"
-          title={t(dialog === "sell" ? "sellTitle" : "returnTitle")}
-          description={t(dialog === "sell" ? "sellDescription" : "returnDescription")}
+          title={t(`${dialog}Title`)}
+          description={t(`${dialog}Description`)}
         >
           <ConsignmentMessages>
             <SettleForm
               locale={locale}
               consignmentId={id}
-              mode={dialog === "sell" ? "sell" : "return"}
+              mode={dialog}
               items={outstanding.map((balance) => ({
                 variantId: balance.variantId,
-                label: variantLabel(balance.name, balance.variantName),
+                label: itemLabel(balance),
                 price: balance.price,
                 outstanding: balance.outstanding,
               }))}

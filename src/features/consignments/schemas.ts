@@ -21,6 +21,19 @@ export const takeGoodsInput = z
   .strict();
 export type TakeGoodsInput = z.infer<typeof takeGoodsInput>;
 
+/** Goods taken off a salesperson's load because the pickup was entered too high (FR-CSG-07). */
+export const reduceGoodsInput = z
+  .object({
+    idempotencyKey: z.uuid(),
+    lines: z
+      .array(z.object({ variantId: z.uuid(), qty: quantity.min(1) }).strict())
+      .min(1)
+      .max(100),
+    note: plainText(200, 0),
+  })
+  .strict();
+export type ReduceGoodsInput = z.infer<typeof reduceGoodsInput>;
+
 export const settlementMethods = ["CASH", "TRANSFER", "QRIS", "SPLIT", "KASBON"] as const;
 
 /** The non-cash part of a split payment: a transfer or QRIS (FR-CSG-04). */

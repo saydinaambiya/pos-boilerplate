@@ -11,8 +11,8 @@ import { routing } from "@/i18n/routing";
 import { requirePermission } from "@/lib/auth/guard";
 import { currentRequestContext } from "@/lib/http/request-context";
 
-import { settleGoodsInput, takeGoodsInput } from "./schemas";
-import { settleGoods, takeGoods } from "./service";
+import { reduceGoodsInput, settleGoodsInput, takeGoodsInput } from "./schemas";
+import { reduceGoods, settleGoods, takeGoods } from "./service";
 
 function localeOf(value: unknown) {
   return typeof value === "string" && hasLocale(routing.locales, value)
@@ -131,4 +131,36 @@ export async function settleGoodsAction(
       ? t("settledWithSale", { invoiceNo: result.invoiceNo })
       : t("settledReturnOnly"),
   };
+}
+
+/** Takes goods entered by mistake off a salesperson's load (FR-CSG-07). */
+export async function reduceGoodsAction(
+  localeValue: unknown,
+  consignmentId: unknown,
+  payload: unknown,
+): Promise<ConsignmentResponse> {
+  const locale = localeOf(localeValue);
+  const session = await requirePermission("page:consignments", locale);
+  const t = await getTranslations({ locale, namespace: "Consignments" });
+  const id = z.uuid().safeParse(consignmentId);
+  const parsed = reduceGoodsInput.safeParse(payload);
+  if (!id.success || !parsed.success) return { ok: false, message: t("errors.invalid") };
+
+  const result = await reduceGoods(session, id.data, parsed.data, await currentRequestContext());
+  if (!result.ok) {
+    switch (result.reason) {
+      case "exceeds-outstanding":
+        return { ok: false, message: t("errors.exceedsOutstanding") };
+      case "closed":
+        return { ok: false, message: t("errors.closed") };
+      case "store-closed":
+        return { ok: false, message: t("errors.storeClosed") };
+      case "forbidden":
+        return { ok: false, message: t("errors.forbidden") };
+      case "not-found":
+        return { ok: false, message: t("errors.invalid") };
+    }
+  }
+  revalidatePath("/", "layout");
+  return { ok: true, id: id.data, message: t("reduced") };
 }

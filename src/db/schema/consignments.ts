@@ -45,12 +45,13 @@ export const consignments = pgTable(
   ],
 );
 
-export const consignmentBatchKinds = ["TAKE", "SETTLE"] as const;
+export const consignmentBatchKinds = ["TAKE", "SETTLE", "REDUCE"] as const;
 export const consignmentBatchKind = pgEnum("consignment_batch_kind", consignmentBatchKinds);
 
 /**
- * One recorded visit: a pickup (`TAKE`) or a settlement of sold and
- * returned goods (`SETTLE`). Batches are never edited, so every day's
+ * One recorded visit: a pickup (`TAKE`), a settlement of sold and
+ * returned goods (`SETTLE`) or a correction of a pickup entered too high
+ * (`REDUCE`, FR-CSG-07). Batches are never edited, so every day's
  * pickups stay in the history (FR-CSG-02). `sale_id` is the sale created for
  * the sold part, if any.
  */
@@ -79,12 +80,12 @@ export const consignmentBatches = pgTable(
   ],
 );
 
-export const consignmentItemKinds = ["TAKE", "SOLD", "RETURN"] as const;
+export const consignmentItemKinds = ["TAKE", "SOLD", "RETURN", "REDUCE"] as const;
 export const consignmentItemKind = pgEnum("consignment_item_kind", consignmentItemKinds);
 
 /**
  * Quantities per variant in a batch. Outstanding goods of a consignment =
- * Σ TAKE − Σ SOLD − Σ RETURN per variant (FR-CSG-03). Names and the price at
+ * Σ TAKE − Σ SOLD − Σ RETURN − Σ REDUCE per variant (FR-CSG-03/07). Names and the price at
  * pickup are frozen for the history.
  */
 export const consignmentItems = pgTable(
