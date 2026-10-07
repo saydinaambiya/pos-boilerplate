@@ -47,8 +47,9 @@ function variantName(variant: PosVariant, locale: string): string | null {
   );
 }
 
+/** Product name, then its motif and the variant, so lookalike goods stay apart (FR-CSG-08). */
 function variantLabel(product: PosProduct, variant: PosVariant, locale: string) {
-  const name = variantName(variant, locale);
+  const name = [product.motif, variantName(variant, locale)].filter(Boolean).join(" · ");
   return name ? `${product.name} — ${name}` : product.name;
 }
 

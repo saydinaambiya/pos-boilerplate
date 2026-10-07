@@ -26,7 +26,7 @@ import { fixtures, resetDatabase } from "@/test/database";
 import { signIn, testContext } from "@/test/sessions";
 
 import type { SettleGoodsInput } from "./schemas";
-import { getConsignment, getConsignments, settleGoods, takeGoods } from "./service";
+import { getConsignment, getConsignments, reduceGoods, settleGoods, takeGoods } from "./service";
 
 const owner = () => signIn(fixtures.owner.username, fixtures.owner.password);
 const salesperson = () => signIn("kasir", "123456");
@@ -483,5 +483,68 @@ describe("settling goods (FR-CSG-03/04)", () => {
         TUESDAY,
       ),
     ).toEqual({ ok: true, saleId: null, invoiceNo: null, closed: true });
+  });
+});
+
+describe("reducing goods entered by mistake (FR-CSG-07)", () => {
+  const reduction = (variantId: string, qty: number, key: string = crypto.randomUUID()) => ({
+    idempotencyKey: key,
+    lines: [{ variantId, qty }],
+    note: "salah input",
+  });
+
+  it("puts the goods back on the shelf and keeps the correction in the history", async () => {
+    const session = await salesperson();
+    const variantId = await product(20);
+    const id = consignmentId(await take(session, variantId, 10));
+    const key = crypto.randomUUID();
+
+    expect(
+      await reduceGoods(await owner(), id, reduction(variantId, 3, key), testContext(), MONDAY),
+    ).toEqual({ ok: true, closed: false });
+    expect(
+      await reduceGoods(await owner(), id, reduction(variantId, 3, key), testContext(), MONDAY),
+    ).toEqual({ ok: true, closed: false });
+    expect(await stockOf(variantId)).toBe(13);
+
+    const detail = await getConsignment(session, id);
+    expect(detail?.batches.map((batch) => batch.kind)).toEqual(["REDUCE", "TAKE"]);
+    expect(detail?.balances).toMatchObject([
+      { variantId, taken: 7, sold: 0, returned: 0, outstanding: 7 },
+    ]);
+    const [open] = await getConsignments(session, "OPEN");
+    expect(open).toMatchObject({ outstanding: 7, outstandingValue: 70_000 });
+  });
+
+  it("refuses more than is still carried and closes once nothing is left", async () => {
+    const session = await salesperson();
+    const variantId = await product(5);
+    const id = consignmentId(await take(session, variantId, 2));
+
+    expect(
+      await reduceGoods(await owner(), id, reduction(variantId, 3), testContext(), MONDAY),
+    ).toEqual({ ok: false, reason: "exceeds-outstanding" });
+    expect(
+      await reduceGoods(await owner(), id, reduction(variantId, 2), testContext(), MONDAY),
+    ).toEqual({ ok: true, closed: true });
+    expect(await stockOf(variantId)).toBe(5);
+    expect(
+      await reduceGoods(await owner(), id, reduction(variantId, 1), testContext(), MONDAY),
+    ).toEqual({ ok: false, reason: "closed" });
+  });
+
+  it("is only for pickup staff", async () => {
+    const session = await salesperson();
+    const variantId = await product(5);
+    const id = consignmentId(await take(session, variantId, 2));
+    expect(await reduceGoods(session, id, reduction(variantId, 1), testContext(), MONDAY)).toEqual({
+      ok: false,
+      reason: "forbidden",
+    });
+
+    await grant("consignment:pickup");
+    expect(
+      await reduceGoods(await other(), id, reduction(variantId, 1), testContext(), MONDAY),
+    ).toEqual({ ok: true, closed: false });
   });
 });

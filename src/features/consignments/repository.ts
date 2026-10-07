@@ -113,8 +113,9 @@ const sumOf = (kind: ItemKind) =>
   );
 
 /**
- * Per variant: taken, sold, returned and still outstanding, with the names
- * and price of the latest pickup and whether stock is tracked (FR-CSG-03).
+ * Per variant: taken (net of corrections), sold, returned and still
+ * outstanding, with the names and price of the latest pickup, the product's
+ * motif and whether stock is tracked (FR-CSG-03/07/08).
  */
 export async function consignmentBalances(executor: Executor, consignmentId: string) {
   const rows = await executor
@@ -123,6 +124,7 @@ export async function consignmentBalances(executor: Executor, consignmentId: str
       taken: sumOf("TAKE"),
       sold: sumOf("SOLD"),
       returned: sumOf("RETURN"),
+      reduced: sumOf("REDUCE"),
       name: sql<string>`(array_agg(${consignmentItems.nameSnapshot} order by ${consignmentItems.createdAt} desc, ${consignmentItems.id} desc))[1]`,
       variantName: sql<
         string | null
@@ -131,6 +133,7 @@ export async function consignmentBalances(executor: Executor, consignmentId: str
         sql<number>`(array_agg(${consignmentItems.unitPrice} order by ${consignmentItems.createdAt} desc, ${consignmentItems.id} desc) filter (where ${consignmentItems.kind} = 'TAKE'))[1]`.mapWith(
           Number,
         ),
+      motif: products.motif,
       trackStock: products.trackStock,
       price: variantPriceSql,
     })
@@ -140,6 +143,7 @@ export async function consignmentBalances(executor: Executor, consignmentId: str
     .where(eq(consignmentItems.consignmentId, consignmentId))
     .groupBy(
       consignmentItems.variantId,
+      products.motif,
       products.trackStock,
       productVariants.priceOverride,
       productVariants.size,
@@ -149,7 +153,11 @@ export async function consignmentBalances(executor: Executor, consignmentId: str
       products.price,
     );
   return rows
-    .map((row) => ({ ...row, outstanding: row.taken - row.sold - row.returned }))
+    .map(({ reduced, ...row }) => ({
+      ...row,
+      taken: row.taken - reduced,
+      outstanding: row.taken - reduced - row.sold - row.returned,
+    }))
     .sort((a, b) => a.name.localeCompare(b.name) || a.variantId.localeCompare(b.variantId));
 }
 
@@ -205,7 +213,7 @@ export async function findConsignment(id: string) {
   return row;
 }
 
-/** Every visit of a consignment with its lines, newest first (FR-CSG-02). */
+/** Every visit of a consignment with its lines and their motif, newest first (FR-CSG-02/08). */
 export async function listBatches(consignmentId: string) {
   const [batches, items] = await Promise.all([
     db
@@ -231,9 +239,12 @@ export async function listBatches(consignmentId: string) {
         qty: consignmentItems.qty,
         name: consignmentItems.nameSnapshot,
         variantName: consignmentItems.variantSnapshot,
+        motif: products.motif,
         unitPrice: consignmentItems.unitPrice,
       })
       .from(consignmentItems)
+      .innerJoin(productVariants, eq(productVariants.id, consignmentItems.variantId))
+      .innerJoin(products, eq(products.id, productVariants.productId))
       .where(eq(consignmentItems.consignmentId, consignmentId))
       .orderBy(asc(consignmentItems.nameSnapshot), asc(consignmentItems.id)),
   ]);

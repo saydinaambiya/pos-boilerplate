@@ -239,6 +239,13 @@
       "when": 1790923563546,
       "tag": "0033_product_deletion",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1791342277292,
+      "tag": "0034_consignment_reduce",
+      "breakpoints": true
     }
   ]
 }

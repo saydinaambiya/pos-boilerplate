@@ -73,6 +73,7 @@ export const auditActions = [
   "housekeeping.archived",
   "consignment.taken",
   "consignment.settled",
+  "consignment.reduced",
   "stock.cut",
   "expense.recorded",
   "deposit.recorded",

@@ -411,6 +411,7 @@
       "housekeeping_archived": "Data bulanan ditandai arsip",
       "consignment_taken": "Barang dibawa sales",
       "consignment_settled": "Barang sales terjual / dikembalikan",
+      "consignment_reduced": "Barang bawaan sales dikurangi",
       "stock_cut": "Potong roll",
       "bank-account_qris-set": "Rekening dijadikan rekening QRIS",
       "bank-account_qris-cleared": "Rekening dilepas dari QRIS",
@@ -1861,13 +1862,15 @@
     "historyEmpty": "Belum ada catatan.",
     "batches": {
       "TAKE": "Ambil barang",
-      "SETTLE": "Terjual / dikembalikan"
+      "SETTLE": "Terjual / dikembalikan",
+      "REDUCE": "Koreksi barang dibawa"
     },
     "batchBy": "{time} · oleh {name}",
     "items": {
       "TAKE": "{qty} diambil",
       "SOLD": "{qty} terjual",
-      "RETURN": "{qty} dikembalikan"
+      "RETURN": "{qty} dikembalikan",
+      "REDUCE": "{qty} dikurangi"
     },
     "invoice": "Transaksi {invoiceNo}",
     "units": "{count} barang",
@@ -1910,7 +1913,17 @@
     "methodSplitTransfer": "Tunai + Transfer",
     "splitCash": "Tunai diterima",
     "splitRest": "Sisanya {amount} lewat transfer/QRIS",
-    "splitRestMethod": "Sisanya lewat"
+    "splitRestMethod": "Sisanya lewat",
+    "recordReduce": "Kurangi barang",
+    "reduceTitle": "Kurangi barang bawaan",
+    "reduceDescription": "Untuk membetulkan salah input. Isi berapa yang tidak jadi dibawa sales. Stoknya langsung kembali ke toko.",
+    "reduced": "Barang bawaan sudah dikurangi.",
+    "reducedField": "Dikurangi",
+    "reducedOf": "Dikurangi, {name}",
+    "saveReduced": "Simpan pengurangan",
+    "nothingReduced": "Isi jumlah yang dikurangi untuk minimal satu barang.",
+    "tooManyReduced": "Jumlah dikurangi untuk {name} lebih dari {count} yang masih dibawa.",
+    "colMotif": "Motif"
   },
   "Cutting": {
     "title": "Potong Roll",

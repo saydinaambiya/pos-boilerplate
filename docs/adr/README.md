@@ -25,7 +25,7 @@ Records are immutable once accepted; a new record supersedes an old one.
 | [0017](./0017-custom-form-controls.md)                            | Custom form controls after the v1.0 review                     | Accepted              |
 | [0018](./0018-dialogs-and-auto-filters.md)                        | Dialogs instead of single-form pages; auto filters             | Accepted              |
 | [0019](./0019-devices-hours-and-loading.md)                       | Device limit, store hours, buyer name and loading              | Amended by 0036       |
-| [0020](./0020-field-sales-consignments.md)                        | Field sales consignments                                       | Accepted              |
+| [0020](./0020-field-sales-consignments.md)                        | Field sales consignments                                       | Amended by 0024, 0042 |
 | [0021](./0021-product-details.md)                                 | Product brand, motif and size                                  | Amended by 0023       |
 | [0022](./0022-remove-categories.md)                               | Remove product categories in favour of brands                  | Accepted              |
 | [0023](./0023-roll-stock.md)                                      | Rolls cut into pieces                                          | Amended by 0038       |
@@ -47,3 +47,4 @@ Records are immutable once accepted; a new record supersedes an old one.
 | [0039](./0039-audit-log-purge.md)                                 | Audit log purge after a CSV download                           | Accepted              |
 | [0040](./0040-brand-first-stock-and-cutting-lists.md)             | Brand-first stock and cutting lists, colours on products       | Amended by 0041       |
 | [0041](./0041-thickness-sort-product-deletion-and-brand-pages.md) | Thickness sort and filter, product deletion, ten brands a page | Accepted              |
+| [0042](./0042-reduce-goods-carried-and-motif.md)                  | Reduce goods carried by mistake, motif on salespeople's goods  | Accepted              |
