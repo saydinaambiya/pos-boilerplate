@@ -22,13 +22,14 @@ import {
 } from "@/components/ui/table";
 import { complaintResolutions } from "@/db/schema/online-orders";
 import { changeOrderStatusAction } from "@/features/online-orders/actions";
+import { defectWord } from "@/features/catalog/sizes";
 import { OrderStatusChip } from "@/features/online-orders/components/order-status-chip";
 import { getOnlineOrder } from "@/features/online-orders/service";
 import { transitionNeeds } from "@/features/online-orders/transitions";
 import { Link } from "@/i18n/navigation";
 import { requirePermission } from "@/lib/auth/guard";
 import { formatCurrency } from "@/lib/format/currency";
-import { variantLabel } from "@/lib/format/variant-label";
+import { goodsName, variantLabel } from "@/lib/format/variant-label";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("OnlineOrders");
@@ -36,8 +37,9 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * One online order (FR-ONL-03/05/06): lines, complaint and resolution,
- * status history, and a confirm dialog for each allowed next status.
+ * One online order (FR-ONL-03/05/06): lines with their brand, motif and colour,
+ * complaint and resolution, status history, and a confirm dialog for each
+ * allowed next status.
  */
 export default async function OnlineOrderPage({
   params,
@@ -93,6 +95,9 @@ export default async function OnlineOrderPage({
               <TableHeader>
                 <TableRow>
                   <TableHead>{t("item")}</TableHead>
+                  <TableHead>{t("brand")}</TableHead>
+                  <TableHead>{t("motif")}</TableHead>
+                  <TableHead>{t("color")}</TableHead>
                   <TableHead className="text-right">{t("qty")}</TableHead>
                   <TableHead className="text-right">{t("lineTotal")}</TableHead>
                 </TableRow>
@@ -101,7 +106,10 @@ export default async function OnlineOrderPage({
                 {order.items.map((item) => (
                   <TableRow key={item.id}>
                     <TableCell className="[overflow-wrap:anywhere]">
-                      {variantLabel(item.nameSnapshot, item.variantSnapshot)}
+                      {goodsName(
+                        { name: item.nameSnapshot, size: item.size, isDefect: item.isDefect },
+                        defectWord(locale),
+                      )}
                       <span className="block text-xs text-ink-muted tabular-nums">
                         {item.storePrice === null || item.storePrice === item.unitPrice
                           ? money(item.unitPrice)
@@ -115,6 +123,13 @@ export default async function OnlineOrderPage({
                           {t(`conditions.${item.returnCondition}`)}
                         </span>
                       ) : null}
+                    </TableCell>
+                    <TableCell className="[overflow-wrap:anywhere]">
+                      {item.brandName ?? "—"}
+                    </TableCell>
+                    <TableCell className="[overflow-wrap:anywhere]">{item.motif ?? "—"}</TableCell>
+                    <TableCell className="[overflow-wrap:anywhere]">
+                      {item.colorName ?? "—"}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">{item.qty}</TableCell>
                     <TableCell className="text-right tabular-nums">

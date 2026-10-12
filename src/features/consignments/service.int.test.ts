@@ -14,7 +14,7 @@ import {
   sales,
   stockMovements,
 } from "@/db/schema";
-import { createProduct } from "@/features/catalog/service";
+import { createBrand, createProduct } from "@/features/catalog/service";
 import { checkout } from "@/features/checkout/service";
 import { requestVoid } from "@/features/checkout/void-service";
 import { createBankAccount } from "@/features/settings/service";
@@ -45,7 +45,10 @@ async function grant(...permissions: Permission[]) {
 let seq = 0;
 
 /** A stock-tracked 10.000 rupiah product with `stock` units; returns its variant id. */
-async function product(stock: number) {
+async function product(
+  stock: number,
+  details: { brandId?: string; motif?: string; colorName?: string } = {},
+) {
   seq += 1;
   const session = await owner();
   const created = await createProduct(
@@ -57,6 +60,7 @@ async function product(stock: number) {
       trackStock: true,
       sku: `CSG-${String(seq)}`,
       minStock: 0,
+      ...details,
     },
     testContext(),
   );
@@ -105,6 +109,24 @@ function consignmentId(result: Awaited<ReturnType<typeof take>>) {
 beforeEach(async () => {
   await resetDatabase();
   await grant("page:consignments", "consignment:sell");
+});
+
+describe("brand, motif and colour of goods carried (FR-CSG-08)", () => {
+  it("reads them from the product for the balance and the history", async () => {
+    const session = await salesperson();
+    const brand = await createBrand(await owner(), { name: "Turkiye" }, testContext());
+    if (!brand.ok) throw new Error(brand.reason);
+    const variantId = await product(5, { brandId: brand.id, motif: "Mihrab", colorName: "Red" });
+    const id = consignmentId(await take(session, variantId, 2));
+
+    const detail = await getConsignment(session, id);
+    expect(detail?.balances).toMatchObject([
+      { brandName: "Turkiye", motif: "Mihrab", colorName: "Red" },
+    ]);
+    expect(detail?.batches[0]?.items).toMatchObject([
+      { brandName: "Turkiye", motif: "Mihrab", colorName: "Red" },
+    ]);
+  });
 });
 
 describe("taking goods out (FR-CSG-01/02)", () => {

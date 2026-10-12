@@ -5,6 +5,7 @@ import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { isRollRowSql, variantPriceSql } from "@/features/catalog/pricing-sql";
 import { db, type Executor } from "@/db/client";
 import {
+  brands,
   consignmentBatches,
   consignmentItems,
   consignments,
@@ -115,7 +116,8 @@ const sumOf = (kind: ItemKind) =>
 /**
  * Per variant: taken (net of corrections), sold, returned and still
  * outstanding, with the names and price of the latest pickup, the product's
- * motif and whether stock is tracked (FR-CSG-03/07/08).
+ * brand and motif, the variant's colour, size and defect flag and whether
+ * stock is tracked (FR-CSG-03/07/08).
  */
 export async function consignmentBalances(executor: Executor, consignmentId: string) {
   const rows = await executor
@@ -133,17 +135,24 @@ export async function consignmentBalances(executor: Executor, consignmentId: str
         sql<number>`(array_agg(${consignmentItems.unitPrice} order by ${consignmentItems.createdAt} desc, ${consignmentItems.id} desc) filter (where ${consignmentItems.kind} = 'TAKE'))[1]`.mapWith(
           Number,
         ),
+      brandName: brands.name,
       motif: products.motif,
+      colorName: sql<string | null>`${productVariants.attributes} -> 'color' ->> 'name'`,
+      size: productVariants.size,
+      isDefect: productVariants.isDefect,
       trackStock: products.trackStock,
       price: variantPriceSql,
     })
     .from(consignmentItems)
     .innerJoin(productVariants, eq(productVariants.id, consignmentItems.variantId))
     .innerJoin(products, eq(products.id, productVariants.productId))
+    .leftJoin(brands, eq(brands.id, products.brandId))
     .where(eq(consignmentItems.consignmentId, consignmentId))
     .groupBy(
       consignmentItems.variantId,
+      brands.name,
       products.motif,
+      productVariants.attributes,
       products.trackStock,
       productVariants.priceOverride,
       productVariants.size,
@@ -213,7 +222,10 @@ export async function findConsignment(id: string) {
   return row;
 }
 
-/** Every visit of a consignment with its lines and their motif, newest first (FR-CSG-02/08). */
+/**
+ * Every visit of a consignment with its lines, their brand, motif, colour
+ * and size, newest first (FR-CSG-02/08).
+ */
 export async function listBatches(consignmentId: string) {
   const [batches, items] = await Promise.all([
     db
@@ -239,12 +251,17 @@ export async function listBatches(consignmentId: string) {
         qty: consignmentItems.qty,
         name: consignmentItems.nameSnapshot,
         variantName: consignmentItems.variantSnapshot,
+        brandName: brands.name,
         motif: products.motif,
+        colorName: sql<string | null>`${productVariants.attributes} -> 'color' ->> 'name'`,
+        size: productVariants.size,
+        isDefect: productVariants.isDefect,
         unitPrice: consignmentItems.unitPrice,
       })
       .from(consignmentItems)
       .innerJoin(productVariants, eq(productVariants.id, consignmentItems.variantId))
       .innerJoin(products, eq(products.id, productVariants.productId))
+      .leftJoin(brands, eq(brands.id, products.brandId))
       .where(eq(consignmentItems.consignmentId, consignmentId))
       .orderBy(asc(consignmentItems.nameSnapshot), asc(consignmentItems.id)),
   ]);

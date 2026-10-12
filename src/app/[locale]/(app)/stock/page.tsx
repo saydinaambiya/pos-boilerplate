@@ -1,10 +1,10 @@
 import { Boxes, Tag } from "lucide-react";
 import type { Metadata } from "next";
-import { getLocale, getTranslations } from "next-intl/server";
+import { getFormatter, getLocale, getTranslations } from "next-intl/server";
 
 import { FilterForm } from "@/components/form/filter-form";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -23,11 +23,12 @@ import { StockCell } from "@/features/catalog/components/stock-cell";
 import { getThicknesses } from "@/features/catalog/service";
 import { stockFilters } from "@/features/stock/schemas";
 import { formatSize } from "@/features/catalog/sizes";
-import { getStockLevels, takesPieceMinimum } from "@/features/stock/service";
+import { getRecentMovements, getStockLevels, takesPieceMinimum } from "@/features/stock/service";
 import { Link } from "@/i18n/navigation";
 import { requirePermission } from "@/lib/auth/guard";
 import { formatMeters, formatThickness } from "@/lib/format/length";
 import { stockItemLabel, variantLabel } from "@/lib/format/variant-label";
+import { cn } from "@/lib/utils/cn";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Stock");
@@ -40,7 +41,8 @@ export async function generateMetadata(): Promise<Metadata> {
  * (FR-STK-07/08/09, FR-ROL-05): ten brands a page, starting closed, each
  * roll in meters with its pieces folded under it, all shown on a click or
  * once a search or filter is applied (ADR-0023, ADR-0038, ADR-0040,
- * ADR-0041). A plain visit starts
+ * ADR-0041). Beside it, the latest stock changes of all goods, each
+ * linking to its full history (FR-STK-10). A plain visit starts
  * with only stock that has a minimum; unticking it sends `minimum=0`, so
  * the hidden field keeps the choice in the URL.
  */
@@ -60,14 +62,18 @@ export default async function StockPage({ searchParams }: PageProps<"/[locale]/s
     sort: first(raw.sort),
     page: first(raw.page) ?? "1",
   });
-  const [t, locale, thicknesses, page] = await Promise.all([
+  const [t, format, locale, thicknesses, page, recent] = await Promise.all([
     getTranslations("Stock"),
+    getFormatter(),
     getLocale(),
     getThicknesses(session),
     getStockLevels(session, filters),
+    getRecentMovements(session),
   ]);
   const amount = (level: { isRoll: boolean }, value: number) =>
     level.isRoll ? formatMeters(value, locale) : String(value);
+  const signed = (level: { isRoll: boolean }, value: number) =>
+    `${value > 0 ? "+" : ""}${amount(level, value)}`;
   const searched =
     filters.q !== "" ||
     filters.low !== undefined ||
@@ -160,161 +166,226 @@ export default async function StockPage({ searchParams }: PageProps<"/[locale]/s
           ) : null}
         </FilterForm>
       </Card>
-      <Card>
-        {page.groups.length === 0 ? (
-          <EmptyState
-            icon={<Boxes aria-hidden="true" />}
-            title={filtered ? t("noResultsTitle") : t("emptyTitle")}
-            description={filtered ? t("noResultsDescription") : t("emptyDescription")}
-          />
-        ) : (
-          <Table>
-            <TableCaption>{t("listCaption")}</TableCaption>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("brand")}</TableHead>
-                <TableHead>{t("product")}</TableHead>
-                <TableHead>{t("motif")}</TableHead>
-                <TableHead>{t("color")}</TableHead>
-                <TableHead>{t("thickness")}</TableHead>
-                <TableHead>{t("stock")}</TableHead>
-                <TableHead className="text-right">{t("minStock")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            {brandGroups.map((brandGroup) => {
-              const brand = brandGroup[0]?.brandName ?? t("noBrand");
-              return (
-                <TableGroup
-                  key={`${brandGroup[0]?.brandId ?? "none"}-${String(searched)}`}
-                  defaultOpen={searched}
-                  leadColSpan={7}
-                  className="bg-surface-muted/60"
-                  toggleLabel={t("toggleBrand", { brand })}
-                  toggleContent={
-                    <>
-                      <Tag aria-hidden="true" className="size-4 shrink-0 text-primary" />
-                      <span>{brand}</span>
-                      <span className="text-xs font-normal text-ink-muted">
-                        {t("brandGroup", { count: brandGroup.length })}
-                      </span>
-                    </>
-                  }
-                >
-                  {brandGroup.map((group) => {
-                    const name = stockItemLabel(group, t("defect"));
-                    return (
-                      <TableSubGroup
-                        key={`${group.variantId}-${String(searched)}`}
-                        defaultOpen={searched}
-                        toggleLabel={t("togglePieces", {
-                          name: variantLabel(group.productName, group.colorName),
-                          count: group.pieces.length,
-                        })}
-                        cells={
-                          <>
-                            <TableCell className="font-medium">
-                              <Link
-                                href={`/stock/${group.variantId}`}
-                                aria-label={t("open", { name })}
-                                className="underline-offset-4 hover:underline"
-                              >
-                                {group.productName}
-                              </Link>
-                              <span className="block text-xs font-normal text-ink-muted">
-                                {group.isRoll ? t("rollUnit") : group.unit}
-                              </span>
-                            </TableCell>
-                            <TableCell>{group.motif ?? "—"}</TableCell>
-                            <TableCell>{group.colorName ?? "—"}</TableCell>
-                            <TableCell className="whitespace-nowrap tabular-nums">
-                              {group.thickness ? formatThickness(group.thickness, locale) : "—"}
-                            </TableCell>
-                            <TableCell>
-                              <StockCell
-                                trackStock
-                                stockQty={group.stockQty}
-                                minStock={group.minStock}
-                                low={group.stockQty <= group.minStock}
-                                label={amount(group, group.stockQty)}
-                              />
-                            </TableCell>
-                            <TableCell className="text-right tabular-nums">
-                              {amount(group, group.minStock)}
-                            </TableCell>
-                          </>
-                        }
+      <div className="grid gap-6 xl:grid-cols-[3fr_2fr]">
+        <Card>
+          {page.groups.length === 0 ? (
+            <EmptyState
+              icon={<Boxes aria-hidden="true" />}
+              title={filtered ? t("noResultsTitle") : t("emptyTitle")}
+              description={filtered ? t("noResultsDescription") : t("emptyDescription")}
+            />
+          ) : (
+            <Table>
+              <TableCaption>{t("listCaption")}</TableCaption>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t("brand")}</TableHead>
+                  <TableHead>{t("product")}</TableHead>
+                  <TableHead>{t("motif")}</TableHead>
+                  <TableHead>{t("color")}</TableHead>
+                  <TableHead>{t("thickness")}</TableHead>
+                  <TableHead>{t("stock")}</TableHead>
+                  <TableHead className="text-right">{t("minStock")}</TableHead>
+                </TableRow>
+              </TableHeader>
+              {brandGroups.map((brandGroup) => {
+                const brand = brandGroup[0]?.brandName ?? t("noBrand");
+                return (
+                  <TableGroup
+                    key={`${brandGroup[0]?.brandId ?? "none"}-${String(searched)}`}
+                    defaultOpen={searched}
+                    leadColSpan={7}
+                    className="bg-surface-muted/60"
+                    toggleLabel={t("toggleBrand", { brand })}
+                    toggleContent={
+                      <>
+                        <Tag aria-hidden="true" className="size-4 shrink-0 text-primary" />
+                        <span>{brand}</span>
+                        <span className="text-xs font-normal text-ink-muted">
+                          {t("brandGroup", { count: brandGroup.length })}
+                        </span>
+                      </>
+                    }
+                  >
+                    {brandGroup.map((group) => {
+                      const name = stockItemLabel(group, t("defect"));
+                      return (
+                        <TableSubGroup
+                          key={`${group.variantId}-${String(searched)}`}
+                          defaultOpen={searched}
+                          toggleLabel={t("togglePieces", {
+                            name: variantLabel(group.productName, group.colorName),
+                            count: group.pieces.length,
+                          })}
+                          cells={
+                            <>
+                              <TableCell className="font-medium">
+                                <Link
+                                  href={`/stock/${group.variantId}`}
+                                  aria-label={t("open", { name })}
+                                  className="underline-offset-4 hover:underline"
+                                >
+                                  {group.productName}
+                                </Link>
+                                <span className="block text-xs font-normal text-ink-muted">
+                                  {group.isRoll ? t("rollUnit") : group.unit}
+                                </span>
+                              </TableCell>
+                              <TableCell>{group.motif ?? "—"}</TableCell>
+                              <TableCell>{group.colorName ?? "—"}</TableCell>
+                              <TableCell className="whitespace-nowrap tabular-nums">
+                                {group.thickness ? formatThickness(group.thickness, locale) : "—"}
+                              </TableCell>
+                              <TableCell>
+                                <StockCell
+                                  trackStock
+                                  stockQty={group.stockQty}
+                                  minStock={group.minStock}
+                                  low={group.stockQty <= group.minStock}
+                                  label={amount(group, group.stockQty)}
+                                />
+                              </TableCell>
+                              <TableCell className="text-right tabular-nums">
+                                {amount(group, group.minStock)}
+                              </TableCell>
+                            </>
+                          }
+                        >
+                          {group.pieces.length > 0
+                            ? group.pieces.map((piece) => (
+                                <TableRow key={piece.variantId} className="bg-surface-muted/40">
+                                  <TableCell />
+                                  <TableCell className="pl-8 font-medium">
+                                    <Link
+                                      href={`/stock/${piece.variantId}`}
+                                      aria-label={t("open", {
+                                        name: stockItemLabel(piece, t("defect")),
+                                      })}
+                                      className="underline-offset-4 hover:underline"
+                                    >
+                                      {[
+                                        piece.size ? formatSize(piece.size) : piece.sku,
+                                        piece.isDefect ? t("defect") : null,
+                                      ]
+                                        .filter(Boolean)
+                                        .join(" · ")}
+                                    </Link>
+                                    <span className="block text-xs font-normal text-ink-muted">
+                                      {"pcs"}
+                                    </span>
+                                  </TableCell>
+                                  <TableCell />
+                                  <TableCell>{piece.colorName ?? "—"}</TableCell>
+                                  <TableCell />
+                                  <TableCell>
+                                    <StockCell
+                                      trackStock
+                                      stockQty={piece.stockQty}
+                                      minStock={piece.minStock}
+                                      low={piece.minStock > 0 && piece.stockQty <= piece.minStock}
+                                      label={String(piece.stockQty)}
+                                    />
+                                  </TableCell>
+                                  <TableCell className="text-right tabular-nums">
+                                    {piece.minStock > 0 || takesPieceMinimum(piece)
+                                      ? String(piece.minStock)
+                                      : "—"}
+                                  </TableCell>
+                                </TableRow>
+                              ))
+                            : null}
+                        </TableSubGroup>
+                      );
+                    })}
+                  </TableGroup>
+                );
+              })}
+            </Table>
+          )}
+          {filters.page > 1 || page.hasNextPage ? (
+            <nav aria-label={t("pagination")} className="mt-4 flex items-center justify-end gap-2">
+              {filters.page > 1 ? (
+                <Button asChild variant="ghost">
+                  <Link href={{ pathname: "/stock", query: query(filters.page - 1) }}>
+                    {t("previous")}
+                  </Link>
+                </Button>
+              ) : null}
+              <span className="text-sm text-ink-muted">
+                {t("pageLabel", { page: filters.page })}
+              </span>
+              {page.hasNextPage ? (
+                <Button asChild variant="secondary">
+                  <Link href={{ pathname: "/stock", query: query(filters.page + 1) }}>
+                    {t("next")}
+                  </Link>
+                </Button>
+              ) : null}
+            </nav>
+          ) : null}
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>{t("recentTitle")}</CardTitle>
+          </CardHeader>
+          {recent.length === 0 ? (
+            <p className="text-sm text-ink-muted">{t("recentEmpty")}</p>
+          ) : (
+            <ol aria-label={t("recentTitle")} className="flex flex-col gap-3">
+              {recent.map((movement) => {
+                const details = [
+                  movement.brandName ? `${t("brand")}: ${movement.brandName}` : null,
+                  movement.motif ? `${t("motif")}: ${movement.motif}` : null,
+                ].filter(Boolean);
+                return (
+                  <li key={movement.id} className="rounded-card border border-border p-3 text-sm">
+                    <p className="flex items-start justify-between gap-3">
+                      <Link
+                        href={`/stock/${movement.variantId}`}
+                        className="font-medium [overflow-wrap:anywhere] text-ink underline-offset-4 hover:underline"
                       >
-                        {group.pieces.length > 0
-                          ? group.pieces.map((piece) => (
-                              <TableRow key={piece.variantId} className="bg-surface-muted/40">
-                                <TableCell />
-                                <TableCell className="pl-8 font-medium">
-                                  <Link
-                                    href={`/stock/${piece.variantId}`}
-                                    aria-label={t("open", {
-                                      name: stockItemLabel(piece, t("defect")),
-                                    })}
-                                    className="underline-offset-4 hover:underline"
-                                  >
-                                    {[
-                                      piece.size ? formatSize(piece.size) : piece.sku,
-                                      piece.isDefect ? t("defect") : null,
-                                    ]
-                                      .filter(Boolean)
-                                      .join(" · ")}
-                                  </Link>
-                                  <span className="block text-xs font-normal text-ink-muted">
-                                    {"pcs"}
-                                  </span>
-                                </TableCell>
-                                <TableCell />
-                                <TableCell>{piece.colorName ?? "—"}</TableCell>
-                                <TableCell />
-                                <TableCell>
-                                  <StockCell
-                                    trackStock
-                                    stockQty={piece.stockQty}
-                                    minStock={piece.minStock}
-                                    low={piece.minStock > 0 && piece.stockQty <= piece.minStock}
-                                    label={String(piece.stockQty)}
-                                  />
-                                </TableCell>
-                                <TableCell className="text-right tabular-nums">
-                                  {piece.minStock > 0 || takesPieceMinimum(piece)
-                                    ? String(piece.minStock)
-                                    : "—"}
-                                </TableCell>
-                              </TableRow>
-                            ))
-                          : null}
-                      </TableSubGroup>
-                    );
-                  })}
-                </TableGroup>
-              );
-            })}
-          </Table>
-        )}
-        {filters.page > 1 || page.hasNextPage ? (
-          <nav aria-label={t("pagination")} className="mt-4 flex items-center justify-end gap-2">
-            {filters.page > 1 ? (
-              <Button asChild variant="ghost">
-                <Link href={{ pathname: "/stock", query: query(filters.page - 1) }}>
-                  {t("previous")}
-                </Link>
-              </Button>
-            ) : null}
-            <span className="text-sm text-ink-muted">{t("pageLabel", { page: filters.page })}</span>
-            {page.hasNextPage ? (
-              <Button asChild variant="secondary">
-                <Link href={{ pathname: "/stock", query: query(filters.page + 1) }}>
-                  {t("next")}
-                </Link>
-              </Button>
-            ) : null}
-          </nav>
-        ) : null}
-      </Card>
+                        {stockItemLabel(movement, t("defect"))}
+                      </Link>
+                      <span
+                        className={cn(
+                          "font-medium whitespace-nowrap tabular-nums",
+                          movement.qtyDelta < 0 && "text-danger-ink",
+                        )}
+                      >
+                        {signed(movement, movement.qtyDelta)}
+                      </span>
+                    </p>
+                    {details.length > 0 ? (
+                      <p className="text-xs [overflow-wrap:anywhere] text-ink-muted">
+                        {details.join(" · ")}
+                      </p>
+                    ) : null}
+                    <p className="mt-1 tabular-nums">
+                      {t("recentLine", {
+                        type: t(`types.${movement.type}`),
+                        stock: amount(movement, movement.stockAfter),
+                      })}
+                    </p>
+                    {movement.reason ? (
+                      <p className="[overflow-wrap:anywhere] text-ink-muted">{movement.reason}</p>
+                    ) : null}
+                    <p className="text-xs text-ink-muted">
+                      {t("recentBy", {
+                        time: format.dateTime(movement.createdAt, {
+                          dateStyle: "medium",
+                          timeStyle: "short",
+                        }),
+                        name: movement.actorName ?? t("system"),
+                      })}
+                    </p>
+                  </li>
+                );
+              })}
+            </ol>
+          )}
+        </Card>
+      </div>
     </>
   );
 }

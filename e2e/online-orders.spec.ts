@@ -1,3 +1,4 @@
+import { E2E_BRAND } from "./accounts";
 import { expect, test } from "./fixtures";
 import { cashierAtPos, choose, createStockedProduct, grantEmployeePermission } from "./helpers";
 
@@ -49,7 +50,11 @@ test.describe("online orders from entry to return (FR-ONL)", () => {
     await expect(page).toHaveURL(/\/id\/online-orders\/[0-9a-f-]+$/);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(code);
     await expect(page.getByText("Diproses").first()).toBeVisible();
-    await expect(page.getByRole("table", { name: "Item pesanan" })).toContainText("Rp 90.000");
+    const items = page.getByRole("table", { name: "Item pesanan" });
+    await expect(items).toContainText("Rp 90.000");
+    await expect(items.getByRole("cell", { name: E2E_BRAND, exact: true })).toBeVisible();
+    await expect(items.getByRole("cell", { name: "Nappa", exact: true })).toBeVisible();
+    await expect(items.getByRole("cell", { name: "Red", exact: true })).toBeVisible();
     await page.context().close();
   });
 
@@ -58,6 +63,9 @@ test.describe("online orders from entry to return (FR-ONL)", () => {
     await page.goto("/id/online-orders");
     await page.getByRole("searchbox", { name: "Kode order" }).fill(code);
     await expect(page).toHaveURL(/q=/);
+    await expect(
+      page.getByRole("list", { name: "Daftar pesanan" }).getByRole("listitem"),
+    ).toContainText(`Merk: ${E2E_BRAND} · Motif: Nappa · Warna: Red`);
     await page.getByRole("link", { name: `Buka pesanan ${code}` }).click();
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(code);
 

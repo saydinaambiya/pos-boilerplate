@@ -14,6 +14,7 @@ import {
   countStock,
   getLowStock,
   getMovements,
+  getRecentMovements,
   getStockLevels,
   MOVEMENT_PAGE_SIZE,
   receiveStock,
@@ -207,5 +208,33 @@ describe("stock views (FR-STK-06/07)", () => {
         (item) => item.sku,
       ),
     ).toEqual(["FINE"]);
+  });
+});
+
+describe("recent stock changes (FR-STK-10)", () => {
+  it("lists the latest movements of all goods, newest first, with who made them", async () => {
+    const session = await owner();
+    const first = await variant({ sku: "ONE" });
+    const second = await variant({ sku: "TWO" });
+    await receiveStock(session, first, { qty: 5, note: "Faktur 7" }, testContext());
+    await receiveStock(session, second, { qty: 3, note: "" }, testContext());
+    await writeOffStock(session, second, { qty: 1, reason: "Rusak" }, testContext());
+
+    const recent = await getRecentMovements(session);
+    expect(
+      recent.map((movement) => [
+        movement.productName,
+        movement.type,
+        movement.qtyDelta,
+        movement.stockAfter,
+        movement.reason,
+      ]),
+    ).toEqual([
+      ["Produk TWO", "WRITE_OFF", -1, 2, "Rusak"],
+      ["Produk TWO", "IN", 3, 3, null],
+      ["Produk ONE", "IN", 5, 5, "Faktur 7"],
+    ]);
+    expect(recent[0]?.actorName).toBe(fixtures.owner.name);
+    expect(await getRecentMovements(session, 1)).toHaveLength(1);
   });
 });

@@ -781,7 +781,11 @@
     "minimumSaved": "Stok minimum disimpan: {qty} pcs.",
     "noBrand": "Tanpa merk",
     "brandGroup": "{count, plural, other {# item}}",
-    "toggleBrand": "Tampilkan atau sembunyikan stok {brand}"
+    "toggleBrand": "Tampilkan atau sembunyikan stok {brand}",
+    "recentTitle": "Riwayat perubahan stok",
+    "recentEmpty": "Belum ada perubahan stok.",
+    "recentLine": "{type} · stok jadi {stock}",
+    "recentBy": "{time} · oleh {name}"
   },
   "Variants": {
     "title": "Varian warna",
@@ -1498,7 +1502,10 @@
     "priceOf": "Harga marketplace {name}",
     "pricePlaceholder": "Harga jual",
     "errorPriceRequired": "Isi harga jual untuk {name}.",
-    "priceVsStore": "{price} (harga toko {store})"
+    "priceVsStore": "{price} (harga toko {store})",
+    "brand": "Merk",
+    "motif": "Motif",
+    "color": "Warna"
   },
   "Reports": {
     "title": "Rekap",
@@ -1854,6 +1861,7 @@
     },
     "balanceTitle": "Barang yang dibawa sales",
     "balanceCaption": "Ringkasan per barang",
+    "colBrand": "Merk",
     "colItem": "Barang",
     "colTaken": "Diambil",
     "colSold": "Terjual",
@@ -1923,7 +1931,8 @@
     "saveReduced": "Simpan pengurangan",
     "nothingReduced": "Isi jumlah yang dikurangi untuk minimal satu barang.",
     "tooManyReduced": "Jumlah dikurangi untuk {name} lebih dari {count} yang masih dibawa.",
-    "colMotif": "Motif"
+    "colMotif": "Motif",
+    "colColor": "Warna"
   },
   "Cutting": {
     "title": "Potong Roll",

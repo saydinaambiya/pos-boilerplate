@@ -1,4 +1,4 @@
-import { accounts } from "./accounts";
+import { accounts, E2E_BRAND } from "./accounts";
 import { expect, test } from "./fixtures";
 import {
   cashierAtPos,
@@ -13,8 +13,12 @@ const run = Date.now().toString(36);
 const product = `Keripik Sales ${run}`;
 const sku = `SALES-${run}`.toUpperCase();
 const item = `${product} · Red · 93cm x 47cm`;
-/** The item with its motif, as forms and the history list it (FR-CSG-08). */
-const withMotif = `${product} · Nappa · Red · 93cm x 47cm`;
+/** The item with its brand and motif, as forms list it (FR-CSG-08). */
+const withMotif = `${product} · ${E2E_BRAND} · Nappa · Red · 93cm x 47cm`;
+/** The item without its colour, as the balance table and the history name it. */
+const goods = `${product} · 93cm x 47cm`;
+/** The line under each history item (FR-CSG-08). */
+const details = `Merk: ${E2E_BRAND} · Motif: Nappa · Warna: Red`;
 
 test.describe("field sales goods (FR-CSG-01..08, ADR-0024)", () => {
   test.skip(({ isMobile }) => isMobile, "stateful consignment flows run once, on desktop");
@@ -45,7 +49,7 @@ test.describe("field sales goods (FR-CSG-01..08, ADR-0024)", () => {
     await choose(take, "Sales", accounts.posCashier.name);
     await take.getByRole("searchbox").fill(product);
     await take
-      .getByRole("button", { name: `Tambah ${product} — Nappa · Red · 93cm x 47cm` })
+      .getByRole("button", { name: `Tambah ${product} — ${E2E_BRAND} · Nappa · Red · 93cm x 47cm` })
       .click();
     await take.getByLabel(`Jumlah ${product}`).fill("5");
     await take.getByRole("button", { name: "Simpan barang dibawa" }).click();
@@ -53,18 +57,18 @@ test.describe("field sales goods (FR-CSG-01..08, ADR-0024)", () => {
     await expect(page).toHaveURL(/\/id\/consignments\/[0-9a-f-]+$/);
     consignmentUrl = new URL(page.url()).pathname;
     const balance = page.getByRole("table", { name: "Ringkasan per barang" });
-    await expect(balance.getByRole("row", { name: new RegExp(item) })).toContainText("5");
+    await expect(balance.getByRole("row", { name: new RegExp(goods) })).toContainText("5");
 
     await page.getByRole("link", { name: "Tambah barang" }).click();
     const more = page.getByRole("dialog", { name: "Ambil barang" });
     await more.getByRole("searchbox").fill(product);
     await more
-      .getByRole("button", { name: `Tambah ${product} — Nappa · Red · 93cm x 47cm` })
+      .getByRole("button", { name: `Tambah ${product} — ${E2E_BRAND} · Nappa · Red · 93cm x 47cm` })
       .click();
     await more.getByLabel(`Jumlah ${product}`).fill("2");
     await more.getByRole("button", { name: "Simpan barang dibawa" }).click();
     await expectResult(page, "Barang yang dibawa sudah dicatat.");
-    await expect(balance.getByRole("row", { name: new RegExp(item) })).toContainText("7");
+    await expect(balance.getByRole("row", { name: new RegExp(goods) })).toContainText("7");
   });
 
   test("pickup staff take off goods entered by mistake", async ({ page }) => {
@@ -79,10 +83,21 @@ test.describe("field sales goods (FR-CSG-01..08, ADR-0024)", () => {
     await expectResult(page, "Barang bawaan sudah dikurangi.");
     const row = page
       .getByRole("table", { name: "Ringkasan per barang" })
-      .getByRole("row", { name: new RegExp(item) });
-    await expect(row.getByRole("cell")).toHaveText([item, "Nappa", "6", "0", "0", "6"]);
+      .getByRole("row", { name: new RegExp(goods) });
+    await expect(row.getByRole("cell")).toHaveText([
+      E2E_BRAND,
+      goods,
+      "Nappa",
+      "Red",
+      "6",
+      "0",
+      "0",
+      "6",
+    ]);
     await expect(
-      page.getByRole("listitem").filter({ hasText: new RegExp(`^${withMotif}\\s*1 dikurangi$`) }),
+      page
+        .getByRole("listitem")
+        .filter({ hasText: new RegExp(`^${goods}\\s*${details}\\s*1 dikurangi$`) }),
     ).toHaveCount(1);
   });
 
@@ -94,7 +109,9 @@ test.describe("field sales goods (FR-CSG-01..08, ADR-0024)", () => {
     await expect(page.getByRole("link", { name: "Kurangi barang", exact: true })).toHaveCount(0);
     /** One line of the dated history: the item and what happened to it. */
     const historyLine = (what: string) =>
-      page.getByRole("listitem").filter({ hasText: new RegExp(`^${withMotif}\\s*${what}$`) });
+      page
+        .getByRole("listitem")
+        .filter({ hasText: new RegExp(`^${goods}\\s*${details}\\s*${what}$`) });
     await expect(historyLine("5 diambil")).toHaveCount(1);
     await expect(historyLine("2 diambil")).toHaveCount(1);
     await expect(historyLine("1 dikurangi")).toHaveCount(1);
@@ -116,8 +133,17 @@ test.describe("field sales goods (FR-CSG-01..08, ADR-0024)", () => {
 
     const row = page
       .getByRole("table", { name: "Ringkasan per barang" })
-      .getByRole("row", { name: new RegExp(item) });
-    await expect(row.getByRole("cell")).toHaveText([item, "Nappa", "6", "4", "0", "2"]);
+      .getByRole("row", { name: new RegExp(goods) });
+    await expect(row.getByRole("cell")).toHaveText([
+      E2E_BRAND,
+      goods,
+      "Nappa",
+      "Red",
+      "6",
+      "4",
+      "0",
+      "2",
+    ]);
     await expect(historyLine("4 terjual")).toHaveCount(1);
     await expect(page.getByRole("link", { name: /Transaksi INV-/ }).first()).toBeVisible();
     await page.context().close();
@@ -133,8 +159,17 @@ test.describe("field sales goods (FR-CSG-01..08, ADR-0024)", () => {
     await expectResult(page, "Barang yang dikembalikan sudah dicatat.");
     const row = page
       .getByRole("table", { name: "Ringkasan per barang" })
-      .getByRole("row", { name: new RegExp(item) });
-    await expect(row.getByRole("cell")).toHaveText([item, "Nappa", "6", "4", "2", "0"]);
+      .getByRole("row", { name: new RegExp(goods) });
+    await expect(row.getByRole("cell")).toHaveText([
+      E2E_BRAND,
+      goods,
+      "Nappa",
+      "Red",
+      "6",
+      "4",
+      "2",
+      "0",
+    ]);
 
     await page.goto(`/id/stock?q=${sku}`);
     await expect(page.getByRole("row", { name: new RegExp(item) })).toContainText("16");

@@ -28,6 +28,23 @@ export function stockItemLabel(
     .join(" · ");
 }
 
+/**
+ * Name of goods without their colour, for lists that show the colour in
+ * its own column, e.g. "Karpet · 93cm x 47cm · Cacat" (FR-CSG-08, FR-ONL-09).
+ */
+export function goodsName(
+  item: { name: string; size: string | null; isDefect: boolean },
+  defectLabel = "Cacat",
+): string {
+  return [
+    item.name,
+    item.size ? formatSizeLabel(item.size) : null,
+    item.isDefect ? defectLabel : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
 /** `93x47` as `93cm x 47cm`; kept here so client components need no catalog import. */
 function formatSizeLabel(size: string): string {
   const [length, width] = size.split("x");
