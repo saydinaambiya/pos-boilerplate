@@ -50,3 +50,4 @@ Records are immutable once accepted; a new record supersedes an old one.
 | [0042](./0042-reduce-goods-carried-and-motif.md)                    | Reduce goods carried by mistake, motif on salespeople's goods     | Amended by 0043       |
 | [0043](./0043-online-order-brand-motif-and-recent-stock-changes.md) | Brand, motif and colour on orders and Sales, recent stock changes | Accepted              |
 | [0044](./0044-shared-store-shift.md)                                | One shared store shift, sales shifts apart and without a float    | Accepted              |
+| [0045](./0045-accessories-and-goods-sold-by-the-kg.md)              | Accessories, and goods sold by the kg                             | Accepted              |

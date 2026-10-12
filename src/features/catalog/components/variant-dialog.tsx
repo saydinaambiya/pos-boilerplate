@@ -9,6 +9,7 @@ import { DialogSection } from "@/components/ui/dialog";
 import { RouteDialog } from "@/components/ui/route-dialog";
 import { Link } from "@/i18n/navigation";
 import type { Session } from "@/lib/auth/session";
+import { stockMeasure } from "@/lib/format/quantity";
 import { variantLabel } from "@/lib/format/variant-label";
 
 import { setVariantStatusAction, updateVariantAction } from "../variant-actions";
@@ -60,7 +61,7 @@ export async function VariantDialog({ session, productId, variantId }: VariantDi
       </div>
       <ActionForm action={updateVariantAction.bind(null, variant.id)} locale={locale}>
         <VariantFields
-          roll={variant.isRoll}
+          measure={stockMeasure(variant)}
           withInitialStock={false}
           variant={{
             colorName: name,

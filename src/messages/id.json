@@ -677,7 +677,16 @@
     "noBrand": "Tanpa merk",
     "brandGroup": "{count, plural, other {# produk}}",
     "toggleBrand": "Tampilkan atau sembunyikan produk {brand}",
-    "color": "Warna"
+    "color": "Warna",
+    "categoryTabs": "Jenis produk",
+    "categoryMAIN": "Karpet roll",
+    "categoryACCESSORY": "Aksesoris",
+    "accessoryUnitHint": "pcs, ml, atau kg. Tidak bisa diubah setelah disimpan.",
+    "accessoryPrice": "Harga jual per satuan",
+    "pricePerUnit": "Harga jual per {unit}",
+    "accessoryMinStockHint": "Dalam satuan produk. Untuk kg boleh desimal, contoh 0,5.",
+    "accessoryProduct": "Aksesoris · {unit}",
+    "perUnit": "{price} / {unit}"
   },
   "Stock": {
     "title": "Stok",
@@ -785,7 +794,9 @@
     "recentTitle": "Riwayat perubahan stok",
     "recentEmpty": "Belum ada perubahan stok.",
     "recentLine": "{type} · stok jadi {stock}",
-    "recentBy": "{time} · oleh {name}"
+    "recentBy": "{time} · oleh {name}",
+    "quantityKg": "Berat (kg)",
+    "countedKg": "Berat fisik (kg)"
   },
   "Variants": {
     "title": "Varian warna",
@@ -842,7 +853,9 @@
     "rollInitialStockHint": "Panjang roll yang masuk, contoh 40 atau 38,5. Dicatat sebagai barang masuk.",
     "pieceStock": "{size}: {count} pcs",
     "colorPlaceholder": "Pilih warna",
-    "defectPieceStock": "{size} cacat: {count} pcs"
+    "defectPieceStock": "{size} cacat: {count} pcs",
+    "kgMinStock": "Stok minimum (kg)",
+    "kgInitialStock": "Stok awal (kg)"
   },
   "Shifts": {
     "title": "Shift kasir",
@@ -1050,7 +1063,15 @@
     "sourceBankOther": "Lainnya",
     "sourceBankOtherName": "Nama bank atau e-wallet",
     "sourceBankRequired": "Pilih bank atau e-wallet pengirim.",
-    "defect": "Cacat"
+    "defect": "Cacat",
+    "weighTitle": "Isi berat",
+    "weighHint": "{price} per kg · sisa {weight}",
+    "weighWeight": "Berat (kg)",
+    "weighInvalid": "Isi berat lebih dari 0, contoh 0,5.",
+    "weighTooHeavy": "Stok tidak cukup. Sisa {weight}.",
+    "addWeighed": "Tambah",
+    "addWeighedPriced": "Tambah · {price}",
+    "weightLeft": "Sisa {weight}"
   },
   "Receipt": {
     "customer": "Pelanggan: {name}",

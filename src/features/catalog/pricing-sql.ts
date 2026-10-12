@@ -34,3 +34,6 @@ export const variantCostSql =
 
 /** True for the roll row of a colour, whose stock is centimetres (ADR-0023). */
 export const isRollRowSql = sql<boolean>`(${products.isRoll} AND ${productVariants.parentId} IS NULL)`;
+
+/** Goods sold by the kg, weighed at the POS only (ADR-0045). */
+export const soldByWeightSql = sql<boolean>`(NOT ${products.isRoll} AND ${products.unit} = 'kg')`;

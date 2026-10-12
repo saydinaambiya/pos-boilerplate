@@ -318,6 +318,7 @@ export async function queryRecentMovements(limit: number) {
       size: productVariants.size,
       isDefect: productVariants.isDefect,
       isRoll: isRollRowSql,
+      unit: products.unit,
     })
     .from(stockMovements)
     .innerJoin(productVariants, eq(productVariants.id, stockMovements.variantId))

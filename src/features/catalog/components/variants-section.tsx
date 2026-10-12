@@ -19,7 +19,7 @@ import { LOCALE_FIELD } from "@/i18n/form-locale";
 import { Link } from "@/i18n/navigation";
 import type { Session } from "@/lib/auth/session";
 import { formatCurrency } from "@/lib/format/currency";
-import { formatMeters } from "@/lib/format/length";
+import { formatStock, stockMeasure } from "@/lib/format/quantity";
 
 import { createVariantAction, enableVariantsAction, moveVariantAction } from "../variant-actions";
 import { formatSize } from "../sizes";
@@ -39,6 +39,8 @@ interface VariantsSectionProps {
     trackStock: boolean;
     hasVariants: boolean;
     isRoll: boolean;
+    unit: string;
+    category: "MAIN" | "ACCESSORY";
   };
 }
 
@@ -53,6 +55,7 @@ export async function VariantsSection({ session, product }: VariantsSectionProps
     getTranslations("Catalog"),
     getLocale(),
   ]);
+  const measure = stockMeasure(product);
 
   if (!product.hasVariants) {
     return (
@@ -62,7 +65,9 @@ export async function VariantsSection({ session, product }: VariantsSectionProps
           <CardDescription>
             {product.isRoll
               ? t("enableRollDescription")
-              : t("enableDescription", { stock: product.stockQty })}
+              : t("enableDescription", {
+                  stock: formatStock(measure, product.stockQty, locale),
+                })}
           </CardDescription>
         </CardHeader>
         <ActionForm action={enableVariantsAction.bind(null, product.id)} locale={locale}>
@@ -78,9 +83,15 @@ export async function VariantsSection({ session, product }: VariantsSectionProps
             />
             <FormField
               name="minStock"
-              label={product.isRoll ? t("rollMinStock") : t("minStock")}
+              label={
+                product.isRoll
+                  ? t("rollMinStock")
+                  : measure === "kg"
+                    ? t("kgMinStock")
+                    : t("minStock")
+              }
               defaultValue="0"
-              inputMode={product.isRoll ? "decimal" : "numeric"}
+              inputMode={measure === "count" ? "numeric" : "decimal"}
               maxLength={9}
             />
           </div>
@@ -165,7 +176,12 @@ export async function VariantsSection({ session, product }: VariantsSectionProps
                 <TableCell className="text-right whitespace-nowrap tabular-nums">
                   {product.isRoll
                     ? tCatalog("perMeter", { price: formatCurrency(product.price, locale) })
-                    : formatCurrency(variant.priceOverride ?? product.price, locale)}
+                    : product.category === "ACCESSORY"
+                      ? tCatalog("perUnit", {
+                          price: formatCurrency(variant.priceOverride ?? product.price, locale),
+                          unit: product.unit,
+                        })
+                      : formatCurrency(variant.priceOverride ?? product.price, locale)}
                   {variant.priceOverride === null ? (
                     <span className="block text-xs text-ink-muted">{t("inherited")}</span>
                   ) : null}
@@ -179,7 +195,11 @@ export async function VariantsSection({ session, product }: VariantsSectionProps
                       trackStock={product.trackStock}
                       stockQty={variant.stockQty}
                       minStock={variant.minStock}
-                      label={product.isRoll ? formatMeters(variant.stockQty, locale) : undefined}
+                      label={
+                        measure === "count"
+                          ? undefined
+                          : formatStock(measure, variant.stockQty, locale)
+                      }
                     />
                   </Link>
                   {variant.pieces.length > 0 ? (
@@ -221,7 +241,7 @@ export async function VariantsSection({ session, product }: VariantsSectionProps
         <h3 className="mb-4 text-base font-semibold text-ink">{t("addTitle")}</h3>
         <ActionForm action={createVariantAction.bind(null, product.id)} locale={locale}>
           <VariantFields
-            roll={product.isRoll}
+            measure={measure}
             withInitialStock={product.trackStock && session.permissions.has("stock:adjust")}
           />
           <SubmitButton className="self-start">{t("add")}</SubmitButton>

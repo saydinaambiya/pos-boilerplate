@@ -47,6 +47,8 @@ export interface CheckoutLinePayload {
   qty: number;
   /** Custom cut length in cm (FR-ROL-04). */
   lengthCm?: number;
+  /** Weight in grams of goods sold by the kg (ADR-0045). */
+  weightG?: number;
   discount: ItemDiscount | null;
 }
 

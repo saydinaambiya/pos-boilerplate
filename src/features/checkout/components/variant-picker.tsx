@@ -12,13 +12,14 @@ import type { PosProduct, PosVariant } from "@/features/catalog/pos-types";
 import { formatSize, productDetailsLine } from "@/features/catalog/sizes";
 import { formatCurrency } from "@/lib/format/currency";
 import { formatMeters, parseDecimal } from "@/lib/format/length";
-import { cutPrice } from "@/lib/money/cut";
+import { formatKg, parseKgToGrams } from "@/lib/format/quantity";
+import { cutPrice, weighPrice } from "@/lib/money/cut";
 
 interface VariantPickerProps {
   product: PosProduct | null;
   locale: Locale;
   isSelectable: (product: PosProduct, variant: PosVariant) => boolean;
-  onPick: (product: PosProduct, variant: PosVariant, lengthCm?: number) => void;
+  onPick: (product: PosProduct, variant: PosVariant, lengthCm?: number, weightG?: number) => void;
   onClose: () => void;
   /** Negative stock allowed, so a cut may be longer than the roll (FR-STK-04). */
   allowNegativeStock: boolean;
@@ -42,16 +43,25 @@ function swatch(variant: PosVariant) {
  * colours with stock; sold-out ones are disabled unless negative stock is
  * allowed, and one tap adds to the cart. A roll product (FR-ROL-04) first
  * asks the colour when it has more than one, then offers each size's
- * pieces or a custom cut typed in cm or m, priced per meter.
+ * pieces or a custom cut typed in cm or m, priced per meter. Goods sold by
+ * the kg ask the colour the same way, then the weight (ADR-0045).
  */
 export function VariantPicker(props: VariantPickerProps) {
   const { product } = props;
   const t = useTranslations("Pos");
   const colors = product ? colorsOf(product) : [];
   const [chosen, setChosen] = useState<string | null>(null);
-  const roll = product?.isRoll
-    ? (colors.find((variant) => variant.id === chosen) ?? (colors.length === 1 ? colors[0] : null))
-    : null;
+  const current =
+    colors.find((variant) => variant.id === chosen) ?? (colors.length === 1 ? colors[0] : null);
+  const roll = product?.isRoll ? current : null;
+  const weighed = product && !product.isRoll && product.unit === "kg";
+  const weighing = weighed ? current : null;
+  const back =
+    colors.length > 1
+      ? () => {
+          setChosen(null);
+        }
+      : null;
 
   return (
     <Dialog
@@ -64,11 +74,17 @@ export function VariantPicker(props: VariantPickerProps) {
       }}
     >
       <DialogContent closeLabel={t("close")}>
-        <DialogTitle>{roll ? t("chooseSize") : t("chooseVariant")}</DialogTitle>
+        <DialogTitle>
+          {roll ? t("chooseSize") : weighing ? t("weighTitle") : t("chooseVariant")}
+        </DialogTitle>
         <DialogDescription>
           {product
             ? t("chooseVariantFor", {
-                name: [product.name, roll?.colorName, productDetailsLine(product, props.locale)]
+                name: [
+                  product.name,
+                  (roll ?? weighing)?.colorName,
+                  productDetailsLine(product, props.locale),
+                ]
                   .filter(Boolean)
                   .join(" · "),
               })
@@ -79,13 +95,17 @@ export function VariantPicker(props: VariantPickerProps) {
             {...props}
             product={product}
             roll={roll}
-            onBack={
-              colors.length > 1
-                ? () => {
-                    setChosen(null);
-                  }
-                : null
-            }
+            onBack={back}
+            onPicked={() => {
+              setChosen(null);
+            }}
+          />
+        ) : product && weighing ? (
+          <WeighOptions
+            {...props}
+            product={product}
+            variant={weighing}
+            onBack={back}
             onPicked={() => {
               setChosen(null);
             }}
@@ -106,7 +126,7 @@ export function VariantPicker(props: VariantPickerProps) {
                     type="button"
                     disabled={!selectable}
                     onClick={() => {
-                      if (product.isRoll) setChosen(variant.id);
+                      if (product.isRoll || weighed) setChosen(variant.id);
                       else props.onPick(product, variant);
                     }}
                     className="flex min-h-14 w-full items-center gap-3 rounded-control border border-border px-3 py-2 text-left hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-50"
@@ -119,16 +139,19 @@ export function VariantPicker(props: VariantPickerProps) {
                       <span className="text-xs text-ink-muted">
                         {product.isRoll
                           ? t("rollLeft", { length: formatMeters(variant.stockQty, props.locale) })
-                          : product.trackStock
-                            ? variant.stockQty > 0
-                              ? t("stockLeft", { count: variant.stockQty })
-                              : t("outOfStock")
-                            : variant.sku}
+                          : weighed
+                            ? t("weightLeft", { weight: formatKg(variant.stockQty, props.locale) })
+                            : product.trackStock
+                              ? variant.stockQty > 0
+                                ? t("stockLeft", { count: variant.stockQty })
+                                : t("outOfStock")
+                              : variant.sku}
                       </span>
                     </span>
                     {product.isRoll ? null : (
                       <span className="text-sm font-semibold tabular-nums">
                         {formatCurrency(variant.price, props.locale)}
+                        {weighed ? " / kg" : null}
                       </span>
                     )}
                   </button>
@@ -266,6 +289,89 @@ function RollOptions(
             {lengthCm !== null && lengthCm > 0
               ? t("addCutPriced", { price: money(cutPrice(roll.price, lengthCm)) })
               : t("addCut")}
+          </Button>
+        </div>
+        {error ? (
+          <p role="alert" className="text-xs text-danger-ink">
+            {error}
+          </p>
+        ) : null}
+      </form>
+
+      {props.onBack ? (
+        <Button variant="ghost" className="self-start" onClick={props.onBack}>
+          {t("otherColor")}
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
+/** Weight of goods sold by the kg, typed in kg and priced per kg (ADR-0045). */
+function WeighOptions(
+  props: VariantPickerProps & {
+    product: PosProduct;
+    variant: PosVariant;
+    onBack: (() => void) | null;
+    onPicked: () => void;
+  },
+) {
+  const { product, variant, locale } = props;
+  const t = useTranslations("Pos");
+  const id = useId();
+  const [weight, setWeight] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const weightG = parseKgToGrams(weight);
+  const money = (amount: number) => formatCurrency(amount, locale);
+
+  const add = () => {
+    if (weightG === null || weightG <= 0) {
+      setError(t("weighInvalid"));
+      return;
+    }
+    if (product.trackStock && !props.allowNegativeStock && weightG > variant.stockQty) {
+      setError(t("weighTooHeavy", { weight: formatKg(variant.stockQty, locale) }));
+      return;
+    }
+    setError(null);
+    setWeight("");
+    props.onPick(product, variant, undefined, weightG);
+    props.onPicked();
+  };
+
+  return (
+    <div className="flex flex-col gap-4">
+      <form
+        className="flex flex-col gap-2 rounded-card bg-surface-muted p-3"
+        onSubmit={(event) => {
+          event.preventDefault();
+          add();
+        }}
+      >
+        <p className="text-xs text-ink-muted tabular-nums">
+          {t("weighHint", {
+            price: money(variant.price),
+            weight: formatKg(variant.stockQty, locale),
+          })}
+        </p>
+        <div className="flex flex-wrap items-end gap-2">
+          <label htmlFor={`${id}-weight`} className="text-sm font-medium text-ink">
+            {t("weighWeight")}
+          </label>
+          <Input
+            id={`${id}-weight`}
+            inputMode="decimal"
+            value={weight}
+            onChange={(event) => {
+              setWeight(event.target.value.slice(0, 9));
+            }}
+            placeholder="0,5"
+            className="w-28 text-center tabular-nums"
+          />
+          <Button type="submit" variant="secondary">
+            {weightG !== null && weightG > 0
+              ? t("addWeighedPriced", { price: money(weighPrice(variant.price, weightG)) })
+              : t("addWeighed")}
           </Button>
         </div>
         {error ? (

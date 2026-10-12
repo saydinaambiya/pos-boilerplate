@@ -37,7 +37,7 @@ import { movementFilters } from "@/features/stock/schemas";
 import { getMovements, getVariantStock, takesPieceMinimum } from "@/features/stock/service";
 import { Link } from "@/i18n/navigation";
 import { requirePermission } from "@/lib/auth/guard";
-import { formatMeters } from "@/lib/format/length";
+import { formatStock, stockMeasure } from "@/lib/format/quantity";
 import { stockItemLabel } from "@/lib/format/variant-label";
 import { cn } from "@/lib/utils/cn";
 
@@ -48,7 +48,8 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /**
  * One variant's stock: manual movements and the filtered ledger
- * (FR-STK-01/05/06). A roll counts meters, typed with decimals; its pieces
+ * (FR-STK-01/05/06). A roll counts meters and a kg accessory kilograms,
+ * typed with decimals (ADR-0045); a roll's pieces
  * gain stock only by cutting (FR-ROL-03). On the 93×47 piece the minimum
  * stock form takes the goods-received card's place, with the cutting tip
  * at its foot (FR-STK-09).
@@ -88,12 +89,18 @@ export default async function VariantStockPage({
   );
   const roll = variant.isRoll;
   const piece = variant.parentId !== null;
-  const amount = (value: number) => (roll ? formatMeters(value, locale) : String(value));
+  const measure = stockMeasure(variant);
+  const amount = (value: number) => formatStock(measure, value, locale);
   const signed = (value: number) => `${value > 0 ? "+" : ""}${amount(value)}`;
-  const quantityProps = roll
-    ? ({ inputMode: "decimal", maxLength: 9, autoComplete: "off" } as const)
-    : ({ inputMode: "numeric", maxLength: 7, autoComplete: "off" } as const);
-  const quantityLabel = roll ? t("quantityMeters") : t("quantity");
+  const quantityProps =
+    measure === "count"
+      ? ({ inputMode: "numeric", maxLength: 7, autoComplete: "off" } as const)
+      : ({ inputMode: "decimal", maxLength: 9, autoComplete: "off" } as const);
+  const quantityLabel = roll
+    ? t("quantityMeters")
+    : measure === "kg"
+      ? t("quantityKg")
+      : t("quantity");
   const title = stockItemLabel(variant, t("defect"));
 
   return (
@@ -121,9 +128,9 @@ export default async function VariantStockPage({
         <div>
           <p className="text-sm text-ink-muted">{t("current")}</p>
           <p className="text-3xl font-semibold text-ink tabular-nums">
-            {roll
-              ? formatMeters(variant.stockQty, locale)
-              : t("currentValue", { qty: variant.stockQty, unit: piece ? "pcs" : variant.unit })}
+            {measure === "count"
+              ? t("currentValue", { qty: variant.stockQty, unit: piece ? "pcs" : variant.unit })
+              : amount(variant.stockQty)}
           </p>
         </div>
         <StockCell
@@ -190,7 +197,7 @@ export default async function VariantStockPage({
             <ActionForm action={countStockAction.bind(null, variantId)} locale={locale}>
               <FormField
                 name="counted"
-                label={roll ? t("countedMeters") : t("counted")}
+                label={roll ? t("countedMeters") : measure === "kg" ? t("countedKg") : t("counted")}
                 {...quantityProps}
               />
               <FormField

@@ -677,7 +677,16 @@
     "noBrand": "No brand",
     "brandGroup": "{count, plural, one {# product} other {# products}}",
     "toggleBrand": "Show or hide {brand} products",
-    "color": "Colour"
+    "color": "Colour",
+    "categoryTabs": "Product type",
+    "categoryMAIN": "Carpet roll",
+    "categoryACCESSORY": "Accessory",
+    "accessoryUnitHint": "pcs, ml or kg. It cannot change once saved.",
+    "accessoryPrice": "Selling price per unit",
+    "pricePerUnit": "Selling price per {unit}",
+    "accessoryMinStockHint": "In the product's unit. kg may have decimals, e.g. 0.5.",
+    "accessoryProduct": "Accessory · {unit}",
+    "perUnit": "{price} / {unit}"
   },
   "Stock": {
     "title": "Stock",
@@ -785,7 +794,9 @@
     "recentTitle": "Recent stock changes",
     "recentEmpty": "No stock changes yet.",
     "recentLine": "{type} · stock now {stock}",
-    "recentBy": "{time} · by {name}"
+    "recentBy": "{time} · by {name}",
+    "quantityKg": "Weight (kg)",
+    "countedKg": "Counted weight (kg)"
   },
   "Variants": {
     "title": "Colour variants",
@@ -842,7 +853,9 @@
     "rollInitialStockHint": "Length of roll received, e.g. 40 or 38.5. Recorded as goods received.",
     "pieceStock": "{size}: {count} pcs",
     "colorPlaceholder": "Choose a colour",
-    "defectPieceStock": "{size} defect: {count} pcs"
+    "defectPieceStock": "{size} defect: {count} pcs",
+    "kgMinStock": "Minimum stock (kg)",
+    "kgInitialStock": "Opening stock (kg)"
   },
   "Shifts": {
     "title": "Cashier shifts",
@@ -1050,7 +1063,15 @@
     "sourceBankOther": "Other",
     "sourceBankOtherName": "Bank or e-wallet name",
     "sourceBankRequired": "Choose the payer's bank or e-wallet.",
-    "defect": "Defect"
+    "defect": "Defect",
+    "weighTitle": "Enter the weight",
+    "weighHint": "{price} per kg · {weight} left",
+    "weighWeight": "Weight (kg)",
+    "weighInvalid": "Enter a weight above 0, e.g. 0.5.",
+    "weighTooHeavy": "Not enough stock. {weight} left.",
+    "addWeighed": "Add",
+    "addWeighedPriced": "Add · {price}",
+    "weightLeft": "{weight} left"
   },
   "Receipt": {
     "customer": "Customer: {name}",

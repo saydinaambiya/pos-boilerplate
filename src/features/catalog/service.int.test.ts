@@ -345,3 +345,47 @@ describe("products (FR-PRD-01..04, §3.1.1)", () => {
     }
   });
 });
+
+describe("accessories (FR-PRD-07, ADR-0045)", () => {
+  it("keeps brand, colour and unit, no motif or thickness, and always tracks stock", async () => {
+    const session = await owner();
+    const brand = await createBrand(session, { name: "Fox" }, testContext());
+    if (!brand.ok) throw new Error(brand.reason);
+    const created = await createProduct(
+      session,
+      {
+        ...product({ name: "Lem Fox", unit: "kg", sku: "LEM-FOX", minStock: 500 }),
+        brandId: brand.id,
+        motif: "Mihrab",
+        trackStock: false,
+        colorName: "Red",
+      },
+      testContext(),
+      "ACCESSORY",
+    );
+    if (!created.ok) throw new Error(created.reason);
+    expect(await getProduct(session, created.id)).toMatchObject({
+      category: "ACCESSORY",
+      isRoll: false,
+      unit: "kg",
+      motif: null,
+      trackStock: true,
+      hasVariants: true,
+      colorNames: ["Red"],
+    });
+
+    expect(
+      await updateProduct(
+        session,
+        created.id,
+        { name: "Lem Fox Kuning", price: 50_000, unit: "pcs", trackStock: false },
+        testContext(),
+      ),
+    ).toEqual({ ok: true, id: created.id });
+    expect(await getProduct(session, created.id)).toMatchObject({
+      name: "Lem Fox Kuning",
+      unit: "kg",
+      trackStock: true,
+    });
+  });
+});

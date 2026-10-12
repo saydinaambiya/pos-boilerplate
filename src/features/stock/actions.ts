@@ -7,7 +7,7 @@ import { z } from "zod";
 import type { Locale } from "@/config/locales";
 import { localeFromForm } from "@/i18n/form-locale";
 import { requirePermission } from "@/lib/auth/guard";
-import { formatMeters, parseMetersToCm } from "@/lib/format/length";
+import { formatStock, parseStock, type StockMeasure } from "@/lib/format/quantity";
 import { formText } from "@/lib/http/form-data";
 import { currentRequestContext } from "@/lib/http/request-context";
 import { fieldErrors, type FormState, submittedValues } from "@/lib/validation/form-state";
@@ -22,7 +22,7 @@ import {
   countStock,
   receiveStock,
   setPieceMinimum,
-  stockIsRoll,
+  stockMeasureOf,
   type StockResult,
   writeOffStock,
 } from "./service";
@@ -32,9 +32,11 @@ const variantId = z.uuid();
 const integer = (value: string) =>
   /^\d{1,7}$/.test(value.trim()) ? Number(value.trim()) : Number.NaN;
 
-/** Pieces, or on a roll meters stored as centimetres (ADR-0023). */
-const quantity = (value: string, roll: boolean) =>
-  roll ? (parseMetersToCm(value) ?? Number.NaN) : integer(value);
+/**
+ * Whole units, on a roll meters stored as centimetres (ADR-0023), on a kg
+ * accessory kg stored as grams (ADR-0045).
+ */
+const quantity = (value: string, measure: StockMeasure) => parseStock(measure, value) ?? Number.NaN;
 
 async function translations(locale: Locale) {
   return Promise.all([
@@ -48,10 +50,10 @@ async function toFormState(
   result: StockResult,
   locale: Locale,
   qtyField: string,
-  roll = false,
+  measure: StockMeasure = "count",
 ): Promise<FormState> {
   const [t] = await translations(locale);
-  const amount = (value: number) => (roll ? formatMeters(value, locale) : String(value));
+  const amount = (value: number) => formatStock(measure, value, locale);
   if (result.ok) {
     revalidatePath("/", "layout");
     const delta = `${result.qtyDelta > 0 ? "+" : ""}${amount(result.qtyDelta)}`;
@@ -82,7 +84,7 @@ async function prepare(id: string, formData: FormData, fields: readonly string[]
     session,
     tv,
     validId,
-    roll: validId && (await stockIsRoll(id)),
+    measure: validId ? await stockMeasureOf(id) : ("count" as const),
     values: submittedValues(formData, fields),
   };
 }
@@ -93,20 +95,20 @@ export async function receiveStockAction(
   _previous: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const { locale, session, tv, validId, roll, values } = await prepare(id, formData, [
+  const { locale, session, tv, validId, measure, values } = await prepare(id, formData, [
     "qty",
     "note",
   ]);
   if (!validId) return toFormState({ ok: false, reason: "not-found" }, locale, "qty");
   const parsed = receiveStockInput.safeParse({
-    qty: quantity(formText(formData, "qty"), roll),
+    qty: quantity(formText(formData, "qty"), measure),
     note: formText(formData, "note"),
   });
   if (!parsed.success) return { status: "error", errors: fieldErrors(parsed.error, tv), values };
   const result = await receiveStock(session, id, parsed.data, await currentRequestContext());
   return result.ok
-    ? toFormState(result, locale, "qty", roll)
-    : { ...(await toFormState(result, locale, "qty", roll)), values };
+    ? toFormState(result, locale, "qty", measure)
+    : { ...(await toFormState(result, locale, "qty", measure)), values };
 }
 
 /** Stock count with a mandatory reason (FR-STK-05). */
@@ -115,20 +117,20 @@ export async function countStockAction(
   _previous: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const { locale, session, tv, validId, roll, values } = await prepare(id, formData, [
+  const { locale, session, tv, validId, measure, values } = await prepare(id, formData, [
     "counted",
     "reason",
   ]);
   if (!validId) return toFormState({ ok: false, reason: "not-found" }, locale, "counted");
   const parsed = countStockInput.safeParse({
-    counted: quantity(formText(formData, "counted"), roll),
+    counted: quantity(formText(formData, "counted"), measure),
     reason: formText(formData, "reason"),
   });
   if (!parsed.success) return { status: "error", errors: fieldErrors(parsed.error, tv), values };
   const result = await countStock(session, id, parsed.data, await currentRequestContext());
   return result.ok
-    ? toFormState(result, locale, "counted", roll)
-    : { ...(await toFormState(result, locale, "counted", roll)), values };
+    ? toFormState(result, locale, "counted", measure)
+    : { ...(await toFormState(result, locale, "counted", measure)), values };
 }
 
 /** Write-off with a mandatory reason (FR-STK-01). */
@@ -137,20 +139,20 @@ export async function writeOffStockAction(
   _previous: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const { locale, session, tv, validId, roll, values } = await prepare(id, formData, [
+  const { locale, session, tv, validId, measure, values } = await prepare(id, formData, [
     "qty",
     "reason",
   ]);
   if (!validId) return toFormState({ ok: false, reason: "not-found" }, locale, "qty");
   const parsed = writeOffStockInput.safeParse({
-    qty: quantity(formText(formData, "qty"), roll),
+    qty: quantity(formText(formData, "qty"), measure),
     reason: formText(formData, "reason"),
   });
   if (!parsed.success) return { status: "error", errors: fieldErrors(parsed.error, tv), values };
   const result = await writeOffStock(session, id, parsed.data, await currentRequestContext());
   return result.ok
-    ? toFormState(result, locale, "qty", roll)
-    : { ...(await toFormState(result, locale, "qty", roll)), values };
+    ? toFormState(result, locale, "qty", measure)
+    : { ...(await toFormState(result, locale, "qty", measure)), values };
 }
 
 /** Minimum stock of a 93×47 piece (FR-STK-09). */

@@ -12,11 +12,13 @@ import type { Session } from "@/lib/auth/session";
 import { formText } from "@/lib/http/form-data";
 import { currentRequestContext } from "@/lib/http/request-context";
 import { fieldErrors, type FormState, submittedValues } from "@/lib/validation/form-state";
-import { parseDecimal, parseMetersToCm } from "@/lib/format/length";
+import { parseDecimal } from "@/lib/format/length";
+import { parseStock, type StockMeasure, stockMeasure } from "@/lib/format/quantity";
 import { parseRupiah } from "@/lib/validation/money";
 
 import {
   brandInput,
+  newAccessoryInput,
   newProductInput,
   productDetailsInput,
   productInput,
@@ -36,8 +38,6 @@ import {
 
 const recordId = z.uuid();
 
-const integer = (value: string) =>
-  /^\d{1,7}$/.test(value.trim()) ? Number(value.trim()) : Number.NaN;
 const money = (value: string) => parseRupiah(value) ?? Number.NaN;
 
 async function translations(locale: Locale) {
@@ -133,6 +133,7 @@ function pricesPerSize(formData: FormData, prefix: string) {
 }
 
 const PRODUCT_FIELDS = [
+  "category",
   "name",
   "colorName",
   "brandId",
@@ -149,32 +150,45 @@ const PRODUCT_FIELDS = [
 /**
  * Form fields as schema input. A roll form (FR-ROL-02/05) sends a normal
  * and a defect price per size and no unit or stock switch; its minimum
- * stock is typed in meters.
+ * stock is typed in meters. An accessory form (ADR-0045) sends no motif,
+ * thickness or stock switch, and its unit only when it is new.
  */
-function productDetails(formData: FormData, session: Session, isRoll: boolean) {
+function productDetails(
+  formData: FormData,
+  session: Session,
+  isRoll: boolean,
+  accessory: { unit: string | null } | null,
+) {
   const thickness = formText(formData, "thickness");
   return {
     name: formText(formData, "name"),
     brandId: formText(formData, "brandId"),
-    motif: formText(formData, "motif"),
-    thickness: thickness === "" ? null : (parseDecimal(thickness) ?? Number.NaN),
-    ...(isRoll
-      ? {
-          sizePrices: pricesPerSize(formData, "sizePrice"),
-          defectSizePrices: pricesPerSize(formData, "defectPrice"),
-          unit: "pcs",
-          trackStock: true,
-        }
-      : { unit: formText(formData, "unit"), trackStock: formData.get("trackStock") === "on" }),
+    ...(accessory
+      ? { unit: accessory.unit ?? formText(formData, "unit"), trackStock: true }
+      : {
+          motif: formText(formData, "motif"),
+          thickness: thickness === "" ? null : (parseDecimal(thickness) ?? Number.NaN),
+          ...(isRoll
+            ? {
+                sizePrices: pricesPerSize(formData, "sizePrice"),
+                defectSizePrices: pricesPerSize(formData, "defectPrice"),
+                unit: "pcs",
+                trackStock: true,
+              }
+            : {
+                unit: formText(formData, "unit"),
+                trackStock: formData.get("trackStock") === "on",
+              }),
+        }),
     price: money(formText(formData, "price")),
   };
 }
 
-function defaultVariantFields(formData: FormData, isRoll: boolean) {
-  const minStock = formText(formData, "minStock") || "0";
+/** SKU and minimum stock, typed in meters, kg or whole units (ADR-0023, ADR-0045). */
+function defaultVariantFields(formData: FormData, measure: StockMeasure) {
   return {
     sku: formText(formData, "sku"),
-    minStock: isRoll ? (parseMetersToCm(minStock) ?? Number.NaN) : integer(minStock),
+    minStock: parseStock(measure, formText(formData, "minStock") || "0") ?? Number.NaN,
   };
 }
 
@@ -205,15 +219,30 @@ async function saveProduct(id: string | null, formData: FormData): Promise<FormS
   }
   const current = id === null ? null : await getProduct(session, id);
   if (id !== null && !current) return failure({ ok: false, reason: "not-found" }, locale);
-  const isRoll = current?.isRoll ?? true;
-  const details = productDetails(formData, session, isRoll);
+  const category =
+    current?.category ?? (formText(formData, "category") === "ACCESSORY" ? "ACCESSORY" : "MAIN");
+  const isRoll = current?.isRoll ?? category === "MAIN";
+  const details = productDetails(
+    formData,
+    session,
+    isRoll,
+    category === "ACCESSORY" ? { unit: current?.unit ?? null } : null,
+  );
+  const measure = stockMeasure({ isRoll, unit: details.unit });
   const context = await currentRequestContext();
   let result: CatalogResult;
   if (id === null || formData.has("sku")) {
-    const schema = id === null ? newProductInput : isRoll ? rollProductInput : productInput;
+    const schema =
+      id === null
+        ? category === "ACCESSORY"
+          ? newAccessoryInput
+          : newProductInput
+        : isRoll
+          ? rollProductInput
+          : productInput;
     const parsed = schema.safeParse({
       ...details,
-      ...defaultVariantFields(formData, isRoll),
+      ...defaultVariantFields(formData, measure),
       ...(id === null ? { colorName: formText(formData, "colorName") } : {}),
     });
     if (!parsed.success) {
@@ -222,7 +251,7 @@ async function saveProduct(id: string | null, formData: FormData): Promise<FormS
     }
     result =
       id === null
-        ? await createProduct(session, parsed.data, context)
+        ? await createProduct(session, parsed.data, context, category)
         : await updateProduct(session, id, parsed.data, context);
   } else {
     const parsed = productDetailsInput.safeParse(details);

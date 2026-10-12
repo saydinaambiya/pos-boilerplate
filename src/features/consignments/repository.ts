@@ -2,7 +2,7 @@ import "server-only";
 
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 
-import { isRollRowSql, variantPriceSql } from "@/features/catalog/pricing-sql";
+import { isRollRowSql, soldByWeightSql, variantPriceSql } from "@/features/catalog/pricing-sql";
 import { db, type Executor } from "@/db/client";
 import {
   brands,
@@ -101,7 +101,7 @@ export async function findTakeableVariants(executor: Executor, variantIds: reado
       size: productVariants.size,
       isDefect: productVariants.isDefect,
       price: variantPriceSql,
-      sellable: sql<boolean>`${products.isActive} AND ${productVariants.isActive} AND NOT ${isRollRowSql}`,
+      sellable: sql<boolean>`${products.isActive} AND ${productVariants.isActive} AND NOT ${isRollRowSql} AND NOT ${soldByWeightSql}`,
     })
     .from(productVariants)
     .innerJoin(products, eq(products.id, productVariants.productId))

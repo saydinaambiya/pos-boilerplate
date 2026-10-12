@@ -6,6 +6,7 @@ import type { Locale } from "@/config/locales";
 import { getSale, getSaleForVerifiedLink } from "@/features/checkout/service";
 import type { Session } from "@/lib/auth/session";
 import { translatorFor } from "@/lib/i18n/translator";
+import { formatKg } from "@/lib/format/quantity";
 import { variantLabel } from "@/lib/format/variant-label";
 import { signToken, verifyToken } from "@/lib/security/signed-token";
 import { basisPointsToPercent } from "@/lib/settings/rates";
@@ -54,6 +55,7 @@ async function buildDocument(sale: SaleDetail, locale: Locale): Promise<InvoiceD
           item.lengthCm === null
             ? null
             : `${locale === "en" ? "Cut" : "Potong"} ${String(item.lengthCm)}cm`,
+          item.weightG === null ? null : formatKg(item.weightG, locale),
         ]
           .filter(Boolean)
           .join(" · ") || null,

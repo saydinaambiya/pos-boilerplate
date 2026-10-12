@@ -21,7 +21,8 @@ import type { PosProduct, PosVariant } from "@/features/catalog/pos-types";
 import { formatSize, productDetailsLine } from "@/features/catalog/sizes";
 import { Link } from "@/i18n/navigation";
 import { formatCurrency } from "@/lib/format/currency";
-import { cutPrice } from "@/lib/money/cut";
+import { formatKg } from "@/lib/format/quantity";
+import { cutPrice, weighPrice } from "@/lib/money/cut";
 import { calculateSale, type TaxRules, type VoucherRule } from "@/lib/money/calculate";
 import { cn } from "@/lib/utils/cn";
 
@@ -120,7 +121,14 @@ export function PosTerminal(props: PosTerminalProps) {
     () =>
       cart.items.map((item) => {
         const known = variantIndex.get(item.variantId);
-        return known ? { ...item, unitPrice: cutPrice(known.variant.price, item.lengthCm) } : item;
+        if (!known) return item;
+        return {
+          ...item,
+          unitPrice:
+            item.weightG === undefined
+              ? cutPrice(known.variant.price, item.lengthCm)
+              : weighPrice(known.variant.price, item.weightG),
+        };
       }),
     [cart.items, variantIndex],
   );
@@ -166,7 +174,10 @@ export function PosTerminal(props: PosTerminalProps) {
       const line = items.find((item) => cartLineKey(item) === key);
       const known = variantIndex.get(line?.variantId ?? key);
       if (!known?.product.trackStock || allowNegativeStock) return null;
-      return Math.max(Math.floor(known.variant.stockQty / (line?.lengthCm ?? 1)), 0);
+      return Math.max(
+        Math.floor(known.variant.stockQty / (line?.lengthCm ?? line?.weightG ?? 1)),
+        0,
+      );
     },
     [items, variantIndex, allowNegativeStock],
   );
@@ -177,13 +188,15 @@ export function PosTerminal(props: PosTerminalProps) {
     [allowNegativeStock],
   );
 
+  /** Adds a variant, a custom cut off a roll (FR-ROL-04) or a weighed amount (ADR-0045). */
   const addVariant = useCallback(
-    (product: PosProduct, variant: PosVariant, lengthCm?: number) => {
+    (product: PosProduct, variant: PosVariant, lengthCm?: number, weightG?: number) => {
       const described = [
         variant.colorName,
         variant.size ? formatSize(variant.size) : null,
         variant.isDefect ? t("defect") : null,
         lengthCm === undefined ? null : t("cutLabel", { length: String(lengthCm) }),
+        weightG === undefined ? null : formatKg(weightG, locale),
       ]
         .filter(Boolean)
         .join(" · ");
@@ -191,23 +204,28 @@ export function PosTerminal(props: PosTerminalProps) {
         variantId: variant.id,
         name: product.name,
         colorName: described === "" ? null : described,
-        unitPrice: cutPrice(variant.price, lengthCm),
+        unitPrice:
+          weightG === undefined
+            ? cutPrice(variant.price, lengthCm)
+            : weighPrice(variant.price, weightG),
         ...(lengthCm === undefined ? {} : { lengthCm }),
+        ...(weightG === undefined ? {} : { weightG }),
       };
       cart.add(
         line,
         !product.trackStock || allowNegativeStock
           ? null
-          : Math.max(Math.floor(variant.stockQty / (lengthCm ?? 1)), 0),
+          : Math.max(Math.floor(variant.stockQty / (lengthCm ?? weightG ?? 1)), 0),
       );
       setPicking(null);
     },
-    [cart, allowNegativeStock, t],
+    [cart, allowNegativeStock, t, locale],
   );
 
   const pick = (product: PosProduct) => {
     const [only] = product.variants;
-    if (!product.hasVariants && !product.isRoll && only) addVariant(product, only);
+    const weighed = product.unit === "kg" && !product.isRoll;
+    if (!product.hasVariants && !product.isRoll && !weighed && only) addVariant(product, only);
     else setPicking(product);
   };
 
@@ -347,17 +365,20 @@ export function PosTerminal(props: PosTerminalProps) {
                       ) : null}
                       <span className="text-sm font-semibold tabular-nums">
                         {low === high ? money(low) : `${money(low)} – ${money(high)}`}
+                        {product.unit === "kg" && !product.isRoll ? " / kg" : null}
                       </span>
                       <span className="mt-auto text-xs text-ink-muted">
                         {product.hasVariants
                           ? t("colorCount", { count: colors.length })
-                          : product.isRoll
-                            ? t("stockLeft", { count: stock })
-                            : product.trackStock
-                              ? stock > 0
-                                ? t("stockLeft", { count: stock })
-                                : t("outOfStock")
-                              : product.unit}
+                          : product.unit === "kg" && !product.isRoll
+                            ? t("weightLeft", { weight: formatKg(stock, locale) })
+                            : product.isRoll
+                              ? t("stockLeft", { count: stock })
+                              : product.trackStock
+                                ? stock > 0
+                                  ? t("stockLeft", { count: stock })
+                                  : t("outOfStock")
+                                : product.unit}
                       </span>
                     </button>
                   </li>
@@ -412,6 +433,7 @@ export function PosTerminal(props: PosTerminalProps) {
             variantId: item.variantId,
             qty: item.qty,
             ...(item.lengthCm === undefined ? {} : { lengthCm: item.lengthCm }),
+            ...(item.weightG === undefined ? {} : { weightG: item.weightG }),
             discount: item.discount,
           }))
         }

@@ -22,7 +22,7 @@ import { getLowStock } from "@/features/stock/service";
 import { Link } from "@/i18n/navigation";
 import { requirePermission } from "@/lib/auth/guard";
 import { formatCurrency } from "@/lib/format/currency";
-import { formatMeters } from "@/lib/format/length";
+import { formatStock, stockMeasure } from "@/lib/format/quantity";
 import { stockItemLabel } from "@/lib/format/variant-label";
 import { readSetting } from "@/lib/settings/store";
 import { cn } from "@/lib/utils/cn";
@@ -204,7 +204,11 @@ export default async function DashboardPage() {
                     trackStock
                     stockQty={item.stockQty}
                     minStock={item.minStock}
-                    label={item.isRoll ? formatMeters(item.stockQty, locale) : undefined}
+                    label={
+                      stockMeasure(item) === "count"
+                        ? undefined
+                        : formatStock(stockMeasure(item), item.stockQty, locale)
+                    }
                   />
                 </li>
               ))}

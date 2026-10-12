@@ -13,15 +13,27 @@ export interface CartItem {
   qty: number;
   /** Custom cut off a roll, in cm per unit (FR-ROL-04). */
   lengthCm?: number;
+  /** Weight of goods sold by the kg, in grams per unit (ADR-0045). */
+  weightG?: number;
   discount: ItemDiscount | null;
 }
 
-/** Cart line identity: a variant, or a variant cut to one length (FR-ROL-04). */
-export function cartLineKey(item: { variantId: string; lengthCm?: number | undefined }): string {
-  return item.lengthCm === undefined
-    ? item.variantId
-    : `${item.variantId}@${String(item.lengthCm)}`;
+/**
+ * Cart line identity: a variant, a variant cut to one length (FR-ROL-04),
+ * or a variant weighed out to one weight (ADR-0045).
+ */
+export function cartLineKey(item: {
+  variantId: string;
+  lengthCm?: number | undefined;
+  weightG?: number | undefined;
+}): string {
+  if (item.lengthCm !== undefined) return `${item.variantId}@${String(item.lengthCm)}`;
+  if (item.weightG !== undefined) return `${item.variantId}#${String(item.weightG)}`;
+  return item.variantId;
 }
+
+const positiveInteger = (value: unknown) =>
+  value === undefined || (typeof value === "number" && Number.isInteger(value) && value > 0);
 
 const EMPTY = "[]";
 const listeners = new Set<() => void>();
@@ -65,8 +77,8 @@ function isCartItem(value: unknown): value is CartItem {
     typeof item.qty === "number" &&
     Number.isInteger(item.qty) &&
     item.qty > 0 &&
-    (item.lengthCm === undefined ||
-      (typeof item.lengthCm === "number" && Number.isInteger(item.lengthCm) && item.lengthCm > 0))
+    positiveInteger(item.lengthCm) &&
+    positiveInteger(item.weightG)
   );
 }
 

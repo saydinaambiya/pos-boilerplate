@@ -30,6 +30,7 @@ import { Link } from "@/i18n/navigation";
 import { requirePermission } from "@/lib/auth/guard";
 import { formatCurrency } from "@/lib/format/currency";
 import { formatMeters, formatThickness } from "@/lib/format/length";
+import { formatKg } from "@/lib/format/quantity";
 import { firstParam as first, keptQuery } from "@/lib/utils/search-params";
 
 /** The one piece size whose price the list shows next to the meter price (FR-ROL-02). */
@@ -47,8 +48,9 @@ export async function generateMetadata(): Promise<Metadata> {
  * thickness in their own columns (FR-PRD-01/02/04/06, ADR-0038, ADR-0040,
  * ADR-0041). Deleted products are not listed (FR-PRD-03). Roll prices are
  * per meter with the 93×47 piece price below (FR-ROL-02) and roll stock
- * shows meters and cut pieces (FR-ROL-01);
- * `?new=1` opens the create dialog (ADR-0018).
+ * shows meters and cut pieces (FR-ROL-01); accessories show their unit
+ * and price per unit (FR-PRD-07, ADR-0045). `?new=1` opens the create
+ * dialog, `&category=ACCESSORY` on its accessory form (ADR-0018).
  */
 export default async function ProductsPage({ searchParams }: PageProps<"/[locale]/products">) {
   const session = await requirePermission("page:products");
@@ -72,7 +74,14 @@ export default async function ProductsPage({ searchParams }: PageProps<"/[locale
   const canUpdate = session.permissions.has("product:update");
   const canCreate = session.permissions.has("product:create") && brands.length > 0;
   const noBrands = brands.length === 0;
-  const kept = keptQuery(raw, ["new"]);
+  const kept = keptQuery(raw, ["new", "category"]);
+  const newCategory = first(raw.category) === "ACCESSORY" ? "ACCESSORY" : "MAIN";
+  const newHref = (category: "MAIN" | "ACCESSORY") =>
+    `/products?${new URLSearchParams({
+      ...kept,
+      new: "1",
+      ...(category === "ACCESSORY" ? { category } : {}),
+    }).toString()}`;
   const filtered =
     filters.q !== "" || filters.brand !== undefined || filters.thickness !== undefined;
   const brandGroups = Object.values(
@@ -233,7 +242,11 @@ export default async function ProductsPage({ searchParams }: PageProps<"/[locale
                           product.name
                         )}
                         <span className="block text-xs font-normal text-ink-muted">
-                          {product.isRoll ? t("rollProduct") : product.unit}
+                          {product.isRoll
+                            ? t("rollProduct")
+                            : product.category === "ACCESSORY"
+                              ? t("accessoryProduct", { unit: product.unit })
+                              : product.unit}
                         </span>
                       </TableCell>
                       <TableCell>{product.motif ?? "—"}</TableCell>
@@ -251,7 +264,12 @@ export default async function ProductsPage({ searchParams }: PageProps<"/[locale
                       <TableCell className="text-right whitespace-nowrap tabular-nums">
                         {product.isRoll
                           ? t("perMeter", { price: formatCurrency(product.price, locale) })
-                          : formatCurrency(product.price, locale)}
+                          : product.category === "ACCESSORY"
+                            ? t("perUnit", {
+                                price: formatCurrency(product.price, locale),
+                                unit: product.unit,
+                              })
+                            : formatCurrency(product.price, locale)}
                         {product.isRoll ? (
                           <span className="block text-xs text-ink-muted">
                             {listedPiecePrice(product.sizePrices)}
@@ -270,7 +288,9 @@ export default async function ProductsPage({ searchParams }: PageProps<"/[locale
                                   meters: formatMeters(product.stockQty, locale),
                                   pieces: product.pieceStock,
                                 })
-                              : undefined
+                              : product.unit === "kg"
+                                ? formatKg(product.stockQty, locale)
+                                : undefined
                           }
                         />
                       </TableCell>
@@ -302,7 +322,12 @@ export default async function ProductsPage({ searchParams }: PageProps<"/[locale
         ) : null}
       </Card>
       {canCreate && first(raw.new) === "1" ? (
-        <NewProductDialog brands={brands} closeHref={{ pathname: "/products", query: kept }} />
+        <NewProductDialog
+          brands={brands}
+          closeHref={{ pathname: "/products", query: kept }}
+          category={newCategory}
+          categoryHrefs={{ MAIN: newHref("MAIN"), ACCESSORY: newHref("ACCESSORY") }}
+        />
       ) : null}
     </>
   );

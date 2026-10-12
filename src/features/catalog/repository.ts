@@ -129,6 +129,7 @@ const productColumns = {
   motif: products.motif,
   thickness: products.thickness,
   isRoll: products.isRoll,
+  category: products.category,
   sizePrices: products.sizePrices,
   defectSizePrices: products.defectSizePrices,
   price: products.price,
@@ -317,7 +318,11 @@ export async function syncPieces(
 
 export async function insertProductWithDefaultVariant(
   executor: Executor,
-  product: ProductRowValues & { isRoll: boolean; hasVariants?: boolean },
+  product: ProductRowValues & {
+    isRoll: boolean;
+    category?: "MAIN" | "ACCESSORY";
+    hasVariants?: boolean;
+  },
   variant: { sku: string; minStock: number; attributes?: unknown },
 ): Promise<string> {
   const [row] = await executor.insert(products).values(product).returning({ id: products.id });
@@ -431,6 +436,7 @@ export async function findVariant(variantId: string) {
       hasVariants: products.hasVariants,
       trackStock: products.trackStock,
       isRoll: products.isRoll,
+      unit: products.unit,
     })
     .from(productVariants)
     .innerJoin(products, eq(products.id, productVariants.productId))

@@ -162,6 +162,8 @@ export const saleItems = pgTable(
     qty: integer().notNull(),
     /** Length of a custom cut off a roll, per unit of `qty` (FR-ROL-04). */
     lengthCm: integer(),
+    /** Weight of goods sold by the kg, in grams per unit of `qty` (ADR-0045). */
+    weightG: integer(),
     discountType: discountType(),
     discountValue: bigint({ mode: "number" }),
     discountAmount: money().notNull().default(0),
@@ -175,6 +177,7 @@ export const saleItems = pgTable(
     index("sale_items_variant_id_idx").on(table.variantId),
     check("sale_items_qty_positive", sql`${table.qty} > 0`),
     check("sale_items_length_positive", sql`${table.lengthCm} IS NULL OR ${table.lengthCm} > 0`),
+    check("sale_items_weight_positive", sql`${table.weightG} IS NULL OR ${table.weightG} > 0`),
   ],
 );
 

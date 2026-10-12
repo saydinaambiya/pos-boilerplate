@@ -3,6 +3,8 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { ActionForm } from "@/components/form/action-form";
 import { FormCheckbox, FormField, FormSelect } from "@/components/form/form-field";
 import { SubmitButton } from "@/components/form/submit-button";
+import { accessoryUnits } from "@/db/schema/catalog";
+import { stockInputValue, stockMeasure } from "@/lib/format/quantity";
 import type { FormAction } from "@/lib/validation/form-state";
 
 import { formatSize, PRODUCT_SIZES, ROLL_USAGE_CM } from "../sizes";
@@ -12,7 +14,10 @@ interface ProductFormProps {
   action: FormAction;
   brands: readonly { id: string; name: string }[];
   submitLabel: string;
+  /** What a new product is; an existing one keeps its own (ADR-0045). */
+  category?: "MAIN" | "ACCESSORY";
   product?: {
+    category: "MAIN" | "ACCESSORY";
     name: string;
     brandId: string | null;
     motif: string | null;
@@ -40,9 +45,12 @@ function decimalValue(value: number, locale: string): string {
  * meter, each size has its piece price for every colour
  * (FR-ROL-02), and the minimum stock of the roll is in meters. Older plain
  * products keep a single price, unit and stock switch. Colour and
- * per-colour SKU live on variants.
+ * per-colour SKU live on variants. An accessory (FR-PRD-07, ADR-0045) has
+ * its own short form.
  */
-export async function ProductForm({ action, brands, submitLabel, product }: ProductFormProps) {
+export async function ProductForm(props: ProductFormProps) {
+  const { action, brands, submitLabel, product } = props;
+  if ((product?.category ?? props.category) === "ACCESSORY") return <AccessoryForm {...props} />;
   const [t, locale] = await Promise.all([getTranslations("Catalog"), getLocale()]);
   const isRoll = product?.isRoll ?? true;
   const sizePrices = (product?.sizePrices ?? {}) as Partial<Record<string, number>>;
@@ -171,6 +179,81 @@ export async function ProductForm({ action, brands, submitLabel, product }: Prod
           hint={t("trackStockHint")}
           defaultChecked={product?.trackStock ?? true}
         />
+      )}
+      <SubmitButton className="self-start">{submitLabel}</SubmitButton>
+    </ActionForm>
+  );
+}
+
+/**
+ * Accessory form (FR-PRD-07, ADR-0045): brand, name, the first colour from
+ * the colour list and a unit of pcs, ml or kg. The unit is fixed once the
+ * accessory exists, since its stock is counted in it; kg prices and
+ * minimum stock are per kg and may have decimals.
+ */
+async function AccessoryForm({ action, brands, submitLabel, product }: ProductFormProps) {
+  const [t, locale] = await Promise.all([getTranslations("Catalog"), getLocale()]);
+  const measure = product ? stockMeasure({ isRoll: false, unit: product.unit }) : "count";
+  return (
+    <ActionForm action={action} locale={locale}>
+      {product ? null : <input type="hidden" name="category" value="ACCESSORY" />}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <FormSelect
+          name="brandId"
+          label={t("brand")}
+          placeholder={t("brandPlaceholder")}
+          defaultValue={product?.brandId ?? ""}
+          options={brands.map((brand) => ({ value: brand.id, label: brand.name }))}
+        />
+        <FormField
+          name="name"
+          label={t("name")}
+          defaultValue={product?.name}
+          maxLength={120}
+          autoComplete="off"
+        />
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        {product ? null : <ColorField />}
+        {product ? null : (
+          <FormSelect
+            name="unit"
+            label={t("unit")}
+            hint={t("accessoryUnitHint")}
+            defaultValue="pcs"
+            options={accessoryUnits.map((unit) => ({ value: unit, label: unit }))}
+          />
+        )}
+        <FormField
+          name="price"
+          money
+          label={product ? t("pricePerUnit", { unit: product.unit }) : t("accessoryPrice")}
+          hint={t("moneyHint")}
+          defaultValue={product ? String(product.price) : undefined}
+          maxLength={20}
+        />
+      </div>
+      {product?.hasVariants ? null : (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <FormField
+            name="sku"
+            label={t("sku")}
+            hint={t("skuHint")}
+            defaultValue={product?.sku}
+            maxLength={40}
+            autoCapitalize="characters"
+            autoComplete="off"
+            spellCheck={false}
+          />
+          <FormField
+            name="minStock"
+            label={t("minStock")}
+            hint={t("accessoryMinStockHint")}
+            defaultValue={stockInputValue(measure, product?.minStock ?? 0, locale)}
+            inputMode="decimal"
+            maxLength={9}
+          />
+        </div>
       )}
       <SubmitButton className="self-start">{submitLabel}</SubmitButton>
     </ActionForm>

@@ -2,7 +2,12 @@ import "server-only";
 
 import { and, asc, desc, eq, inArray, isNull, like, type SQL, sql } from "drizzle-orm";
 
-import { isRollRowSql, variantCostSql, variantPriceSql } from "@/features/catalog/pricing-sql";
+import {
+  isRollRowSql,
+  soldByWeightSql,
+  variantCostSql,
+  variantPriceSql,
+} from "@/features/catalog/pricing-sql";
 import { db, type Executor } from "@/db/client";
 import {
   brands,
@@ -46,7 +51,7 @@ export async function findOrderableVariants(executor: Executor, variantIds: read
       isDefect: productVariants.isDefect,
       price: variantPriceSql,
       cost: variantCostSql,
-      sellable: sql<boolean>`${products.isActive} AND ${productVariants.isActive} AND NOT ${isRollRowSql}`,
+      sellable: sql<boolean>`${products.isActive} AND ${productVariants.isActive} AND NOT ${isRollRowSql} AND NOT ${soldByWeightSql}`,
     })
     .from(productVariants)
     .innerJoin(products, eq(products.id, productVariants.productId))

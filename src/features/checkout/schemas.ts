@@ -36,6 +36,8 @@ export const checkoutInput = z
             qty: z.int().min(1).max(9999),
             /** Custom cut off a roll, in cm per unit (FR-ROL-04); only on roll variants. */
             lengthCm: z.int().min(1).max(100_000).optional(),
+            /** Weight of goods sold by the kg, in grams per unit (ADR-0045); only on kg goods. */
+            weightG: z.int().min(1).max(1_000_000).optional(),
             discount: itemDiscount.nullable().optional(),
           })
           .strict(),
