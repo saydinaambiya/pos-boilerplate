@@ -2,7 +2,7 @@
 
 | Atribut         | Nilai              |
 | --------------- | ------------------ |
-| Versi dokumen   | 0.34.0 (draft)     |
+| Versi dokumen   | 0.35.0 (draft)     |
 | Tanggal         | 2026-10-12         |
 | Pemilik         | Owner              |
 | Status          | Menunggu review    |
@@ -46,6 +46,7 @@
 | 0.32.0 | 2026-10-12 | Merk, motif, dan warna tampil di kartu dan detail pesanan online (FR-ONL-09) dan di barang bawaan sales (FR-CSG-08); riwayat perubahan stok terbaru di halaman stok (FR-STK-10) ([ADR-0043](./adr/0043-online-order-brand-motif-and-recent-stock-changes.md))                                                                                                                                           |
 | 0.33.0 | 2026-10-12 | Satu shift kasir dipakai bersama semua kasir, catatan modal awal opsional, shift sales tanpa modal awal dan riwayatnya terpisah dari shift toko (FR-SHF-01..05) ([ADR-0044](./adr/0044-shared-store-shift.md))                                                                                                                                                                                          |
 | 0.34.0 | 2026-10-12 | Kategori aksesoris (merk, nama, warna, satuan pcs/ml/kg); barang kg dijual per berat di kasir (FR-PRD-07) ([ADR-0045](./adr/0045-accessories-and-goods-sold-by-the-kg.md))                                                                                                                                                                                                                              |
+| 0.35.0 | 2026-10-12 | Motif tampil di kartu produk dan keranjang kasir (FR-POS-12)                                                                                                                                                                                                                                                                                                                                            |
 
 Konvensi: **MUST** = wajib v1, **SHOULD** = diusahakan v1, **MAY** = opsional. ID requirement dirujuk dari issue, commit, dan test.
 
@@ -205,6 +206,7 @@ Barang masuk dalam bentuk **roll** (satuan meter, lebar selalu 140 cm) lalu dipo
 | FR-POS-09 | Void transaksi: wajib alasan dan approval (`approval.void:decide`); stok dikembalikan lewat pergerakan `VOID`.                                                                                                                               | MUST      |
 | FR-POS-10 | Shortcut keyboard di desktop: fokus pencarian (`/`), bayar (`F2`), kosongkan keranjang (`Esc` + konfirmasi).                                                                                                                                 | SHOULD    |
 | FR-POS-11 | Setiap transaksi mencatat **nama pembeli** (wajib, ≤ 80 karakter) dan **no. HP** (opsional, format Indonesia; wajib bila kas bon). Disimpan sebagai snapshot di `sales`, tampil di invoice, detail struk, dan riwayat transaksi (BRD BR-26). | MUST      |
+| FR-POS-12 | Kasir menampilkan motif produk sebagai baris tersendiri ("Motif: …") di kartu produk dan di setiap baris keranjang.                                                                                                                          | MUST      |
 
 ### 3.6 Pembayaran
 

@@ -1071,7 +1071,8 @@
     "weighTooHeavy": "Stok tidak cukup. Sisa {weight}.",
     "addWeighed": "Tambah",
     "addWeighedPriced": "Tambah · {price}",
-    "weightLeft": "Sisa {weight}"
+    "weightLeft": "Sisa {weight}",
+    "motifLabel": "Motif: {motif}"
   },
   "Receipt": {
     "customer": "Pelanggan: {name}",

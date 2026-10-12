@@ -15,6 +15,8 @@ export interface CartItem {
   lengthCm?: number;
   /** Weight of goods sold by the kg, in grams per unit (ADR-0045). */
   weightG?: number;
+  /** The product's motif, read from the catalogue when shown, never stored (FR-POS-12). */
+  motif?: string | null;
   discount: ItemDiscount | null;
 }
 

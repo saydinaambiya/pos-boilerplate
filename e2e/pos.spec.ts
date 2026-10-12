@@ -43,8 +43,12 @@ test.describe("POS terminal and checkout (FR-POS, FR-PAY)", () => {
     const brandChips = page.getByRole("group", { name: "Filter merk" });
     await brandChips.getByRole("button", { name: "Merk Uji" }).click();
     await expect(page.getByRole("button", { name: new RegExp(product) })).toBeVisible();
+    await expect(page.getByRole("button", { name: new RegExp(product) })).toContainText(
+      "Motif: Nappa",
+    );
     await brandChips.getByRole("button", { name: "Semua" }).click();
     await addPiece(page, product);
+    await expect(cart).toContainText("Motif: Nappa");
     await cart.getByRole("button", { name: `Tambah ${product}` }).click();
     await cart.getByRole("button", { name: `Tambah ${product}` }).click();
     await expect(cart.getByLabel(`Jumlah ${product}`)).toHaveValue("3");

@@ -87,7 +87,8 @@ function isTyping(target: EventTarget | null) {
 /**
  * The POS screen (FR-POS-01..05, FR-POS-10): product grid with search and
  * brand filter, colour picker (with sizes and custom cuts for rolls,
- * FR-ROL-04), cart and payment. The preview uses the
+ * FR-ROL-04), cart and payment. Tiles and cart lines name the motif
+ * (FR-POS-12). The preview uses the
  * same `calculateSale` as the server, which recomputes on checkout.
  */
 export function PosTerminal(props: PosTerminalProps) {
@@ -124,6 +125,7 @@ export function PosTerminal(props: PosTerminalProps) {
         if (!known) return item;
         return {
           ...item,
+          motif: known.product.motif,
           unitPrice:
             item.weightG === undefined
               ? cutPrice(known.variant.price, item.lengthCm)
@@ -358,9 +360,14 @@ export function PosTerminal(props: PosTerminalProps) {
                       <span className="line-clamp-2 font-medium [overflow-wrap:anywhere] text-ink">
                         {product.name}
                       </span>
-                      {productDetailsLine(product, locale) ? (
+                      {productDetailsLine({ ...product, motif: null }, locale) ? (
                         <span className="line-clamp-1 text-xs [overflow-wrap:anywhere] text-ink-muted">
-                          {productDetailsLine(product, locale)}
+                          {productDetailsLine({ ...product, motif: null }, locale)}
+                        </span>
+                      ) : null}
+                      {product.motif ? (
+                        <span className="text-xs [overflow-wrap:anywhere] text-ink">
+                          {t("motifLabel", { motif: product.motif })}
                         </span>
                       ) : null}
                       <span className="text-sm font-semibold tabular-nums">

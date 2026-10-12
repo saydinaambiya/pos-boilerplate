@@ -1071,7 +1071,8 @@
     "weighTooHeavy": "Not enough stock. {weight} left.",
     "addWeighed": "Add",
     "addWeighedPriced": "Add · {price}",
-    "weightLeft": "{weight} left"
+    "weightLeft": "{weight} left",
+    "motifLabel": "Motif: {motif}"
   },
   "Receipt": {
     "customer": "Customer: {name}",
