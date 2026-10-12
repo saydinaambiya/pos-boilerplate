@@ -314,6 +314,12 @@ export async function querySales(query: SaleListQuery, page: number, pageSize: n
         select distinct ${payments.method}::text from ${payments} where ${payments.saleId} = ${sales.id}
         union select 'KASBON' from ${kasbons} where ${kasbons.saleId} = ${sales.id}
       )`,
+      transferBanks: sql<string[]>`array(
+        select distinct ${bankAccounts.bankName} from ${payments}
+        inner join ${bankAccounts} on ${bankAccounts.id} = ${payments.bankAccountId}
+        where ${payments.saleId} = ${sales.id} and ${payments.method} = 'TRANSFER'
+        order by 1
+      )`,
     })
     .from(sales)
     .innerJoin(users, eq(users.id, sales.cashierId))

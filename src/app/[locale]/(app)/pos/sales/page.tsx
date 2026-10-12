@@ -252,6 +252,11 @@ export default async function SalesHistoryPage({ searchParams }: PageProps<"/[lo
                             : method,
                         )
                         .join(" + ")}
+                      {sale.transferBanks.length > 0 ? (
+                        <span className="block text-xs text-ink-muted">
+                          {sale.transferBanks.join(", ")}
+                        </span>
+                      ) : null}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {money(sale.grandTotal)}

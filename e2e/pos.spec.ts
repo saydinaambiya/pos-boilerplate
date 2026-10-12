@@ -220,4 +220,38 @@ test.describe("POS terminal and checkout (FR-POS, FR-PAY)", () => {
     );
     await pos.context().close();
   });
+
+  test("shows the receiving bank of a transfer in the history (FR-POS-10)", async ({
+    page,
+    browser,
+  }) => {
+    const bank = `Terima ${run.slice(-6)}`;
+    await page.goto("/id/settings/bank-accounts");
+    await page.getByLabel("Nama bank").fill(bank);
+    await page.getByLabel("Nomor rekening").fill("5544332211");
+    await page.getByLabel("Atas nama").fill("Toko Transfer");
+    await page.getByRole("button", { name: "Tambah rekening" }).click();
+    await expect(page.getByRole("row", { name: new RegExp(bank) })).toBeVisible();
+
+    const pos = await cashierAtPos(browser);
+    await pos.getByRole("searchbox", { name: "Cari produk" }).fill(product);
+    await addPiece(pos, product);
+    await pos.keyboard.press("F2");
+    const dialog = pos.getByRole("dialog", { name: "Pembayaran" });
+    await dialog.getByLabel("Nama pelanggan").fill(`Pembeli Transfer ${run}`);
+    await dialog.getByText("Transfer", { exact: true }).click();
+    await choose(dialog, "Rekening tujuan", `${bank} · 5544332211 · Toko Transfer`);
+    await dialog.getByRole("button", { name: "Selesaikan transaksi" }).click();
+    const success = pos.getByRole("dialog", { name: "Transaksi berhasil" });
+    await expect(success).toContainText(/INV-\d{8}-\d{4}/);
+    const invoiceNo = (/INV-\d{8}-\d{4}/.exec(await success.innerText()) ?? [""])[0];
+
+    await pos.goto(`/id/pos/sales?q=${invoiceNo}`);
+    const row = pos
+      .getByRole("table", { name: "Riwayat transaksi, terbaru di atas" })
+      .getByRole("row", { name: new RegExp(invoiceNo) });
+    await expect(row).toContainText("Transfer");
+    await expect(row).toContainText(bank);
+    await pos.context().close();
+  });
 });
