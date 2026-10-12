@@ -15,6 +15,7 @@ import {
   lockVariant,
   queryLowStock,
   queryMovements,
+  queryRecentMovements,
   queryStockGroups,
   queryStockPieces,
   type StockMovementType,
@@ -253,6 +254,12 @@ export async function getVariantStock(session: Session, variantId: string) {
 export async function getLowStock(session: Session, limit = 10) {
   assertPermission(session, "page:stock");
   return queryLowStock(limit);
+}
+
+/** Latest stock changes across all goods, shown beside the stock list (FR-STK-10). */
+export async function getRecentMovements(session: Session, limit = 30) {
+  assertPermission(session, "page:stock");
+  return queryRecentMovements(limit);
 }
 
 /** Movement history with type and store-time-zone date filters (FR-STK-06). */

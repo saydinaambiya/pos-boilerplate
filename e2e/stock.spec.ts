@@ -71,6 +71,23 @@ test.describe("stock ledger (FR-STK)", () => {
     await expect(history).toContainText("Opname mingguan");
   });
 
+  test("lists the latest stock changes beside the stock list (FR-STK-10)", async ({ page }) => {
+    await page.goto(`/id/stock?q=${sku}`);
+    const changes = page
+      .getByRole("list", { name: "Riwayat perubahan stok" })
+      .getByRole("listitem")
+      .filter({ hasText: product });
+    await expect(changes).toHaveCount(3);
+    await expect(changes.first()).toContainText("Write-off · stok jadi 4,5m");
+    await expect(changes.first()).toContainText("Basah");
+    await expect(changes.first()).toContainText(`Merk: ${E2E_BRAND} · Motif: Nappa`);
+    await changes
+      .first()
+      .getByRole("link", { name: `${product} · Red · Roll` })
+      .click();
+    await expect(page).toHaveURL(/\/id\/stock\/[0-9a-f-]+$/);
+  });
+
   test("adds pieces only by cutting the roll (FR-ROL-03)", async ({ page }) => {
     await page.goto(`/id/stock?q=${sku}`);
     await page.getByRole("link", { name: `Buka stok ${product} · Red · 93cm x 47cm` }).click();

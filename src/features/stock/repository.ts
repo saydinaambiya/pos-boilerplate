@@ -295,3 +295,36 @@ export async function queryMovements(query: MovementQuery) {
     .orderBy(desc(stockMovements.id))
     .limit(query.limit);
 }
+
+/**
+ * Latest movements of every variant, newest first, with what the goods are
+ * and who moved them (FR-STK-10). Archived movements are left out.
+ */
+export async function queryRecentMovements(limit: number) {
+  return db
+    .select({
+      id: stockMovements.id,
+      createdAt: stockMovements.createdAt,
+      type: stockMovements.type,
+      qtyDelta: stockMovements.qtyDelta,
+      stockAfter: stockMovements.stockAfter,
+      reason: stockMovements.reason,
+      actorName: users.name,
+      variantId: productVariants.id,
+      productName: products.name,
+      brandName: brands.name,
+      motif: products.motif,
+      colorName: sql<string | null>`${productVariants.attributes} -> 'color' ->> 'name'`,
+      size: productVariants.size,
+      isDefect: productVariants.isDefect,
+      isRoll: isRollRowSql,
+    })
+    .from(stockMovements)
+    .innerJoin(productVariants, eq(productVariants.id, stockMovements.variantId))
+    .innerJoin(products, eq(products.id, productVariants.productId))
+    .leftJoin(brands, eq(brands.id, products.brandId))
+    .leftJoin(users, eq(users.id, stockMovements.actorId))
+    .where(isNull(stockMovements.archivedAt))
+    .orderBy(desc(stockMovements.id))
+    .limit(limit);
+}

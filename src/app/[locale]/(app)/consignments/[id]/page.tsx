@@ -23,9 +23,10 @@ import { TakeForm } from "@/features/consignments/components/take-form";
 import { getConsignment, getSalespeopleFor } from "@/features/consignments/service";
 import { getCheckoutBankAccounts, getQrisAccount } from "@/features/settings/service";
 import { getOpenShift } from "@/features/shifts/service";
+import { defectWord } from "@/features/catalog/sizes";
 import { Link } from "@/i18n/navigation";
 import { requirePermission } from "@/lib/auth/guard";
-import { variantLabel } from "@/lib/format/variant-label";
+import { goodsName, variantLabel } from "@/lib/format/variant-label";
 import { storeDate } from "@/lib/format/zoned-time";
 import { readSetting } from "@/lib/settings/store";
 import { firstParam } from "@/lib/utils/search-params";
@@ -35,11 +36,19 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t("title") };
 }
 
-/** Item name with its motif, colour and size, e.g. "Karpet · Mihrab · Merah" (FR-CSG-08). */
-function itemLabel(item: { name: string; motif: string | null; variantName: string | null }) {
+/**
+ * Item name with its brand, motif, colour and size, e.g.
+ * "Karpet · Turkiye · Mihrab · Merah" (FR-CSG-08).
+ */
+function itemLabel(item: {
+  name: string;
+  brandName: string | null;
+  motif: string | null;
+  variantName: string | null;
+}) {
   return variantLabel(
     item.name,
-    [item.motif, item.variantName].filter(Boolean).join(" · ") || null,
+    [item.brandName, item.motif, item.variantName].filter(Boolean).join(" · ") || null,
   );
 }
 
@@ -88,6 +97,18 @@ export default async function ConsignmentPage({
   const canReturn = open && outstanding.length > 0 && session.permissions.has("consignment:return");
   const dayOf = (date: Date) => storeDate(date, operations.timeZone);
   const days = [...new Set(consignment.batches.map((batch) => dayOf(batch.createdAt)))];
+  const goodsDetails = (item: {
+    brandName: string | null;
+    motif: string | null;
+    colorName: string | null;
+  }) =>
+    [
+      item.brandName ? `${t("colBrand")}: ${item.brandName}` : null,
+      item.motif ? `${t("colMotif")}: ${item.motif}` : null,
+      item.colorName ? `${t("colColor")}: ${item.colorName}` : null,
+    ]
+      .filter(Boolean)
+      .join(" · ");
 
   return (
     <>
@@ -149,8 +170,10 @@ export default async function ConsignmentPage({
             <TableCaption>{t("balanceCaption")}</TableCaption>
             <TableHeader>
               <TableRow>
+                <TableHead>{t("colBrand")}</TableHead>
                 <TableHead>{t("colItem")}</TableHead>
                 <TableHead>{t("colMotif")}</TableHead>
+                <TableHead>{t("colColor")}</TableHead>
                 <TableHead className="text-right">{t("colTaken")}</TableHead>
                 <TableHead className="text-right">{t("colSold")}</TableHead>
                 <TableHead className="text-right">{t("colReturned")}</TableHead>
@@ -161,9 +184,15 @@ export default async function ConsignmentPage({
               {consignment.balances.map((balance) => (
                 <TableRow key={balance.variantId}>
                   <TableCell className="[overflow-wrap:anywhere]">
-                    {variantLabel(balance.name, balance.variantName)}
+                    {balance.brandName ?? "—"}
+                  </TableCell>
+                  <TableCell className="[overflow-wrap:anywhere]">
+                    {goodsName(balance, defectWord(locale))}
                   </TableCell>
                   <TableCell className="[overflow-wrap:anywhere]">{balance.motif ?? "—"}</TableCell>
+                  <TableCell className="[overflow-wrap:anywhere]">
+                    {balance.colorName ?? "—"}
+                  </TableCell>
                   <TableCell className="text-right tabular-nums">{balance.taken}</TableCell>
                   <TableCell className="text-right tabular-nums">{balance.sold}</TableCell>
                   <TableCell className="text-right tabular-nums">{balance.returned}</TableCell>
@@ -220,7 +249,12 @@ export default async function ConsignmentPage({
                             {batch.items.map((item) => (
                               <li key={item.id} className="flex justify-between gap-3">
                                 <span className="min-w-0 [overflow-wrap:anywhere]">
-                                  {itemLabel(item)}
+                                  {goodsName(item, defectWord(locale))}
+                                  {goodsDetails(item) ? (
+                                    <span className="block text-xs text-ink-muted">
+                                      {goodsDetails(item)}
+                                    </span>
+                                  ) : null}
                                 </span>
                                 <span className="shrink-0 text-ink-muted tabular-nums">
                                   {t(`items.${item.kind}`, { qty: item.qty })}

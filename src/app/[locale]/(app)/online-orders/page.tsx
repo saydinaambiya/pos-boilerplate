@@ -34,6 +34,7 @@ export async function generateMetadata(): Promise<Metadata> {
 /**
  * Online order board (FR-ONL-04, FR-ONL-07): a chip per status with its
  * count, order cards for the chosen status, code search and held markers.
+ * A card shows the brand, motif and colour of its first item (FR-ONL-09).
  * `?new=1` opens the manual entry dialog (FR-ONL-01, ADR-0018).
  */
 export default async function OnlineOrdersPage({
@@ -176,6 +177,17 @@ export default async function OnlineOrdersPage({
                     count: order.itemCount,
                   })}
                 </p>
+                {order.firstItemBrand || order.firstItemMotif || order.firstItemColor ? (
+                  <p className="text-xs [overflow-wrap:anywhere] text-ink-muted">
+                    {[
+                      order.firstItemBrand ? `${t("brand")}: ${order.firstItemBrand}` : null,
+                      order.firstItemMotif ? `${t("motif")}: ${order.firstItemMotif}` : null,
+                      order.firstItemColor ? `${t("color")}: ${order.firstItemColor}` : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </p>
+                ) : null}
                 <div className="mt-auto flex flex-wrap items-center justify-between gap-2 text-sm">
                   <span className="font-medium tabular-nums">{money(order.itemsTotal)}</span>
                   <span className="text-xs text-ink-muted">

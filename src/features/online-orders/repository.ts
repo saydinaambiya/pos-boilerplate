@@ -5,6 +5,7 @@ import { and, asc, desc, eq, inArray, isNull, like, type SQL, sql } from "drizzl
 import { isRollRowSql, variantCostSql, variantPriceSql } from "@/features/catalog/pricing-sql";
 import { db, type Executor } from "@/db/client";
 import {
+  brands,
   marketplaces,
   onlineOrderEvents,
   onlineOrderItems,
@@ -147,6 +148,27 @@ const boardColumns = {
     where ${onlineOrderItems.orderId} = ${onlineOrders.id}
     order by ${onlineOrderItems.sortOrder} limit 1
   )`,
+  firstItemBrand: sql<string | null>`(
+    select ${brands.name} from ${onlineOrderItems}
+    join ${productVariants} on ${productVariants.id} = ${onlineOrderItems.variantId}
+    join ${products} on ${products.id} = ${productVariants.productId}
+    left join ${brands} on ${brands.id} = ${products.brandId}
+    where ${onlineOrderItems.orderId} = ${onlineOrders.id}
+    order by ${onlineOrderItems.sortOrder} limit 1
+  )`,
+  firstItemMotif: sql<string | null>`(
+    select ${products.motif} from ${onlineOrderItems}
+    join ${productVariants} on ${productVariants.id} = ${onlineOrderItems.variantId}
+    join ${products} on ${products.id} = ${productVariants.productId}
+    where ${onlineOrderItems.orderId} = ${onlineOrders.id}
+    order by ${onlineOrderItems.sortOrder} limit 1
+  )`,
+  firstItemColor: sql<string | null>`(
+    select ${productVariants.attributes} -> 'color' ->> 'name' from ${onlineOrderItems}
+    join ${productVariants} on ${productVariants.id} = ${onlineOrderItems.variantId}
+    where ${onlineOrderItems.orderId} = ${onlineOrders.id}
+    order by ${onlineOrderItems.sortOrder} limit 1
+  )`,
 };
 
 function codeCondition(term: string, includeArchived = false): SQL | undefined {
@@ -189,7 +211,11 @@ export async function countOrdersByStatus(search: string, includeArchived: boole
     .groupBy(onlineOrders.status);
 }
 
-/** One order with lines, marketplace and status history (FR-ONL-03). */
+/**
+ * One order with lines, marketplace and status history (FR-ONL-03). Brand,
+ * motif, colour and size are read live from the product and variant, like
+ * consignments (ADR-0042, ADR-0043).
+ */
 export async function findOrderDetail(orderId: string) {
   const [order] = await db
     .select({
@@ -213,6 +239,11 @@ export async function findOrderDetail(orderId: string) {
         id: onlineOrderItems.id,
         nameSnapshot: onlineOrderItems.nameSnapshot,
         variantSnapshot: onlineOrderItems.variantSnapshot,
+        brandName: brands.name,
+        motif: products.motif,
+        colorName: sql<string | null>`${productVariants.attributes} -> 'color' ->> 'name'`,
+        size: productVariants.size,
+        isDefect: productVariants.isDefect,
         qty: onlineOrderItems.qty,
         unitPrice: onlineOrderItems.unitPrice,
         storePrice: onlineOrderItems.storePrice,
@@ -220,6 +251,9 @@ export async function findOrderDetail(orderId: string) {
         returnCondition: onlineOrderItems.returnCondition,
       })
       .from(onlineOrderItems)
+      .innerJoin(productVariants, eq(productVariants.id, onlineOrderItems.variantId))
+      .innerJoin(products, eq(products.id, productVariants.productId))
+      .leftJoin(brands, eq(brands.id, products.brandId))
       .where(eq(onlineOrderItems.orderId, orderId))
       .orderBy(asc(onlineOrderItems.sortOrder)),
     db

@@ -781,7 +781,11 @@
     "minimumSaved": "Minimum stock saved: {qty} pcs.",
     "noBrand": "No brand",
     "brandGroup": "{count, plural, one {# item} other {# items}}",
-    "toggleBrand": "Show or hide {brand} stock"
+    "toggleBrand": "Show or hide {brand} stock",
+    "recentTitle": "Recent stock changes",
+    "recentEmpty": "No stock changes yet.",
+    "recentLine": "{type} · stock now {stock}",
+    "recentBy": "{time} · by {name}"
   },
   "Variants": {
     "title": "Colour variants",
@@ -1498,7 +1502,10 @@
     "priceOf": "Marketplace price {name}",
     "pricePlaceholder": "Selling price",
     "errorPriceRequired": "Enter the selling price for {name}.",
-    "priceVsStore": "{price} (store price {store})"
+    "priceVsStore": "{price} (store price {store})",
+    "brand": "Brand",
+    "motif": "Motif",
+    "color": "Colour"
   },
   "Reports": {
     "title": "Reports",
@@ -1854,6 +1861,7 @@
     },
     "balanceTitle": "Goods with the salesperson",
     "balanceCaption": "Summary per item",
+    "colBrand": "Brand",
     "colItem": "Item",
     "colTaken": "Taken",
     "colSold": "Sold",
@@ -1923,7 +1931,8 @@
     "saveReduced": "Save reduction",
     "nothingReduced": "Enter a reduced quantity for at least one item.",
     "tooManyReduced": "The reduced quantity for {name} is more than the {count} still carried.",
-    "colMotif": "Motif"
+    "colMotif": "Motif",
+    "colColor": "Colour"
   },
   "Cutting": {
     "title": "Cut Rolls",

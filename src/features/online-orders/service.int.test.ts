@@ -12,7 +12,7 @@ import {
   roles,
   stockMovements,
 } from "@/db/schema";
-import { createProduct } from "@/features/catalog/service";
+import { createBrand, createProduct } from "@/features/catalog/service";
 import { createMarketplace } from "@/features/settings/service";
 import { receiveStock } from "@/features/stock/service";
 import type { Session } from "@/lib/auth/session";
@@ -47,8 +47,11 @@ async function marketplace(name = "Shopee") {
   return created.id;
 }
 
-/** A stock-tracked 25.000 rupiah product with `stock` units. */
-async function stocked(stock: number) {
+/** A stock-tracked 25.000 rupiah product with `stock` units, optionally branded. */
+async function stocked(
+  stock: number,
+  details: { brandId?: string; motif?: string; colorName?: string } = {},
+) {
   seq += 1;
   const session = await owner();
   const product = await createProduct(
@@ -60,6 +63,7 @@ async function stocked(stock: number) {
       trackStock: true,
       sku: `KAOS-${String(seq)}`,
       minStock: 0,
+      ...details,
     },
     testContext(),
   );
@@ -313,5 +317,44 @@ describe("order board (FR-ONL-04/07)", () => {
     const searched = await listOnlineOrders(session, { status: undefined, search: "002", page: 1 });
     expect(searched.orders.map((row) => row.orderCode)).toEqual(["SHP-002"]);
     expect(searched.counts.IN_TRANSIT).toBe(0);
+  });
+});
+
+describe("brand, motif and colour on orders (FR-ONL-09)", () => {
+  it("shows the first item's brand and motif on the card and every line's on the detail", async () => {
+    const session = await owner();
+    const shopee = await marketplace();
+    const brand = await createBrand(session, { name: "Turkiye" }, testContext());
+    if (!brand.ok) throw new Error(brand.reason);
+    const branded = await stocked(5, { brandId: brand.id, motif: "Mihrab", colorName: "Red" });
+    const plain = await stocked(5);
+    const created = await createOnlineOrder(
+      session,
+      {
+        marketplaceId: shopee,
+        orderCode: "SHP-100",
+        lines: [
+          { variantId: branded, qty: 1, unitPrice: 25_000 },
+          { variantId: plain, qty: 1, unitPrice: 25_000 },
+        ],
+        shippingFee: 0,
+        note: "",
+      },
+      testContext(),
+    );
+    if (!created.ok) throw new Error(created.reason);
+
+    const board = await listOnlineOrders(session, { status: undefined, search: "", page: 1 });
+    expect(board.orders[0]).toMatchObject({
+      firstItemBrand: "Turkiye",
+      firstItemMotif: "Mihrab",
+      firstItemColor: "Red",
+    });
+
+    const detail = await getOnlineOrder(session, created.id);
+    expect(detail?.items.map((item) => [item.brandName, item.motif, item.colorName])).toEqual([
+      ["Turkiye", "Mihrab", "Red"],
+      [null, null, null],
+    ]);
   });
 });
