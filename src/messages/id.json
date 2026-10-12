@@ -677,7 +677,16 @@
     "noBrand": "Tanpa merk",
     "brandGroup": "{count, plural, other {# produk}}",
     "toggleBrand": "Tampilkan atau sembunyikan produk {brand}",
-    "color": "Warna"
+    "color": "Warna",
+    "categoryTabs": "Jenis produk",
+    "categoryMAIN": "Karpet roll",
+    "categoryACCESSORY": "Aksesoris",
+    "accessoryUnitHint": "pcs, ml, atau kg. Tidak bisa diubah setelah disimpan.",
+    "accessoryPrice": "Harga jual per satuan",
+    "pricePerUnit": "Harga jual per {unit}",
+    "accessoryMinStockHint": "Dalam satuan produk. Untuk kg boleh desimal, contoh 0,5.",
+    "accessoryProduct": "Aksesoris · {unit}",
+    "perUnit": "{price} / {unit}"
   },
   "Stock": {
     "title": "Stok",
@@ -785,7 +794,9 @@
     "recentTitle": "Riwayat perubahan stok",
     "recentEmpty": "Belum ada perubahan stok.",
     "recentLine": "{type} · stok jadi {stock}",
-    "recentBy": "{time} · oleh {name}"
+    "recentBy": "{time} · oleh {name}",
+    "quantityKg": "Berat (kg)",
+    "countedKg": "Berat fisik (kg)"
   },
   "Variants": {
     "title": "Varian warna",
@@ -842,13 +853,15 @@
     "rollInitialStockHint": "Panjang roll yang masuk, contoh 40 atau 38,5. Dicatat sebagai barang masuk.",
     "pieceStock": "{size}: {count} pcs",
     "colorPlaceholder": "Pilih warna",
-    "defectPieceStock": "{size} cacat: {count} pcs"
+    "defectPieceStock": "{size} cacat: {count} pcs",
+    "kgMinStock": "Stok minimum (kg)",
+    "kgInitialStock": "Stok awal (kg)"
   },
   "Shifts": {
     "title": "Shift kasir",
-    "subtitle": "Buka shift sebelum berjualan dan tutup di akhir hari.",
+    "subtitle": "Satu shift toko dipakai bersama semua kasir. Buka sekali, tutup di akhir hari.",
     "openTitle": "Buka shift",
-    "openDescription": "Masukkan modal awal kas di laci sebelum mulai berjualan.",
+    "openDescription": "Masukkan modal awal kas di laci. Shift ini dipakai bersama semua kasir sampai ditutup.",
     "openingCash": "Modal awal kas",
     "moneyHint": "Rupiah, contoh 200.000.",
     "open": "Buka shift",
@@ -862,7 +875,7 @@
     "expectedHint": "Sisa laci + modal awal + tunai dari penjualan dan cicilan kas bon − pengeluaran − setoran",
     "close": "Tutup shift",
     "closeTitle": "Tutup shift",
-    "closeDescription": "Hitung uang di laci lalu masukkan jumlahnya. Selisih dengan kas seharusnya akan dicatat.",
+    "closeDescription": "Hitung uang di laci lalu masukkan jumlahnya. Selisih dengan kas seharusnya akan dicatat. Shift ini ditutup untuk semua kasir.",
     "countedCash": "Kas fisik",
     "note": "Catatan",
     "noteHint": "Opsional, jelaskan bila ada selisih.",
@@ -892,16 +905,13 @@
       "KASBON": "Kas bon",
       "QRIS": "QRIS"
     },
-    "errorAlreadyOpen": "Anda sudah memiliki shift yang berjalan.",
+    "errorAlreadyOpen": "Shift toko sudah dibuka. Muat ulang halaman untuk melanjutkannya.",
     "errorNoOpenShift": "Tidak ada shift yang berjalan.",
     "previous": "Sebelumnya",
     "next": "Berikutnya",
     "pagination": "Navigasi halaman",
     "pageLabel": "Halaman {page}",
     "kasbonCollected": "Cicilan kas bon diterima",
-    "othersOpenTitle": "{count, plural, one {Ada shift lain yang masih terbuka} other {Ada # shift lain yang masih terbuka}}",
-    "othersOpenItem": "{name} — sejak {time}",
-    "othersOpenHint": "Anda tetap bisa membuka shift sendiri. Pastikan kas laci tidak tercampur.",
     "errorStoreClosed": "Toko sedang tutup. Shift hanya bisa dibuka pada jam buka toko.",
     "expenses": "Pengeluaran dari kas",
     "expensesHint": "Uang makan, bensin, donasi, dll. Sudah dikurangkan dari kas seharusnya.",
@@ -909,7 +919,16 @@
     "carriedHint": "Sisa laci {amount} dari shift sebelumnya otomatis ditambahkan. Isi 0 bila tidak menambah modal.",
     "carriedCash": "Sisa laci sebelumnya",
     "carriedCashHint": "Otomatis dari shift sebelumnya",
-    "deposited": "Disetor ke ATM"
+    "deposited": "Disetor ke ATM",
+    "openingNote": "Catatan modal awal",
+    "openingNoteHint": "Opsional, misalnya \"uang kecil Rp 50.000 di amplop\".",
+    "salesOpenTitle": "Buka shift sales",
+    "openedBy": "Dibuka oleh",
+    "closedBy": "Ditutup oleh",
+    "salesperson": "Sales",
+    "kindTabs": "Jenis shift",
+    "kindDRAWER": "Shift toko",
+    "kindSALES": "Shift sales"
   },
   "Pos": {
     "search": "Cari produk",
@@ -972,7 +991,7 @@
     "successInvoice": "Nomor invoice {invoiceNo}",
     "viewReceipt": "Lihat struk",
     "newSale": "Transaksi baru",
-    "shiftSince": "Shift sejak {time}",
+    "shiftSince": "Shift toko sejak {time} · dibuka {name}",
     "closeShift": "Tutup shift",
     "shiftHistory": "Riwayat shift",
     "errors": {
@@ -1044,7 +1063,16 @@
     "sourceBankOther": "Lainnya",
     "sourceBankOtherName": "Nama bank atau e-wallet",
     "sourceBankRequired": "Pilih bank atau e-wallet pengirim.",
-    "defect": "Cacat"
+    "defect": "Cacat",
+    "weighTitle": "Isi berat",
+    "weighHint": "{price} per kg · sisa {weight}",
+    "weighWeight": "Berat (kg)",
+    "weighInvalid": "Isi berat lebih dari 0, contoh 0,5.",
+    "weighTooHeavy": "Stok tidak cukup. Sisa {weight}.",
+    "addWeighed": "Tambah",
+    "addWeighedPriced": "Tambah · {price}",
+    "weightLeft": "Sisa {weight}",
+    "motifLabel": "Motif: {motif}"
   },
   "Receipt": {
     "customer": "Pelanggan: {name}",
@@ -1915,7 +1943,7 @@
     "shiftTitle": "Shift saya",
     "shiftSince": "Buka sejak {time} · kas seharusnya {cash}",
     "shiftClose": "Tutup shift",
-    "shiftOpenDescription": "Buka shift untuk menerima uang dari barang yang terjual. Uang tunai yang Anda pegang dihitung saat tutup shift.",
+    "shiftOpenDescription": "Buka shift untuk menerima uang dari barang yang terjual. Tidak perlu modal awal, karena sales tidak membawa uang. Uang yang Anda terima dihitung saat tutup shift.",
     "sellNeedsShift": "Buka shift dulu di halaman Sales untuk mencatat barang terjual.",
     "methodSplit": "Tunai + QRIS/Transfer",
     "methodSplitTransfer": "Tunai + Transfer",

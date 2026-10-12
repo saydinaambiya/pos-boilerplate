@@ -19,6 +19,7 @@ import { Link } from "@/i18n/navigation";
 import type { Session } from "@/lib/auth/session";
 import { formatCurrency } from "@/lib/format/currency";
 import { formatIndonesianPhone } from "@/lib/format/phone";
+import { formatKg } from "@/lib/format/quantity";
 import { variantLabel } from "@/lib/format/variant-label";
 import { basisPointsToPercent } from "@/lib/settings/rates";
 
@@ -111,13 +112,14 @@ export async function SaleDialog({ session, saleId, closeHref }: SaleDialogProps
             <TableRow key={item.id}>
               <TableCell className="[overflow-wrap:anywhere]">
                 {variantLabel(item.nameSnapshot, item.variantSnapshot)}
-                {item.detailsSnapshot || item.lengthCm !== null ? (
+                {item.detailsSnapshot || item.lengthCm !== null || item.weightG !== null ? (
                   <span className="block text-xs text-ink-muted">
                     {[
                       item.detailsSnapshot,
                       item.lengthCm === null
                         ? null
                         : t("cutLabel", { length: String(item.lengthCm) }),
+                      item.weightG === null ? null : formatKg(item.weightG, locale),
                     ]
                       .filter(Boolean)
                       .join(" · ")}

@@ -2,6 +2,7 @@ import "server-only";
 
 import { createHash } from "node:crypto";
 
+import { shiftKindFor } from "@/features/shifts/kind";
 import { db, type Executor } from "@/db/client";
 import { uniqueViolationConstraint } from "@/db/errors";
 import { colorOf } from "@/features/catalog/schemas";
@@ -15,7 +16,7 @@ import { assertAnyPermission, assertPermission } from "@/lib/auth/authorize";
 import type { Session } from "@/lib/auth/session";
 import type { RequestContext } from "@/lib/http/request-context";
 import { calculateSale, type CartLine, type VoucherRule } from "@/lib/money/calculate";
-import { cutPrice } from "@/lib/money/cut";
+import { cutPrice, weighPrice } from "@/lib/money/cut";
 import { readSetting } from "@/lib/settings/store";
 import { storeClosedFor } from "@/lib/settings/store-hours-guard";
 
@@ -166,7 +167,7 @@ export async function checkout(
 
   try {
     return await db.transaction(async (tx) => {
-      const shift = await lockOpenShiftForSale(tx, session.user.id);
+      const shift = await lockOpenShiftForSale(tx, session.user.id, shiftKindFor(session));
       if (!shift) throw new CheckoutAbort({ ok: false, reason: "no-open-shift" });
 
       const variantIds = [...new Set(input.lines.map((line) => line.variantId))];
@@ -177,19 +178,26 @@ export async function checkout(
         throw new CheckoutAbort({ ok: false, reason: "invalid-items" });
       }
       if (
-        input.lines.some(
-          (line) =>
-            (variants.get(line.variantId)?.isRoll ?? false) !== (line.lengthCm !== undefined),
-        )
+        input.lines.some((line) => {
+          const variant = variants.get(line.variantId);
+          return (
+            (variant?.isRoll ?? false) !== (line.lengthCm !== undefined) ||
+            (variant?.byWeight ?? false) !== (line.weightG !== undefined)
+          );
+        })
       ) {
         throw new CheckoutAbort({ ok: false, reason: "invalid-items" });
       }
       const priced = input.lines.map((line) => {
         const variant = variants.get(line.variantId);
-        return {
-          unitPrice: cutPrice(variant?.price ?? 0, line.lengthCm),
-          unitCost: cutPrice(variant?.cost ?? 0, line.lengthCm),
-        };
+        const price = variant?.price ?? 0;
+        const cost = variant?.cost ?? 0;
+        return line.weightG === undefined
+          ? { unitPrice: cutPrice(price, line.lengthCm), unitCost: cutPrice(cost, line.lengthCm) }
+          : {
+              unitPrice: weighPrice(price, line.weightG),
+              unitCost: weighPrice(cost, line.weightG),
+            };
       });
 
       const cart: CartLine[] = input.lines.map((line, index) => ({
@@ -271,6 +279,7 @@ export async function checkout(
             unitCost: priced[index]?.unitCost ?? 0,
             qty: line.qty,
             lengthCm: line.lengthCm ?? null,
+            weightG: line.weightG ?? null,
             discountType: line.discount?.type ?? null,
             discountValue: line.discount
               ? line.discount.type === "percent"
@@ -300,7 +309,7 @@ export async function checkout(
 
       const quantities = new Map<string, number>();
       for (const line of consignment ? [] : input.lines) {
-        const units = line.qty * (line.lengthCm ?? 1);
+        const units = line.qty * (line.lengthCm ?? line.weightG ?? 1);
         quantities.set(line.variantId, (quantities.get(line.variantId) ?? 0) + units);
       }
       for (const variantId of [...quantities.keys()].sort()) {

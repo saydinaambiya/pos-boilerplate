@@ -10,38 +10,52 @@ import { requireSession } from "@/lib/auth/guard";
 import { formatCurrency } from "@/lib/format/currency";
 
 import { closeShiftAction, openShiftAction } from "../actions";
+import { shiftKindFor } from "../kind";
 import { getDrawerCarry } from "../service";
 import { ShiftFigures } from "./shift-figures";
 
 /**
- * Opening float form, shared by the cashier and the Sales menu (FR-SHF-02,
- * ADR-0029). A cashier sees the drawer's leftover that is added on top of
- * the float they enter (ADR-0032).
+ * Open-shift form, shared by the cashier and the Sales menu (FR-SHF-02,
+ * ADR-0029). The store's shift takes the float, an optional note on it and
+ * shows the drawer's leftover added on top (ADR-0032); a salesperson's
+ * shift takes no cash at all (ADR-0044).
  */
 export async function OpenShiftCard({ description }: { description?: string }) {
+  const session = await requireSession();
+  const drawer = shiftKindFor(session) === "DRAWER";
   const [t, locale, carried] = await Promise.all([
     getTranslations("Shifts"),
     getLocale(),
-    requireSession().then(getDrawerCarry),
+    getDrawerCarry(session),
   ]);
   return (
     <Card className="max-w-md">
       <CardHeader className="flex-col gap-1">
-        <CardTitle>{t("openTitle")}</CardTitle>
+        <CardTitle>{drawer ? t("openTitle") : t("salesOpenTitle")}</CardTitle>
         <CardDescription>{description ?? t("openDescription")}</CardDescription>
       </CardHeader>
       <ActionForm action={openShiftAction} locale={locale}>
-        <FormField
-          name="openingCash"
-          money
-          label={t("openingCash")}
-          hint={
-            carried === 0
-              ? t("moneyHint")
-              : t("carriedHint", { amount: formatCurrency(carried, locale) })
-          }
-          maxLength={20}
-        />
+        {drawer ? (
+          <>
+            <FormField
+              name="openingCash"
+              money
+              label={t("openingCash")}
+              hint={
+                carried === 0
+                  ? t("moneyHint")
+                  : t("carriedHint", { amount: formatCurrency(carried, locale) })
+              }
+              maxLength={20}
+            />
+            <FormField
+              name="note"
+              label={t("openingNote")}
+              hint={t("openingNoteHint")}
+              maxLength={200}
+            />
+          </>
+        ) : null}
         <SubmitButton className="self-start">{t("open")}</SubmitButton>
       </ActionForm>
     </Card>

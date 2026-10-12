@@ -26,7 +26,8 @@ import { formatSize } from "@/features/catalog/sizes";
 import { getRecentMovements, getStockLevels, takesPieceMinimum } from "@/features/stock/service";
 import { Link } from "@/i18n/navigation";
 import { requirePermission } from "@/lib/auth/guard";
-import { formatMeters, formatThickness } from "@/lib/format/length";
+import { formatThickness } from "@/lib/format/length";
+import { formatStock, stockMeasure } from "@/lib/format/quantity";
 import { stockItemLabel, variantLabel } from "@/lib/format/variant-label";
 import { cn } from "@/lib/utils/cn";
 
@@ -70,9 +71,9 @@ export default async function StockPage({ searchParams }: PageProps<"/[locale]/s
     getStockLevels(session, filters),
     getRecentMovements(session),
   ]);
-  const amount = (level: { isRoll: boolean }, value: number) =>
-    level.isRoll ? formatMeters(value, locale) : String(value);
-  const signed = (level: { isRoll: boolean }, value: number) =>
+  const amount = (level: { isRoll: boolean; unit: string }, value: number) =>
+    formatStock(stockMeasure(level), value, locale);
+  const signed = (level: { isRoll: boolean; unit: string }, value: number) =>
     `${value > 0 ? "+" : ""}${amount(level, value)}`;
   const searched =
     filters.q !== "" ||

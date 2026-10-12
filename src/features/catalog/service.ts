@@ -155,12 +155,14 @@ export async function getProduct(session: Session, id: string) {
  * variant is a roll with a piece per size (FR-ROL-01). Given a colour, that
  * roll is the product's first colour instead of a hidden default. The create form
  * requires that, plus brand, motif and thickness (`newProductInput`,
- * FR-PRD-06).
+ * FR-PRD-06). An accessory (FR-PRD-07, ADR-0045) is a plain product with
+ * brand, colour and unit, and always tracks stock.
  */
 export async function createProduct(
   session: Session,
   input: ProductInput & { colorName?: string },
   context: RequestContext,
+  category: "MAIN" | "ACCESSORY" = "MAIN",
 ): Promise<CatalogResult> {
   assertPermission(session, "product:create");
   if (input.brandId && !(await findBrand(input.brandId))) {
@@ -177,7 +179,8 @@ export async function createProduct(
     colorName,
     ...product
   } = input;
-  const isRoll = sizePrices !== null;
+  const isRoll = category === "MAIN" && sizePrices !== null;
+  const accessory = category === "ACCESSORY";
   const hex = colorName === undefined ? undefined : colorHex(colorName);
   const color =
     colorName === undefined
@@ -186,12 +189,13 @@ export async function createProduct(
   const values = {
     ...product,
     brandId,
-    motif,
-    thickness,
-    sizePrices,
+    motif: accessory ? null : motif,
+    thickness: accessory ? null : thickness,
+    sizePrices: isRoll ? sizePrices : null,
     defectSizePrices: isRoll ? defectSizePrices : null,
     isRoll,
-    trackStock: isRoll || product.trackStock,
+    category,
+    trackStock: isRoll || accessory || product.trackStock,
   };
 
   try {
@@ -224,7 +228,9 @@ export async function createProduct(
 /**
  * Updates a product and, while it has no colour variants, its default
  * variant's SKU and minimum stock. Whether a product is a roll never
- * changes; a roll always tracks stock (ADR-0023).
+ * changes; a roll always tracks stock (ADR-0023). An accessory keeps its
+ * unit, since its stock is counted in it, and always tracks stock
+ * (ADR-0045).
  */
 export async function updateProduct(
   session: Session,
@@ -248,14 +254,16 @@ export async function updateProduct(
     defectSizePrices = current.defectSizePrices as SizePrices | null,
     ...product
   } = input;
+  const accessory = current.category === "ACCESSORY";
   const values = {
     ...product,
     brandId,
-    motif,
-    thickness,
+    motif: accessory ? null : motif,
+    thickness: accessory ? null : thickness,
     sizePrices: current.isRoll ? sizePrices : null,
     defectSizePrices: current.isRoll ? defectSizePrices : null,
-    trackStock: current.isRoll || product.trackStock,
+    unit: accessory ? current.unit : product.unit,
+    trackStock: current.isRoll || accessory || product.trackStock,
   };
   const defaultVariant = current.hasVariants ? null : { sku, minStock };
 

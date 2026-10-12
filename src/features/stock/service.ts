@@ -6,6 +6,7 @@ import { assertPermission } from "@/lib/auth/authorize";
 import type { Session } from "@/lib/auth/session";
 import { startOfNextZonedDay, startOfZonedDay } from "@/lib/format/zoned-time";
 import type { RequestContext } from "@/lib/http/request-context";
+import { type StockMeasure, stockMeasure } from "@/lib/format/quantity";
 import { readSetting } from "@/lib/settings/store";
 
 import {
@@ -240,9 +241,13 @@ export async function setPieceMinimum(
   });
 }
 
-/** Whether a variant's quantities are roll centimetres (ADR-0023); callers checked access. */
-export async function stockIsRoll(variantId: string): Promise<boolean> {
-  return (await findVariantStock(variantId))?.isRoll ?? false;
+/**
+ * How a variant's quantities are counted: roll centimetres (ADR-0023), kg
+ * accessory grams (ADR-0045) or whole units; callers checked access.
+ */
+export async function stockMeasureOf(variantId: string): Promise<StockMeasure> {
+  const variant = await findVariantStock(variantId);
+  return variant ? stockMeasure(variant) : "count";
 }
 
 export async function getVariantStock(session: Session, variantId: string) {

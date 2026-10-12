@@ -1,4 +1,4 @@
-import { Clock, TriangleAlert } from "lucide-react";
+import { Clock } from "lucide-react";
 import type { Metadata } from "next";
 import { NextIntlClientProvider } from "next-intl";
 import { getFormatter, getLocale, getMessages, getTranslations } from "next-intl/server";
@@ -11,14 +11,12 @@ import { getPosBrands, getPosCatalog } from "@/features/catalog/pos-catalog";
 import { PosTerminal } from "@/features/checkout/components/pos-terminal";
 import { getCheckoutBankAccounts, getQrisAccount } from "@/features/settings/service";
 import { CloseShiftDialog, OpenShiftCard } from "@/features/shifts/components/shift-controls";
-import { getOpenShift, getOtherOpenShifts } from "@/features/shifts/service";
+import { getOpenShift } from "@/features/shifts/service";
 import { Link } from "@/i18n/navigation";
 import { requirePermission } from "@/lib/auth/guard";
 import { readSetting } from "@/lib/settings/store";
 import { storeClosedFor } from "@/lib/settings/store-hours-guard";
-import { toneClasses } from "@/components/ui/tone";
 import { storeDate } from "@/lib/format/zoned-time";
-import { cn } from "@/lib/utils/cn";
 import { firstParam } from "@/lib/utils/search-params";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -29,7 +27,8 @@ export async function generateMetadata(): Promise<Metadata> {
 /**
  * Cashier screen. Outside store hours employees only see that the store is
  * closed and can still close their shift (FR-SET-09). Without an open shift
- * the only action is opening one (FR-SHF-01); with a shift the terminal
+ * the only action is opening one (FR-SHF-01); the store's shift is shared,
+ * so any cashier carries on in it once open (ADR-0044). With a shift the terminal
  * loads the sellable catalogue and `?close=1` opens the close-shift dialog
  * over it (FR-SHF-03, ADR-0018).
  */
@@ -89,7 +88,6 @@ export default async function PosPage({ searchParams }: PageProps<"/[locale]/pos
   }
 
   if (!shift) {
-    const others = await getOtherOpenShifts(session);
     return (
       <div className="flex flex-col gap-4">
         <PageHeader
@@ -105,34 +103,6 @@ export default async function PosPage({ searchParams }: PageProps<"/[locale]/pos
             </>
           }
         />
-        {others.length > 0 ? (
-          <div
-            role="status"
-            className={cn(
-              "flex max-w-md gap-3 rounded-card px-4 py-3 text-sm",
-              toneClasses.warning,
-            )}
-          >
-            <TriangleAlert className="size-5 shrink-0" aria-hidden="true" />
-            <div className="flex flex-col gap-1">
-              <p className="font-medium">{t("othersOpenTitle", { count: others.length })}</p>
-              <ul className="flex flex-col gap-0.5">
-                {others.map((other) => (
-                  <li key={other.id}>
-                    {t("othersOpenItem", {
-                      name: other.cashierName,
-                      time: format.dateTime(other.openedAt, {
-                        dateStyle: "medium",
-                        timeStyle: "short",
-                      }),
-                    })}
-                  </li>
-                ))}
-              </ul>
-              <p>{t("othersOpenHint")}</p>
-            </div>
-          </div>
-        ) : null}
         <OpenShiftCard />
       </div>
     );
@@ -155,7 +125,10 @@ export default async function PosPage({ searchParams }: PageProps<"/[locale]/pos
       <h1 className="sr-only">{tNav("pos")}</h1>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2 text-sm text-ink-muted">
         <span>
-          {tPos("shiftSince", { time: format.dateTime(shift.openedAt, { timeStyle: "short" }) })}
+          {tPos("shiftSince", {
+            time: format.dateTime(shift.openedAt, { timeStyle: "short" }),
+            name: shift.cashierName,
+          })}
         </span>
         <span className="flex gap-2">
           <Button asChild variant="ghost" size="sm">

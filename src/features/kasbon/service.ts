@@ -2,6 +2,7 @@ import "server-only";
 
 import { v7 as uuidv7 } from "uuid";
 
+import { shiftKindFor } from "@/features/shifts/kind";
 import { db, type Executor } from "@/db/client";
 import {
   type ApplyApproval,
@@ -125,7 +126,10 @@ async function paysDirectly(shift: { kind: string | null } | undefined, now: Dat
 /** Whether `session` would settle a payment right away, for the payment form (ADR-0035). */
 export async function kasbonPaysDirectly(session: Session, now = new Date()): Promise<boolean> {
   if (session.role.isSystem) return true;
-  return paysDirectly(await findOpenShiftForPayment(db, session.user.id), now);
+  return paysDirectly(
+    await findOpenShiftForPayment(db, session.user.id, shiftKindFor(session)),
+    now,
+  );
 }
 
 /**
@@ -160,7 +164,7 @@ export async function recordKasbonPayment(
       if (total > available) {
         return { ok: false, reason: "exceeds-balance", available: Math.max(available, 0) } as const;
       }
-      const shift = await lockOpenShiftForPayment(tx, session.user.id);
+      const shift = await lockOpenShiftForPayment(tx, session.user.id, shiftKindFor(session));
       if (input.cash > 0 && !shift) return { ok: false, reason: "no-open-shift" } as const;
       if (transfer && !(await isActiveBankAccount(tx, transfer.bankAccountId))) {
         return { ok: false, reason: "invalid-bank-account" } as const;

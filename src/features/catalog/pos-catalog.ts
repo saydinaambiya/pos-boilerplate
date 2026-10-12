@@ -50,10 +50,12 @@ function groupProducts(rows: Awaited<ReturnType<typeof queryPosCatalog>>): PosPr
 
 /**
  * Only whole pieces leave the store with salespeople or marketplace orders;
- * rolls are cut at the POS (FR-ROL-04, ADR-0023).
+ * rolls are cut and goods sold by the kg are weighed at the POS (FR-ROL-04,
+ * ADR-0023, ADR-0045).
  */
 function withoutRolls(products: PosProduct[]): PosProduct[] {
   return products
+    .filter((product) => product.isRoll || product.unit !== "kg")
     .map((product) =>
       product.isRoll
         ? { ...product, variants: product.variants.filter((variant) => variant.parentId !== null) }

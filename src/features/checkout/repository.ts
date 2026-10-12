@@ -2,6 +2,8 @@ import "server-only";
 
 import { and, asc, eq, gt, gte, inArray, isNull, lt, sql } from "drizzle-orm";
 
+import type { ShiftKind } from "@/features/shifts/kind";
+import { openShiftScope } from "@/features/shifts/repository";
 import { db, type Executor } from "@/db/client";
 import {
   bankAccounts,
@@ -20,26 +22,36 @@ import {
   vouchers,
 } from "@/db/schema";
 
-import { isRollRowSql, variantCostSql, variantPriceSql } from "@/features/catalog/pricing-sql";
+import {
+  isRollRowSql,
+  soldByWeightSql,
+  variantCostSql,
+  variantPriceSql,
+} from "@/features/catalog/pricing-sql";
 
 import type { PreparedPayment } from "./payment-providers";
 
 /**
- * The cashier's open shift, share-locked so it cannot be closed while this
- * sale is being written (FR-SHF-01).
+ * The caller's open shift, share-locked so it cannot be closed while this
+ * sale is being written (FR-SHF-01); for a cashier the store's shared
+ * drawer shift (ADR-0044).
  */
-export async function lockOpenShiftForSale(executor: Executor, userId: string) {
+export async function lockOpenShiftForSale(executor: Executor, userId: string, kind: ShiftKind) {
+  const scope = openShiftScope(userId, kind);
   const [row] = await executor
     .select({ id: shifts.id })
     .from(shifts)
-    .where(and(eq(shifts.userId, userId), isNull(shifts.closedAt)))
+    .where(scope.where)
+    .orderBy(...scope.orderBy)
+    .limit(1)
     .for("share");
   return row;
 }
 
 /**
  * Variants being sold with the data needed for pricing and snapshots. On a
- * roll row price and cost are per meter (FR-ROL-04).
+ * roll row price and cost are per meter (FR-ROL-04); on goods sold by the
+ * kg, per kg (ADR-0045).
  */
 export async function findSellableVariants(executor: Executor, variantIds: readonly string[]) {
   return executor
@@ -52,6 +64,7 @@ export async function findSellableVariants(executor: Executor, variantIds: reado
       size: productVariants.size,
       isDefect: productVariants.isDefect,
       isRoll: isRollRowSql,
+      byWeight: soldByWeightSql,
       trackStock: products.trackStock,
       attributes: productVariants.attributes,
       price: variantPriceSql,
@@ -186,6 +199,7 @@ export async function findSaleDetail(saleId: string) {
         unitPrice: saleItems.unitPrice,
         qty: saleItems.qty,
         lengthCm: saleItems.lengthCm,
+        weightG: saleItems.weightG,
         discountAmount: saleItems.discountAmount,
         lineTotal: saleItems.lineTotal,
       })
@@ -236,13 +250,16 @@ export async function setSaleStatus(
 
 /**
  * Sold quantities per stock-tracked variant, to put back on void; a custom
- * cut counts its centimetres (FR-ROL-04).
+ * cut counts its centimetres (FR-ROL-04), a weighed line its grams
+ * (ADR-0045).
  */
 export async function soldTrackedQuantities(executor: Executor, saleId: string) {
   return executor
     .select({
       variantId: saleItems.variantId,
-      qty: sql<number>`sum(${saleItems.qty} * coalesce(${saleItems.lengthCm}, 1))`.mapWith(Number),
+      qty: sql<number>`sum(${saleItems.qty} * coalesce(${saleItems.lengthCm}, ${saleItems.weightG}, 1))`.mapWith(
+        Number,
+      ),
     })
     .from(saleItems)
     .innerJoin(productVariants, eq(productVariants.id, saleItems.variantId))

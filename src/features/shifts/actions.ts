@@ -16,7 +16,11 @@ import { closeShift, openShift } from "./service";
 
 const money = (value: string) => parseRupiah(value) ?? Number.NaN;
 
-/** Opens the caller's shift, at the cashier or in the Sales menu (FR-SHF-02, ADR-0029). */
+/**
+ * Opens the caller's shift, at the cashier or in the Sales menu (FR-SHF-02,
+ * ADR-0029). A sales shift has no opening cash, so its form sends none
+ * (ADR-0044).
+ */
 export async function openShiftAction(
   _previous: FormState,
   formData: FormData,
@@ -27,9 +31,10 @@ export async function openShiftAction(
     getTranslations({ locale, namespace: "Shifts" }),
     getTranslations({ locale, namespace: "Validation" }),
   ]);
-  const values = submittedValues(formData, ["openingCash"]);
+  const values = submittedValues(formData, ["openingCash", "note"]);
   const parsed = openShiftInput.safeParse({
-    openingCash: money(formText(formData, "openingCash")),
+    openingCash: formData.has("openingCash") ? money(formText(formData, "openingCash")) : 0,
+    note: formText(formData, "note"),
   });
   if (!parsed.success) return { status: "error", errors: fieldErrors(parsed.error, tv), values };
 

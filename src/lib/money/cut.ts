@@ -6,3 +6,11 @@
 export function cutPrice(perUnit: number, lengthCm: number | undefined | null): number {
   return lengthCm == null ? perUnit : Math.round((perUnit * lengthCm) / 100);
 }
+
+/**
+ * Price or cost of a weighed line: the per-kg amount for its weight in
+ * grams, rounded to whole rupiah (ADR-0045).
+ */
+export function weighPrice(perKg: number, weightG: number | undefined | null): number {
+  return weightG == null ? perKg : Math.round((perKg * weightG) / 1000);
+}

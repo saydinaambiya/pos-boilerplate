@@ -246,6 +246,20 @@
       "when": 1791342277292,
       "tag": "0034_consignment_reduce",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1791813958927,
+      "tag": "0035_shared_shifts",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1791814701948,
+      "tag": "0036_accessories",
+      "breakpoints": true
     }
   ]
 }

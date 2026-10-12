@@ -8,6 +8,7 @@ import {
   integer,
   jsonb,
   numeric,
+  pgEnum,
   pgTable,
   text,
   uniqueIndex,
@@ -18,6 +19,17 @@ import { id, timestamps, timestamptz } from "./columns";
 
 /** Integer rupiah (PRD §5); `number` mode is exact up to 2^53. */
 const money = () => bigint({ mode: "number" });
+
+/**
+ * What a product is (FR-PRD-07, ADR-0045): the store's main goods, or an
+ * accessory such as glue or thread, kept with brand, name, colour and a
+ * unit of pcs, ml or kg.
+ */
+export const productCategories = ["MAIN", "ACCESSORY"] as const;
+export const productCategory = pgEnum("product_category", productCategories);
+
+/** Units an accessory is counted in; kg stock is kept in grams (ADR-0045). */
+export const accessoryUnits = ["pcs", "ml", "kg"] as const;
 
 /** Product brands, listed by name (FR-CAT-02). */
 export const brands = pgTable(
@@ -41,6 +53,9 @@ export const brands = pgTable(
  * holds the piece price of every size in `PRODUCT_SIZES`, the same for
  * every colour.
  *
+ * An accessory (`category`, ADR-0045) has no motif, thickness or sizes;
+ * sold by the kg its price and cost are per kg and its stock is in grams.
+ *
  * A deleted product (`deleted_at`, FR-PRD-03, ADR-0041) is also inactive,
  * so every list and the POS skip it while past sales keep their rows.
  */
@@ -54,6 +69,7 @@ export const products = pgTable(
     /** Thickness in mm (FR-PRD-06). */
     thickness: numeric({ precision: 6, scale: 2, mode: "number" }),
     isRoll: boolean().notNull().default(false),
+    category: productCategory().notNull().default("MAIN"),
     /** Piece price per size code, validated by Zod (FR-ROL-02). */
     sizePrices: jsonb(),
     /** Price per size of defect pieces, the same for every colour (FR-ROL-05). */

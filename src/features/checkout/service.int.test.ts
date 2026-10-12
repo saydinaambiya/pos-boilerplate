@@ -13,7 +13,7 @@ import {
   sales,
   stockMovements,
 } from "@/db/schema";
-import { createProduct, deleteProduct } from "@/features/catalog/service";
+import { createBrand, createProduct, deleteProduct } from "@/features/catalog/service";
 import { createVariant, enableVariants } from "@/features/catalog/variant-service";
 import {
   changeBankAccountStatus,
@@ -391,7 +391,6 @@ describe("checkout (FR-POS-01..08, FR-PAY-01..04)", () => {
     });
 
     const ownerSession = await owner();
-    await openedShift(ownerSession);
     const result = await checkout(
       ownerSession,
       sale(discounted, [{ method: "CASH", amount: 18_000 }]),
@@ -689,5 +688,79 @@ describe("roll products at the POS (FR-ROL-02/04, ADR-0023)", () => {
         NOW,
       ),
     ).toEqual({ ok: false, reason: "insufficient-stock", variantId: rollId, available: 500 });
+  });
+});
+
+describe("goods sold by the kg (ADR-0045)", () => {
+  /** A glue accessory at 40.000 per kg with 2 kg in stock. */
+  async function glue() {
+    const session = await owner();
+    const brand = await createBrand(session, { name: "Fox" }, testContext());
+    if (!brand.ok) throw new Error(brand.reason);
+    const created = await createProduct(
+      session,
+      {
+        name: "Lem",
+        price: 40_000,
+        unit: "kg",
+        trackStock: true,
+        sku: "LEM-KG",
+        minStock: 0,
+        brandId: brand.id,
+        colorName: "Red",
+      },
+      testContext(),
+      "ACCESSORY",
+    );
+    if (!created.ok) throw new Error(created.reason);
+    const [variant] = await db
+      .select()
+      .from(productVariants)
+      .where(eq(productVariants.productId, created.id));
+    await receiveStock(session, variant?.id ?? "", { qty: 2000, note: "" }, testContext());
+    return variant?.id ?? "";
+  }
+
+  it("prices a weight per kg and takes its grams off the stock", async () => {
+    const session = await cashier();
+    await openedShift(session);
+    const variantId = await glue();
+
+    const result = await checkout(
+      session,
+      sale([{ variantId, qty: 1, weightG: 750 }], [{ method: "CASH", amount: 30_000 }]),
+      testContext(),
+      NOW,
+    );
+    if (!result.ok) throw new Error(result.reason);
+    expect(result.grandTotal).toBe(30_000);
+    expect(await stockOf(variantId)).toBe(1250);
+    expect((await getSale(session, result.saleId))?.items).toMatchObject([
+      { weightG: 750, unitPrice: 30_000, qty: 1 },
+    ]);
+  });
+
+  it("refuses a kg line without a weight and a weight on other goods", async () => {
+    const session = await cashier();
+    await openedShift(session);
+    const variantId = await glue();
+    const { variantId: plain } = await product(5);
+
+    expect(
+      await checkout(
+        session,
+        sale([{ variantId, qty: 1 }], [{ method: "CASH", amount: 40_000 }]),
+        testContext(),
+        NOW,
+      ),
+    ).toEqual({ ok: false, reason: "invalid-items" });
+    expect(
+      await checkout(
+        session,
+        sale([{ variantId: plain, qty: 1, weightG: 500 }], [{ method: "CASH", amount: 5000 }]),
+        testContext(),
+        NOW,
+      ),
+    ).toEqual({ ok: false, reason: "invalid-items" });
   });
 });

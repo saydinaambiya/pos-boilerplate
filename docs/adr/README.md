@@ -34,10 +34,10 @@ Records are immutable once accepted; a new record supersedes an old one.
 | [0026](./0026-listed-motifs-colours-and-defects.md)                 | Listed motifs and colours, and defect pieces                      | Amended by 0034       |
 | [0027](./0027-sales-only-and-staff-expenses.md)                     | Sales results only, and daily staff expenses                      | Amended by 0032       |
 | [0028](./0028-home-for-every-role.md)                               | A home page for every role                                        | Accepted              |
-| [0029](./0029-sales-without-the-cashier.md)                         | Salespeople keep a shift but not the cashier                      | Amended by 0033       |
+| [0029](./0029-sales-without-the-cashier.md)                         | Salespeople keep a shift but not the cashier                      | Amended by 0033, 0044 |
 | [0030](./0030-devices-in-a-modal.md)                                | Devices list in a modal over the current page                     | Accepted              |
 | [0031](./0031-functions-next-to-the-database.md)                    | Run functions in the database's region                            | Accepted              |
-| [0032](./0032-money-recap-and-atm-deposits.md)                      | Money recap and ATM deposits                                      | Accepted              |
+| [0032](./0032-money-recap-and-atm-deposits.md)                      | Money recap and ATM deposits                                      | Amended by 0044       |
 | [0033](./0033-sales-split-payment-and-store-credit.md)              | Split payments and store credit for salespeople                   | Accepted              |
 | [0034](./0034-other-motif-and-colour.md)                            | "Other" motif and colour                                          | Accepted              |
 | [0035](./0035-installments-at-the-cashier.md)                       | Store credit payments settle at the cashier                       | Amended by 0036       |
@@ -49,3 +49,5 @@ Records are immutable once accepted; a new record supersedes an old one.
 | [0041](./0041-thickness-sort-product-deletion-and-brand-pages.md)   | Thickness sort and filter, product deletion, ten brands a page    | Accepted              |
 | [0042](./0042-reduce-goods-carried-and-motif.md)                    | Reduce goods carried by mistake, motif on salespeople's goods     | Amended by 0043       |
 | [0043](./0043-online-order-brand-motif-and-recent-stock-changes.md) | Brand, motif and colour on orders and Sales, recent stock changes | Accepted              |
+| [0044](./0044-shared-store-shift.md)                                | One shared store shift, sales shifts apart and without a float    | Accepted              |
+| [0045](./0045-accessories-and-goods-sold-by-the-kg.md)              | Accessories, and goods sold by the kg                             | Accepted              |

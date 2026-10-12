@@ -265,6 +265,11 @@ export function CartPanel(props: CartPanelProps) {
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="font-medium [overflow-wrap:anywhere] text-ink">{name}</p>
+                  {item.motif ? (
+                    <p className="text-xs [overflow-wrap:anywhere] text-ink-muted">
+                      {t("motifLabel", { motif: item.motif })}
+                    </p>
+                  ) : null}
                   <p className="text-xs text-ink-muted tabular-nums">{`${money(item.unitPrice)} × ${String(item.qty)}`}</p>
                   {line && line.discount > 0 ? (
                     <p className="text-xs font-medium text-success-ink">

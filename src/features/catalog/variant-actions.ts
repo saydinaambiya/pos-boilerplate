@@ -12,7 +12,7 @@ import type { Session } from "@/lib/auth/session";
 import { formText } from "@/lib/http/form-data";
 import { currentRequestContext } from "@/lib/http/request-context";
 import { fieldErrors, type FormState, submittedValues } from "@/lib/validation/form-state";
-import { parseMetersToCm } from "@/lib/format/length";
+import { parseStock, type StockMeasure, stockMeasure } from "@/lib/format/quantity";
 import { parseRupiah } from "@/lib/validation/money";
 
 import { colorHex } from "./options";
@@ -33,12 +33,12 @@ const recordId = z.uuid();
 /** Bound arguments come back from the client, so they are re-validated. */
 const moveDirection = z.enum(["up", "down"]);
 
-const integer = (value: string) =>
-  /^\d{1,7}$/.test(value.trim()) ? Number(value.trim()) : Number.NaN;
-
-/** Stock quantities: pieces, or on a roll meters stored as cm (ADR-0023). */
-const quantity = (value: string, roll: boolean) =>
-  roll ? (parseMetersToCm(value || "0") ?? Number.NaN) : integer(value || "0");
+/**
+ * Stock quantities: whole units, on a roll meters stored as cm (ADR-0023),
+ * on a kg accessory kg stored as grams (ADR-0045).
+ */
+const quantity = (value: string, measure: StockMeasure) =>
+  parseStock(measure, value || "0") ?? Number.NaN;
 
 /** A roll colour's SKU leaves room for its pieces' size suffix. */
 const rollSku = { sku: rollSkuSchema };
@@ -94,14 +94,14 @@ async function failure(
 function variantFields(
   formData: FormData,
   session: Session,
-  roll: boolean,
+  measure: StockMeasure,
   current?: { name: string; hex?: string | undefined },
 ) {
   return {
     ...chosenColor(formData, current),
     sku: formText(formData, "sku"),
-    minStock: quantity(formText(formData, "minStock"), roll),
-    priceOverride: roll ? null : override(formText(formData, "priceOverride")),
+    minStock: quantity(formText(formData, "minStock"), measure),
+    priceOverride: measure === "meter" ? null : override(formText(formData, "priceOverride")),
   };
 }
 
@@ -129,7 +129,7 @@ export async function enableVariantsAction(
   const parsed = schema.safeParse({
     ...chosenColor(formData),
     sku: formText(formData, "sku"),
-    minStock: quantity(formText(formData, "minStock"), product.isRoll),
+    minStock: quantity(formText(formData, "minStock"), stockMeasure(product)),
   });
   if (!parsed.success) {
     const [, tv] = await translations(locale);
@@ -158,8 +158,8 @@ export async function createVariantAction(
   if (!product) return failure({ ok: false, reason: "not-found" }, locale);
   const schema = product.isRoll ? newVariantInput.extend(rollSku) : newVariantInput;
   const parsed = schema.safeParse({
-    ...variantFields(formData, session, product.isRoll),
-    initialStock: quantity(formText(formData, "initialStock"), product.isRoll),
+    ...variantFields(formData, session, stockMeasure(product)),
+    initialStock: quantity(formText(formData, "initialStock"), stockMeasure(product)),
   });
   if (!parsed.success) {
     const [, tv] = await translations(locale);
@@ -188,7 +188,7 @@ export async function updateVariantAction(
   if (!variant) return failure({ ok: false, reason: "not-found" }, locale);
   const schema = variant.isRoll ? variantInput.extend(rollSku) : variantInput;
   const parsed = schema.safeParse(
-    variantFields(formData, session, variant.isRoll, variant.color ?? undefined),
+    variantFields(formData, session, stockMeasure(variant), variant.color ?? undefined),
   );
   if (!parsed.success) {
     const [, tv] = await translations(locale);

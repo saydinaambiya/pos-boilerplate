@@ -40,9 +40,11 @@ export const shiftKind = pgEnum("shift_kind", shiftKinds);
 
 /**
  * Cashier shifts (FR-SHF-01..04). At most one open shift per user, enforced
- * by a partial unique index. A drawer shift starts with the cash left in the
- * drawer by the last closed drawer shift (`carried_cash`, FR-SHF-02); each
- * closed shift is carried at most once.
+ * by a partial unique index. The store's drawer shift is shared: every
+ * cashier sells in the one open drawer shift and any of them may close it,
+ * while a salesperson keeps their own (ADR-0044). A drawer shift starts with
+ * the cash left in the drawer by the last closed drawer shift
+ * (`carried_cash`, FR-SHF-02); each closed shift is carried at most once.
  */
 export const shifts = pgTable(
   "shifts",
@@ -55,10 +57,14 @@ export const shifts = pgTable(
     kind: shiftKind(),
     openedAt: timestamptz().notNull().defaultNow(),
     openingCash: money().notNull(),
+    /** Optional note on the opening cash (FR-SHF-02). */
+    openingNote: text(),
     /** Cash left in the drawer by the shift this one carries over from. */
     carriedCash: money().notNull().default(0),
     carriedFromShiftId: uuid().references((): AnyPgColumn => shifts.id, { onDelete: "restrict" }),
     closedAt: timestamptz(),
+    /** Who closed a shared drawer shift; it may differ from who opened it (ADR-0044). */
+    closedBy: uuid().references(() => users.id, { onDelete: "restrict" }),
     expectedCash: money(),
     countedCash: money(),
     variance: money(),
@@ -156,6 +162,8 @@ export const saleItems = pgTable(
     qty: integer().notNull(),
     /** Length of a custom cut off a roll, per unit of `qty` (FR-ROL-04). */
     lengthCm: integer(),
+    /** Weight of goods sold by the kg, in grams per unit of `qty` (ADR-0045). */
+    weightG: integer(),
     discountType: discountType(),
     discountValue: bigint({ mode: "number" }),
     discountAmount: money().notNull().default(0),
@@ -169,6 +177,7 @@ export const saleItems = pgTable(
     index("sale_items_variant_id_idx").on(table.variantId),
     check("sale_items_qty_positive", sql`${table.qty} > 0`),
     check("sale_items_length_positive", sql`${table.lengthCm} IS NULL OR ${table.lengthCm} > 0`),
+    check("sale_items_weight_positive", sql`${table.weightG} IS NULL OR ${table.weightG} > 0`),
   ],
 );
 

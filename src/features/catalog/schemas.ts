@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { accessoryUnits } from "@/db/schema/catalog";
 import { rupiah } from "@/lib/validation/money";
 import { nameText, plainText } from "@/lib/validation/text";
 
@@ -100,6 +101,17 @@ export const newProductInput = rollProductInput.extend({
   brandId: chosen(z.uuid()),
   motif: chosen(motifName),
   thickness: thickness.nullable().refine((value) => value !== null, { error: "required" }),
+});
+
+/**
+ * A new accessory such as glue or thread (FR-PRD-07, ADR-0045): brand,
+ * name, first colour from the colour list and a unit of pcs, ml or kg. The
+ * price is per unit; a kg accessory's minimum stock is in grams.
+ */
+export const newAccessoryInput = productInput.extend({
+  colorName: chosen(colorName),
+  brandId: chosen(z.uuid()),
+  unit: chosen(z.enum(accessoryUnits)),
 });
 
 /** Swatch colour, validated strictly because it is rendered as SVG `fill` (FR-VAR-03). */
