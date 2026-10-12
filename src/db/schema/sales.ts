@@ -40,9 +40,11 @@ export const shiftKind = pgEnum("shift_kind", shiftKinds);
 
 /**
  * Cashier shifts (FR-SHF-01..04). At most one open shift per user, enforced
- * by a partial unique index. A drawer shift starts with the cash left in the
- * drawer by the last closed drawer shift (`carried_cash`, FR-SHF-02); each
- * closed shift is carried at most once.
+ * by a partial unique index. The store's drawer shift is shared: every
+ * cashier sells in the one open drawer shift and any of them may close it,
+ * while a salesperson keeps their own (ADR-0044). A drawer shift starts with
+ * the cash left in the drawer by the last closed drawer shift
+ * (`carried_cash`, FR-SHF-02); each closed shift is carried at most once.
  */
 export const shifts = pgTable(
   "shifts",
@@ -55,10 +57,14 @@ export const shifts = pgTable(
     kind: shiftKind(),
     openedAt: timestamptz().notNull().defaultNow(),
     openingCash: money().notNull(),
+    /** Optional note on the opening cash (FR-SHF-02). */
+    openingNote: text(),
     /** Cash left in the drawer by the shift this one carries over from. */
     carriedCash: money().notNull().default(0),
     carriedFromShiftId: uuid().references((): AnyPgColumn => shifts.id, { onDelete: "restrict" }),
     closedAt: timestamptz(),
+    /** Who closed a shared drawer shift; it may differ from who opened it (ADR-0044). */
+    closedBy: uuid().references(() => users.id, { onDelete: "restrict" }),
     expectedCash: money(),
     countedCash: money(),
     variance: money(),

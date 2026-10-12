@@ -2,6 +2,8 @@ import "server-only";
 
 import { and, asc, eq, gt, gte, inArray, isNull, lt, sql } from "drizzle-orm";
 
+import type { ShiftKind } from "@/features/shifts/kind";
+import { openShiftScope } from "@/features/shifts/repository";
 import { db, type Executor } from "@/db/client";
 import {
   bankAccounts,
@@ -25,14 +27,18 @@ import { isRollRowSql, variantCostSql, variantPriceSql } from "@/features/catalo
 import type { PreparedPayment } from "./payment-providers";
 
 /**
- * The cashier's open shift, share-locked so it cannot be closed while this
- * sale is being written (FR-SHF-01).
+ * The caller's open shift, share-locked so it cannot be closed while this
+ * sale is being written (FR-SHF-01); for a cashier the store's shared
+ * drawer shift (ADR-0044).
  */
-export async function lockOpenShiftForSale(executor: Executor, userId: string) {
+export async function lockOpenShiftForSale(executor: Executor, userId: string, kind: ShiftKind) {
+  const scope = openShiftScope(userId, kind);
   const [row] = await executor
     .select({ id: shifts.id })
     .from(shifts)
-    .where(and(eq(shifts.userId, userId), isNull(shifts.closedAt)))
+    .where(scope.where)
+    .orderBy(...scope.orderBy)
+    .limit(1)
     .for("share");
   return row;
 }

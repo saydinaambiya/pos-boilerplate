@@ -1,19 +1,27 @@
 import "server-only";
 
-import { and, asc, desc, eq, gte, isNull, lt, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, lt, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
+import type { ShiftKind } from "@/features/shifts/kind";
+import { openShiftScope } from "@/features/shifts/repository";
 import { db, type Executor } from "@/db/client";
 import { cashExpenses, shifts, users } from "@/db/schema";
 
 const recipients = alias(users, "recipient");
 
-/** The user's open shift, share-locked so it is not closed mid-write (FR-SHF-01). */
-export async function lockOpenShiftForExpense(executor: Executor, userId: string) {
+/**
+ * The caller's open shift, share-locked so it is not closed mid-write
+ * (FR-SHF-01); for a cashier the store's shared drawer shift (ADR-0044).
+ */
+export async function lockOpenShiftForExpense(executor: Executor, userId: string, kind: ShiftKind) {
+  const scope = openShiftScope(userId, kind);
   const [row] = await executor
     .select({ id: shifts.id })
     .from(shifts)
-    .where(and(eq(shifts.userId, userId), isNull(shifts.closedAt)))
+    .where(scope.where)
+    .orderBy(...scope.orderBy)
+    .limit(1)
     .for("share");
   return row;
 }

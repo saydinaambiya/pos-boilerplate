@@ -7,6 +7,7 @@ import type { Locale } from "@/config/locales";
 import type { ActionLink } from "@/components/feedback/result-dialog";
 import type { Session } from "@/lib/auth/session";
 
+import { shiftKindFor } from "./kind";
 import { findOpenShift } from "./repository";
 
 /**
@@ -20,7 +21,7 @@ export async function storeClosedRejection(
 ): Promise<{ message: string; action?: ActionLink }> {
   const [t, shift] = await Promise.all([
     getTranslations({ locale, namespace: "Feedback" }),
-    findOpenShift(db, session.user.id),
+    findOpenShift(db, session.user.id, shiftKindFor(session)),
   ]);
   if (!shift) return { message: t("storeClosed") };
   return {

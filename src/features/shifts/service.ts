@@ -9,11 +9,10 @@ import type { RequestContext } from "@/lib/http/request-context";
 import { storeClosedFor } from "@/lib/settings/store-hours-guard";
 
 import { drawerCarry, lockDrawer } from "./drawer";
-
+import { type ShiftKind, shiftKindFor } from "./kind";
 import {
   closeShiftRow,
   findOpenShift,
-  findOtherOpenShifts,
   findShift,
   insertShift,
   lockOpenShift,
@@ -51,33 +50,23 @@ function expectedCashOf(
   );
 }
 
-/**
- * A cashier's shift holds the store's drawer; a salesperson without the
- * cashier keeps the money for their goods apart (ADR-0029, ADR-0032).
- */
-const kindFor = (session: Session) =>
-  session.permissions.has("page:pos") ? ("DRAWER" as const) : ("SALES" as const);
+/** A drawer shift is already open; cashiers carry on in it (ADR-0044). */
+class ShiftAlreadyOpen extends Error {}
 
 export type ShiftResult =
   | { ok: true; id: string }
   | { ok: false; reason: "already-open" | "no-open-shift" | "store-closed" };
 
-/** The caller's open shift with live totals, or null (FR-SHF-01). */
+/**
+ * The caller's open shift with live totals, or null (FR-SHF-01): for a
+ * cashier the store's shared drawer shift, whoever opened it (ADR-0044).
+ */
 export async function getOpenShift(session: Session) {
   assertAnyPermission(session, SHIFT_HOLDERS);
-  const shift = await findOpenShift(db, session.user.id);
+  const shift = await findOpenShift(db, session.user.id, shiftKindFor(session));
   if (!shift) return null;
   const totals = await shiftTotals(db, shift.id);
   return { ...shift, totals, expectedCash: expectedCashOf(shift, totals) };
-}
-
-/**
- * Other cashiers' open shifts, so someone opening a shift is warned who
- * already has one open and since when (FR-SHF-01).
- */
-export async function getOtherOpenShifts(session: Session) {
-  assertPermission(session, "page:pos");
-  return findOtherOpenShifts(db, session.user.id);
 }
 
 /**
@@ -86,15 +75,17 @@ export async function getOtherOpenShifts(session: Session) {
  */
 export async function getDrawerCarry(session: Session): Promise<number> {
   assertAnyPermission(session, SHIFT_HOLDERS);
-  if (kindFor(session) !== "DRAWER") return 0;
+  if (shiftKindFor(session) !== "DRAWER") return 0;
   return (await drawerCarry(db)).amount;
 }
 
 /**
- * Opens a shift with its cash float; one open shift per cashier
- * (FR-SHF-02). A drawer shift also takes over the cash the last drawer
- * shift left behind, once (ADR-0032). Employees cannot open one outside
- * store hours (FR-SET-09).
+ * Opens a shift (FR-SHF-02). The store has one drawer shift at a time,
+ * shared by every cashier (ADR-0044): it starts with the float and an
+ * optional note on it, plus the cash the last drawer shift left behind,
+ * once (ADR-0032). A salesperson's shift starts with no cash, because
+ * they carry no money out. Employees cannot open one outside store hours
+ * (FR-SET-09).
  */
 export async function openShift(
   session: Session,
@@ -106,13 +97,19 @@ export async function openShift(
   if (await storeClosedFor(session, now)) return { ok: false, reason: "store-closed" };
   try {
     const id = await db.transaction(async (tx) => {
-      const kind = kindFor(session);
-      if (kind === "DRAWER") await lockDrawer(tx);
-      const carry = kind === "DRAWER" ? await drawerCarry(tx) : { fromShiftId: null, amount: 0 };
+      const kind = shiftKindFor(session);
+      const drawer = kind === "DRAWER";
+      if (drawer) {
+        await lockDrawer(tx);
+        if (await findOpenShift(tx, session.user.id, kind)) throw new ShiftAlreadyOpen();
+      }
+      const carry = drawer ? await drawerCarry(tx) : { fromShiftId: null, amount: 0 };
+      const openingCash = drawer ? input.openingCash : 0;
       const shiftId = await insertShift(tx, {
         userId: session.user.id,
         kind,
-        openingCash: input.openingCash,
+        openingCash,
+        openingNote: drawer && input.note ? input.note : null,
         carriedCash: carry.amount,
         carriedFromShiftId: carry.fromShiftId,
       });
@@ -123,7 +120,7 @@ export async function openShift(
           action: "shift.opened",
           entity: "shift",
           entityId: shiftId,
-          diff: { kind, openingCash: input.openingCash, carriedCash: carry.amount },
+          diff: { kind, openingCash, carriedCash: carry.amount },
         },
         context,
       );
@@ -131,7 +128,9 @@ export async function openShift(
     });
     return { ok: true, id };
   } catch (error) {
-    if (isUniqueViolation(error)) return { ok: false, reason: "already-open" };
+    if (error instanceof ShiftAlreadyOpen || isUniqueViolation(error)) {
+      return { ok: false, reason: "already-open" };
+    }
     throw error;
   }
 }
@@ -140,7 +139,9 @@ export async function openShift(
  * Closes the caller's shift: expected cash as in `expectedCashOf`; the
  * variance against the counted cash is recorded (FR-SHF-03), and the
  * counted cash is what the next drawer shift carries over (ADR-0032).
- * The shift row is locked so a concurrent sale cannot slip in unnoticed.
+ * Any cashier may close the shared drawer shift; who did is kept
+ * (ADR-0044). The shift row is locked so a concurrent sale cannot slip in
+ * unnoticed.
  */
 export async function closeShift(
   session: Session,
@@ -149,8 +150,9 @@ export async function closeShift(
 ): Promise<ShiftResult> {
   assertAnyPermission(session, SHIFT_HOLDERS);
   return db.transaction(async (tx) => {
-    if (kindFor(session) === "DRAWER") await lockDrawer(tx);
-    const shift = await lockOpenShift(tx, session.user.id);
+    const kind = shiftKindFor(session);
+    if (kind === "DRAWER") await lockDrawer(tx);
+    const shift = await lockOpenShift(tx, session.user.id, kind);
     if (!shift) return { ok: false, reason: "no-open-shift" } as const;
     const totals = await shiftTotals(tx, shift.id);
     const expectedCash = expectedCashOf(shift, totals);
@@ -160,6 +162,7 @@ export async function closeShift(
       countedCash: input.countedCash,
       variance,
       note: input.note === "" ? null : input.note,
+      closedBy: session.user.id,
     });
     await recordAudit(
       tx,
@@ -177,15 +180,18 @@ export async function closeShift(
 }
 
 /**
- * Shift report (FR-SHF-04). Cashiers see their own shifts; `report:view`
- * holders see every shift. Others get `undefined`, never another cashier's
- * data (NFR-SEC-07).
+ * Shift report (FR-SHF-04). Every cashier sees the store's drawer shifts,
+ * which they share (ADR-0044); a salesperson's shift is only for them and
+ * `report:view` holders. Others get `undefined` (NFR-SEC-07).
  */
 export async function getShiftReport(session: Session, shiftId: string) {
   assertPermission(session, "page:pos");
   const shift = await findShift(shiftId);
   if (!shift) return undefined;
-  if (shift.userId !== session.user.id && !session.permissions.has("report:view")) return undefined;
+  const shared = shift.kind !== "SALES";
+  if (!shared && shift.userId !== session.user.id && !session.permissions.has("report:view")) {
+    return undefined;
+  }
   const totals = await shiftTotals(db, shift.id);
   return {
     ...shift,
@@ -194,10 +200,15 @@ export async function getShiftReport(session: Session, shiftId: string) {
   };
 }
 
-/** Own shifts, or all shifts for `report:view` holders. */
-export async function listShifts(session: Session, page: number) {
+/**
+ * One kind of shift history, kept apart (ADR-0044): the store's drawer
+ * shifts for every cashier, or salespeople's shifts, own only unless the
+ * caller holds `report:view`.
+ */
+export async function listShifts(session: Session, kind: ShiftKind, page: number) {
   assertPermission(session, "page:pos");
-  const scope = session.permissions.has("report:view") ? null : session.user.id;
-  const rows = await queryShifts(scope, page, SHIFT_PAGE_SIZE);
+  const scope =
+    kind === "DRAWER" || session.permissions.has("report:view") ? null : session.user.id;
+  const rows = await queryShifts(kind, scope, page, SHIFT_PAGE_SIZE);
   return { shifts: rows.slice(0, SHIFT_PAGE_SIZE), hasNextPage: rows.length > SHIFT_PAGE_SIZE };
 }

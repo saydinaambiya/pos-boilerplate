@@ -391,7 +391,6 @@ describe("checkout (FR-POS-01..08, FR-PAY-01..04)", () => {
     });
 
     const ownerSession = await owner();
-    await openedShift(ownerSession);
     const result = await checkout(
       ownerSession,
       sale(discounted, [{ method: "CASH", amount: 18_000 }]),

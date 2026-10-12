@@ -7,10 +7,13 @@ import { cn } from "@/lib/utils/cn";
 
 interface ShiftFiguresProps {
   shift: {
+    kind: "DRAWER" | "SALES" | null;
     cashierName: string;
     openedAt: Date;
     closedAt: Date | null;
+    closedByName?: string | null;
     openingCash: number;
+    openingNote?: string | null;
     carriedCash: number;
     expectedCash: number;
     countedCash: number | null;
@@ -43,7 +46,9 @@ export async function VarianceText({ variance }: { variance: number }) {
 /**
  * Key figures of a shift, its totals per payment method, store credit given
  * and store credit payments taken (FR-SHF-03/04, FR-KSB-03), with the
- * drawer's carried leftover and ATM deposits (ADR-0032).
+ * drawer's carried leftover and ATM deposits (ADR-0032). A sales shift has
+ * no opening cash, so it is left out unless an older shift had one; a
+ * shared store shift names who closed it (ADR-0044).
  */
 export async function ShiftFigures({ shift }: ShiftFiguresProps) {
   const [t, format, locale] = await Promise.all([
@@ -63,14 +68,18 @@ export async function ShiftFigures({ shift }: ShiftFiguresProps) {
   return (
     <div className="flex flex-col gap-6">
       <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {stat(t("cashier"), shift.cashierName)}
-        {stat(
-          t("openedAt", {
-            time: format.dateTime(shift.openedAt, { dateStyle: "medium", timeStyle: "short" }),
-          }),
-          money(shift.openingCash),
-          t("openingCashShort"),
-        )}
+        {stat(shift.kind === "SALES" ? t("salesperson") : t("openedBy"), shift.cashierName)}
+        {shift.kind !== "SALES" || shift.openingCash !== 0
+          ? stat(
+              t("openedAt", {
+                time: format.dateTime(shift.openedAt, { dateStyle: "medium", timeStyle: "short" }),
+              }),
+              money(shift.openingCash),
+              shift.openingNote
+                ? `${t("openingCashShort")} · ${shift.openingNote}`
+                : t("openingCashShort"),
+            )
+          : null}
         {shift.carriedCash !== 0
           ? stat(t("carriedCash"), money(shift.carriedCash), t("carriedCashHint"))
           : null}
@@ -91,6 +100,7 @@ export async function ShiftFigures({ shift }: ShiftFiguresProps) {
           ? stat(
               t("closedAt"),
               format.dateTime(shift.closedAt, { dateStyle: "medium", timeStyle: "short" }),
+              shift.closedByName ? `${t("closedBy")} ${shift.closedByName}` : undefined,
             )
           : null}
       </dl>

@@ -2,6 +2,7 @@ import "server-only";
 
 import { createHash } from "node:crypto";
 
+import { shiftKindFor } from "@/features/shifts/kind";
 import { db, type Executor } from "@/db/client";
 import { uniqueViolationConstraint } from "@/db/errors";
 import { colorOf } from "@/features/catalog/schemas";
@@ -166,7 +167,7 @@ export async function checkout(
 
   try {
     return await db.transaction(async (tx) => {
-      const shift = await lockOpenShiftForSale(tx, session.user.id);
+      const shift = await lockOpenShiftForSale(tx, session.user.id, shiftKindFor(session));
       if (!shift) throw new CheckoutAbort({ ok: false, reason: "no-open-shift" });
 
       const variantIds = [...new Set(input.lines.map((line) => line.variantId))];

@@ -6,17 +6,19 @@ import { payments, sales, shifts } from "@/db/schema";
 import { fixtures, resetDatabase } from "@/test/database";
 import { signIn, testContext } from "@/test/sessions";
 
-import {
-  closeShift,
-  getOpenShift,
-  getOtherOpenShifts,
-  getShiftReport,
-  listShifts,
-  openShift,
-} from "./service";
+import type { Session } from "@/lib/auth/session";
+
+import { closeShift, getOpenShift, getShiftReport, listShifts, openShift } from "./service";
 
 const cashier = () => signIn("kasir", "123456");
+const colleague = () => signIn("kasir-baru", "111111");
 const owner = () => signIn(fixtures.owner.username, fixtures.owner.password);
+
+/** A salesperson without the cashier, as the seeded Sales role (ADR-0029). */
+async function salesperson(): Promise<Session> {
+  const session = await signIn("kasir-baru", "111111");
+  return { ...session, permissions: new Set(["page:consignments", "consignment:sell"]) };
+}
 
 let invoiceSeq = 0;
 
@@ -54,16 +56,65 @@ async function recordSale(
 beforeEach(resetDatabase);
 
 describe("shifts (FR-SHF-01..04)", () => {
-  it("opens one shift per cashier", async () => {
+  it("opens one store shift that every cashier carries on in (ADR-0044)", async () => {
     const session = await cashier();
     expect(await getOpenShift(session)).toBeNull();
-    const opened = await openShift(session, { openingCash: 200_000 }, testContext());
-    expect(opened.ok).toBe(true);
+    const opened = await openShift(
+      session,
+      { openingCash: 200_000, note: "Uang kecil di amplop" },
+      testContext(),
+    );
+    if (!opened.ok) throw new Error(opened.reason);
     expect(await openShift(session, { openingCash: 100_000 }, testContext())).toEqual({
       ok: false,
       reason: "already-open",
     });
-    expect((await getOpenShift(session))?.openingCash).toBe(200_000);
+    expect(await openShift(await colleague(), { openingCash: 0 }, testContext())).toEqual({
+      ok: false,
+      reason: "already-open",
+    });
+    expect(await getOpenShift(await colleague())).toMatchObject({
+      id: opened.id,
+      openingCash: 200_000,
+      openingNote: "Uang kecil di amplop",
+      cashierName: "Kasir",
+    });
+  });
+
+  it("lets another cashier close the shared shift and records who did", async () => {
+    const opened = await openShift(await cashier(), { openingCash: 50_000 }, testContext());
+    if (!opened.ok) throw new Error(opened.reason);
+    const closer = await colleague();
+    expect(await closeShift(closer, { countedCash: 50_000, note: "" }, testContext())).toEqual({
+      ok: true,
+      id: opened.id,
+    });
+    const [row] = await db.select().from(shifts).where(eq(shifts.id, opened.id));
+    expect(row).toMatchObject({ closedBy: closer.user.id, variance: 0 });
+    expect(await getOpenShift(await cashier())).toBeNull();
+  });
+
+  it("keeps a salesperson's shift apart, with no opening cash (ADR-0044)", async () => {
+    const store = await openShift(await cashier(), { openingCash: 100_000 }, testContext());
+    if (!store.ok) throw new Error(store.reason);
+    const seller = await salesperson();
+    expect(await getOpenShift(seller)).toBeNull();
+    const own = await openShift(seller, { openingCash: 75_000, note: "x" }, testContext());
+    if (!own.ok) throw new Error(own.reason);
+    expect(await getOpenShift(seller)).toMatchObject({
+      id: own.id,
+      kind: "SALES",
+      openingCash: 0,
+      openingNote: null,
+    });
+    expect((await getOpenShift(await cashier()))?.id).toBe(store.id);
+
+    const boss = await owner();
+    expect((await listShifts(boss, "DRAWER", 1)).shifts.map((shift) => shift.id)).toEqual([
+      store.id,
+    ]);
+    expect((await listShifts(boss, "SALES", 1)).shifts.map((shift) => shift.id)).toEqual([own.id]);
+    expect((await listShifts(await cashier(), "SALES", 1)).shifts).toHaveLength(0);
   });
 
   it("expects opening cash plus settled cash of non-voided sales and records the variance", async () => {
@@ -98,30 +149,19 @@ describe("shifts (FR-SHF-01..04)", () => {
     expect((await openShift(session, { openingCash: 0 }, testContext())).ok).toBe(true);
   });
 
-  it("shows reports only to their cashier or to report:view holders (NFR-SEC-07)", async () => {
+  it("shows store shifts to every cashier, sales shifts only to their own (NFR-SEC-07)", async () => {
     const session = await cashier();
     const opened = await openShift(session, { openingCash: 100_000 }, testContext());
     if (!opened.ok) throw new Error(opened.reason);
+    const seller = await salesperson();
+    const own = await openShift(seller, { openingCash: 0 }, testContext());
+    if (!own.ok) throw new Error(own.reason);
 
-    const colleague = await signIn("kasir-baru", "111111");
+    expect(await getShiftReport(await colleague(), opened.id)).toMatchObject({ id: opened.id });
+    expect(await getShiftReport(session, own.id)).toBeUndefined();
+    expect(await getShiftReport(await owner(), own.id)).toMatchObject({ id: own.id });
 
-    expect(await getShiftReport(session, opened.id)).toMatchObject({ id: opened.id });
-    expect(await getShiftReport(colleague, opened.id)).toBeUndefined();
-    expect(await getShiftReport(await owner(), opened.id)).toMatchObject({ id: opened.id });
-
-    expect((await listShifts(colleague, 1)).shifts).toHaveLength(0);
-    expect((await listShifts(await owner(), 1)).shifts).toHaveLength(1);
-  });
-});
-
-describe("other open shifts (FR-SHF-01)", () => {
-  it("tells a cashier who else has a shift open", async () => {
-    const owner = await signIn(fixtures.owner.username, fixtures.owner.password);
-    const cashier = await signIn("kasir", "123456");
-    expect(await getOtherOpenShifts(cashier)).toEqual([]);
-    await openShift(owner, { openingCash: 0 }, testContext());
-    const others = await getOtherOpenShifts(cashier);
-    expect(others.map((shift) => shift.cashierName)).toEqual([fixtures.owner.name]);
-    expect(await getOtherOpenShifts(owner)).toEqual([]);
+    expect((await listShifts(await colleague(), "DRAWER", 1)).shifts).toHaveLength(1);
+    expect((await listShifts(await owner(), "DRAWER", 1)).shifts).toHaveLength(1);
   });
 });

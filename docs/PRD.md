@@ -2,7 +2,7 @@
 
 | Atribut         | Nilai              |
 | --------------- | ------------------ |
-| Versi dokumen   | 0.32.0 (draft)     |
+| Versi dokumen   | 0.33.0 (draft)     |
 | Tanggal         | 2026-10-12         |
 | Pemilik         | Owner              |
 | Status          | Menunggu review    |
@@ -44,6 +44,7 @@
 | 0.30.0 | 2026-10-03 | Daftar produk menampilkan harga potongan 93×47 di bawah harga per meter untuk produk roll (FR-PRD-04, FR-ROL-02)                                                                                                                                                                                                                                                                                        |
 | 0.31.0 | 2026-10-07 | Petugas pengambilan bisa mengurangi barang bawaan sales yang salah input (FR-CSG-03/07); motif tampil di barang bawaan sales (FR-CSG-08) ([ADR-0042](./adr/0042-reduce-goods-carried-and-motif.md))                                                                                                                                                                                                     |
 | 0.32.0 | 2026-10-12 | Merk, motif, dan warna tampil di kartu dan detail pesanan online (FR-ONL-09) dan di barang bawaan sales (FR-CSG-08); riwayat perubahan stok terbaru di halaman stok (FR-STK-10) ([ADR-0043](./adr/0043-online-order-brand-motif-and-recent-stock-changes.md))                                                                                                                                           |
+| 0.33.0 | 2026-10-12 | Satu shift kasir dipakai bersama semua kasir, catatan modal awal opsional, shift sales tanpa modal awal dan riwayatnya terpisah dari shift toko (FR-SHF-01..05) ([ADR-0044](./adr/0044-shared-store-shift.md))                                                                                                                                                                                          |
 
 Konvensi: **MUST** = wajib v1, **SHOULD** = diusahakan v1, **MAY** = opsional. ID requirement dirujuk dari issue, commit, dan test.
 
@@ -179,12 +180,13 @@ Barang masuk dalam bentuk **roll** (satuan meter, lebar selalu 140 cm) lalu dipo
 
 ### 3.4 Shift Kasir
 
-| ID        | Requirement                                                                                                                                                                                                                         | Prioritas |
-| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
-| FR-SHF-01 | Transaksi POS hanya bisa dibuat saat user memiliki shift terbuka.                                                                                                                                                                   | MUST      |
-| FR-SHF-02 | Buka shift: kasir input modal awal kas; shift kasir otomatis ditambah **sisa laci** dari shift kasir terakhir (kas fisik saat tutup − setoran sesudahnya), satu kali. Toko punya satu laci; shift Sales tidak ikut laci (ADR-0032). | MUST      |
-| FR-SHF-03 | Tutup shift: sistem menampilkan kas seharusnya (sisa laci + modal + total pembayaran cash + cicilan kas bon tunai − pengeluaran harian − setoran ATM selama shift); kasir input kas fisik; selisih tercatat.                        | MUST      |
-| FR-SHF-04 | Laporan shift: total per metode pembayaran, jumlah transaksi, void, selisih kas.                                                                                                                                                    | MUST      |
+| ID        | Requirement                                                                                                                                                                                                                                                                                                 | Prioritas |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
+| FR-SHF-01 | Transaksi POS hanya bisa dibuat saat ada shift terbuka. Toko punya **satu shift kasir** yang dipakai bersama: akun kasir lain langsung melanjutkan shift itu tanpa membuka shift sendiri; tiap transaksi tetap atas nama kasir yang melayani (ADR-0044).                                                    | MUST      |
+| FR-SHF-02 | Buka shift: kasir input modal awal kas dan catatan modal awal (opsional); shift kasir otomatis ditambah **sisa laci** dari shift kasir terakhir (kas fisik saat tutup − setoran sesudahnya), satu kali. Toko punya satu laci; shift Sales tidak ikut laci dan dibuka tanpa modal awal (ADR-0032, ADR-0044). | MUST      |
+| FR-SHF-03 | Tutup shift: sistem menampilkan kas seharusnya (sisa laci + modal + total pembayaran cash + cicilan kas bon tunai − pengeluaran harian − setoran ATM selama shift); kasir input kas fisik; selisih tercatat. Kasir mana pun boleh menutup shift toko; yang menutup tercatat.                                | MUST      |
+| FR-SHF-04 | Laporan shift: total per metode pembayaran, jumlah transaksi, void, selisih kas.                                                                                                                                                                                                                            | MUST      |
+| FR-SHF-05 | Riwayat shift dipisah: "Shift toko" (terlihat semua kasir) dan "Shift sales" (sales hanya melihat shift sendiri; pemegang `report:view` melihat semua) (ADR-0044).                                                                                                                                          | MUST      |
 
 ### 3.5 Transaksi POS
 

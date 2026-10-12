@@ -7,12 +7,15 @@ const DATABASE_URL = process.env.DATABASE_URL ?? "postgres://pos:pos@localhost:5
 process.env.DATABASE_URL = DATABASE_URL;
 process.env.APP_URL = `http://localhost:${PORT}`;
 const INVOICE_LINK_SECRET = "e2e-invoice-link-secret-0123456789abcdef";
+const SHARED_SHIFT_SPEC = /shifts\.spec\.ts/;
 process.env.INVOICE_LINK_SECRET = INVOICE_LINK_SECRET;
 
 /**
  * End-to-end tests run against a production build (`next start`) and a
  * dedicated database (`pos_e2e`, created by docker-compose). The `setup`
- * project signs the owner in; other projects reuse that session.
+ * project signs the owner in; other projects reuse that session. The store
+ * has one shared cashier shift (ADR-0044), so the spec that closes it runs
+ * last, on its own, instead of beside specs that sell in it.
  */
 export default defineConfig({
   testDir: "./e2e",
@@ -36,13 +39,21 @@ export default defineConfig({
     { name: "setup", testMatch: /.*\.setup\.ts/ },
     {
       name: "desktop",
+      testIgnore: SHARED_SHIFT_SPEC,
       use: { ...devices["Desktop Chrome"], storageState: OWNER_STATE },
       dependencies: ["setup"],
     },
     {
       name: "mobile",
+      testIgnore: SHARED_SHIFT_SPEC,
       use: { ...devices["Pixel 7"], storageState: OWNER_STATE },
       dependencies: ["setup"],
+    },
+    {
+      name: "shared-shift",
+      testMatch: SHARED_SHIFT_SPEC,
+      use: { ...devices["Desktop Chrome"], storageState: OWNER_STATE },
+      dependencies: ["desktop", "mobile"],
     },
   ],
   webServer: {

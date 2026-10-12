@@ -192,11 +192,13 @@ describe("store credit at checkout (FR-PAY-05, FR-KSB-01/02)", () => {
 });
 
 describe("store credit payments (FR-KSB-03..05, BR-12, BR-13)", () => {
+  /** A credit sale in a store shift that is closed again, so each test opens its own (ADR-0044). */
   async function creditSale() {
     const ownerSession = await owner();
     await openShift(ownerSession, { openingCash: 0 }, testContext());
     const sale = await sellOnCredit(ownerSession, await sellable(), 0);
     if (!sale.ok) throw new Error(sale.reason);
+    await closeShift(ownerSession, { countedCash: 0, note: "" }, testContext());
     return kasbonOf(sale.saleId);
   }
 
@@ -285,9 +287,14 @@ describe("store credit payments (FR-KSB-03..05, BR-12, BR-13)", () => {
     if (!opened.ok) throw new Error(opened.reason);
 
     await db.update(shifts).set({ kind: "SALES" }).where(eq(shifts.id, opened.id));
+    /** The same account as a salesperson without the cashier, whose shift is their own (ADR-0044). */
+    const seller = {
+      ...session,
+      permissions: new Set([...session.permissions].filter((name) => name !== "page:pos")),
+    };
     expect(
       await recordKasbonPayment(
-        session,
+        seller,
         kasbon.id,
         { cash: 10_000, transfer: null },
         testContext(),

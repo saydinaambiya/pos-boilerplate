@@ -1,5 +1,6 @@
 import "server-only";
 
+import { shiftKindFor } from "@/features/shifts/kind";
 import { db } from "@/db/client";
 import { recordAudit } from "@/lib/audit/audit";
 import { assertPermission } from "@/lib/auth/authorize";
@@ -38,7 +39,7 @@ export async function recordExpense(
   assertPermission(session, "expense:record");
   if (await storeClosedFor(session, now)) return { ok: false, reason: "store-closed" };
   return db.transaction(async (tx) => {
-    const shift = await lockOpenShiftForExpense(tx, session.user.id);
+    const shift = await lockOpenShiftForExpense(tx, session.user.id, shiftKindFor(session));
     if (!shift) return { ok: false as const, reason: "no-open-shift" as const };
     if (input.recipientId && !(await findActiveUser(tx, input.recipientId))) {
       return { ok: false as const, reason: "invalid-recipient" as const };

@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { getFormatter, getLocale, getTranslations } from "next-intl/server";
 import { z } from "zod";
 
+import { SectionTabs } from "@/components/shell/section-tabs";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription } from "@/components/ui/card";
 import { Chip } from "@/components/ui/chip";
@@ -31,15 +32,25 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 const pageParam = z.coerce.number().int().min(1).max(1000).catch(1);
+const kindParam = z.enum(["DRAWER", "SALES"]).catch("DRAWER");
 
 /**
- * Shift history: own shifts, or all for `report:view` (FR-SHF-04). A row
- * opens its report in a dialog (`?view=`, ADR-0018).
+ * Shift history, the store's shifts and salespeople's shifts on separate
+ * tabs (`?kind=SALES`, ADR-0044): every cashier sees the shared store
+ * shifts with who opened and closed them; sales shifts are own only unless
+ * the viewer holds `report:view` (FR-SHF-04). A row opens its report in a
+ * dialog (`?view=`, ADR-0018).
  */
 export default async function ShiftsPage({ searchParams }: PageProps<"/[locale]/pos/shifts">) {
   const session = await requirePermission("page:pos");
   const raw = await searchParams;
   const page = pageParam.parse(firstParam(raw.page) ?? "1");
+  const kind = kindParam.parse(firstParam(raw.kind));
+  const drawer = kind === "DRAWER";
+  const pageHref = (pageNumber: number) => ({
+    pathname: "/pos/shifts" as const,
+    query: { ...(drawer ? {} : { kind }), page: String(pageNumber) },
+  });
   const viewing = firstParam(raw.view);
   const kept = keptQuery(raw, ["view"]);
   const [t, tCommon, format, locale, result, report] = await Promise.all([
@@ -47,7 +58,7 @@ export default async function ShiftsPage({ searchParams }: PageProps<"/[locale]/
     getTranslations("Common"),
     getFormatter(),
     getLocale(),
-    listShifts(session, page),
+    listShifts(session, kind, page),
     viewing && z.uuid().safeParse(viewing).success ? getShiftReport(session, viewing) : null,
   ]);
   const when = (date: Date) => format.dateTime(date, { dateStyle: "medium", timeStyle: "short" });
@@ -62,6 +73,14 @@ export default async function ShiftsPage({ searchParams }: PageProps<"/[locale]/
           </Button>
         }
       />
+      <SectionTabs
+        label={t("kindTabs")}
+        current={kind}
+        tabs={[
+          { id: "DRAWER", href: "/pos/shifts", label: t("kindDRAWER") },
+          { id: "SALES", href: "/pos/shifts?kind=SALES", label: t("kindSALES") },
+        ]}
+      />
       <Card>
         {result.shifts.length === 0 ? (
           <EmptyState
@@ -75,8 +94,11 @@ export default async function ShiftsPage({ searchParams }: PageProps<"/[locale]/
             <TableHeader>
               <TableRow>
                 <TableHead>{t("openedAt", { time: "" }).trim()}</TableHead>
-                <TableHead>{t("cashier")}</TableHead>
-                <TableHead className="text-right">{t("openingCashShort")}</TableHead>
+                <TableHead>{drawer ? t("openedBy") : t("salesperson")}</TableHead>
+                {drawer ? <TableHead>{t("closedBy")}</TableHead> : null}
+                {drawer ? (
+                  <TableHead className="text-right">{t("openingCashShort")}</TableHead>
+                ) : null}
                 <TableHead>{t("variance")}</TableHead>
                 <TableHead>{t("status")}</TableHead>
               </TableRow>
@@ -95,9 +117,12 @@ export default async function ShiftsPage({ searchParams }: PageProps<"/[locale]/
                     </Link>
                   </TableCell>
                   <TableCell>{shift.cashierName}</TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {formatCurrency(shift.openingCash, locale)}
-                  </TableCell>
+                  {drawer ? <TableCell>{shift.closedByName ?? "—"}</TableCell> : null}
+                  {drawer ? (
+                    <TableCell className="text-right tabular-nums">
+                      {formatCurrency(shift.openingCash, locale)}
+                    </TableCell>
+                  ) : null}
                   <TableCell>
                     {shift.variance === null ? "—" : <VarianceText variance={shift.variance} />}
                   </TableCell>
@@ -121,17 +146,13 @@ export default async function ShiftsPage({ searchParams }: PageProps<"/[locale]/
           <nav aria-label={t("pagination")} className="mt-4 flex items-center justify-end gap-2">
             {page > 1 ? (
               <Button asChild variant="ghost">
-                <Link href={{ pathname: "/pos/shifts", query: { page: String(page - 1) } }}>
-                  {t("previous")}
-                </Link>
+                <Link href={pageHref(page - 1)}>{t("previous")}</Link>
               </Button>
             ) : null}
             <span className="text-sm text-ink-muted">{t("pageLabel", { page })}</span>
             {result.hasNextPage ? (
               <Button asChild variant="secondary">
-                <Link href={{ pathname: "/pos/shifts", query: { page: String(page + 1) } }}>
-                  {t("next")}
-                </Link>
+                <Link href={pageHref(page + 1)}>{t("next")}</Link>
               </Button>
             ) : null}
           </nav>
