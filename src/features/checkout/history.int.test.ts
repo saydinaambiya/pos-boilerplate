@@ -65,7 +65,7 @@ async function sell(session: Session, variantId: string) {
 
 beforeEach(resetDatabase);
 
-describe("transaction history (FR-POS-10, FR-HK-04)", () => {
+describe("transaction history (FR-POS-13, FR-HK-04)", () => {
   it("shows cashiers their own sales and report viewers everyone's", async () => {
     const variantId = await variant();
     const ownerSession = await owner();

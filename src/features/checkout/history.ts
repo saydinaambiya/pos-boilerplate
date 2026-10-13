@@ -14,7 +14,7 @@ export const SALE_PAGE_SIZE = 50;
 
 export const saleHistoryMethods = ["CASH", "TRANSFER", "QRIS", "KASBON"] as const;
 
-/** Query string of the transaction history (FR-POS-10, FR-HK-04). */
+/** Query string of the transaction history (FR-POS-13, FR-HK-04). */
 export const saleHistoryQuery = z.object({
   from: z.iso.date().optional().catch(undefined),
   to: z.iso.date().optional().catch(undefined),
@@ -28,7 +28,7 @@ export const saleHistoryQuery = z.object({
 export type SaleHistoryQuery = z.infer<typeof saleHistoryQuery>;
 
 /**
- * Transaction history (FR-POS-10): sales in a store-day range, newest first,
+ * Transaction history (FR-POS-13): sales in a store-day range, newest first,
  * searchable by invoice number and filterable by cashier, payment method
  * and status. Cashiers only see their own sales; `report:view` holders see
  * everyone's (NFR-SEC-07). Archived sales are hidden unless asked for

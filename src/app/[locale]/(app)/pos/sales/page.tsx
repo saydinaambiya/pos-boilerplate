@@ -42,7 +42,7 @@ const statusChips = {
 } as const;
 
 /**
- * Transaction history (FR-POS-10, FR-HK-04): sales in a date range with
+ * Transaction history (FR-POS-13, FR-HK-04): sales in a date range with
  * invoice search and cashier, method and status filters that apply as they
  * change. Each row opens the sale in a dialog (`?view=`) for reprint, PDF and
  * void (ADR-0018).

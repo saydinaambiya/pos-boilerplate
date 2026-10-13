@@ -1098,7 +1098,7 @@
     "status": "Status",
     "statuses": {
       "COMPLETED": "Selesai",
-      "COMPLETED_WITH_KASBON": "Selesai (kas bon)",
+      "COMPLETED_WITH_KASBON": "Kas bon",
       "VOIDED": "Dibatalkan"
     },
     "methods": {

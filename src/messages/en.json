@@ -1098,7 +1098,7 @@
     "status": "Status",
     "statuses": {
       "COMPLETED": "Completed",
-      "COMPLETED_WITH_KASBON": "Completed (store credit)",
+      "COMPLETED_WITH_KASBON": "Store credit",
       "VOIDED": "Voided"
     },
     "methods": {

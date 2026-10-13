@@ -35,7 +35,7 @@ interface SaleDialogProps {
 
 /**
  * Sale detail in a dialog over the transaction history (FR-INV-04,
- * FR-POS-10, ADR-0018): the frozen lines, totals and payments, with reprint
+ * FR-POS-13, ADR-0018): the frozen lines, totals and payments, with reprint
  * and void. Renders nothing for an unknown or foreign sale.
  */
 export async function SaleDialog({ session, saleId, closeHref }: SaleDialogProps) {

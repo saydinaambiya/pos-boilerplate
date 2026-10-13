@@ -221,7 +221,7 @@ test.describe("POS terminal and checkout (FR-POS, FR-PAY)", () => {
     await pos.context().close();
   });
 
-  test("shows the receiving bank of a transfer in the history (FR-POS-10)", async ({
+  test("shows the receiving bank of a transfer in the history (FR-POS-13)", async ({
     page,
     browser,
   }) => {
