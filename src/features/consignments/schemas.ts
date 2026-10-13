@@ -5,7 +5,8 @@ import { kasbonCheckoutInput, saleCustomerInput } from "@/features/kasbon/schema
 import { rupiah } from "@/lib/validation/money";
 import { plainText } from "@/lib/validation/text";
 
-const quantity = z.int().min(0).max(9999);
+/** Pieces, or on a roll centimetres (ADR-0023, FR-CSG-09). */
+const quantity = z.int().min(0).max(100_000);
 
 /** Goods a salesperson takes out in one visit (FR-CSG-02). */
 export const takeGoodsInput = z

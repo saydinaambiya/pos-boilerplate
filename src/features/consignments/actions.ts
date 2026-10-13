@@ -8,6 +8,7 @@ import { z } from "zod";
 import type { PosProduct } from "@/features/catalog/pos-types";
 import { searchConsignmentCatalog } from "@/features/catalog/pos-catalog";
 import { routing } from "@/i18n/routing";
+import { formatMeters } from "@/lib/format/length";
 import { requirePermission } from "@/lib/auth/guard";
 import { currentRequestContext } from "@/lib/http/request-context";
 
@@ -49,7 +50,11 @@ export async function takeGoodsAction(
       case "insufficient-stock":
         return {
           ok: false,
-          message: t("errors.insufficientStock", { available: result.available }),
+          message: t("errors.insufficientStock", {
+            available: result.isRoll
+              ? formatMeters(result.available, locale)
+              : String(result.available),
+          }),
         };
       case "forbidden":
         return { ok: false, message: t("errors.forbidden") };

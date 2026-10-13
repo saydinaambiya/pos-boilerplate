@@ -63,7 +63,7 @@ test.describe("dashboard and sales report (FR-DSH-01, FR-RPT)", () => {
     );
     const content = await readFile(await file.path(), "utf8");
     expect(content.replace(/^\uFEFF/, "").split("\r\n")[0]).toBe(
-      "Produk,Qty,Diskon item,Penjualan",
+      "Merk,Produk,Qty,Diskon item,Penjualan",
     );
   });
 

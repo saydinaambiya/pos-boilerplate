@@ -300,7 +300,7 @@ export async function queryMovements(query: MovementQuery) {
  * Latest movements of every variant, newest first, with what the goods are
  * and who moved them (FR-STK-10). Archived movements are left out.
  */
-export async function queryRecentMovements(limit: number) {
+export async function queryRecentMovements(limit: number, offset = 0) {
   return db
     .select({
       id: stockMovements.id,
@@ -327,5 +327,6 @@ export async function queryRecentMovements(limit: number) {
     .leftJoin(users, eq(users.id, stockMovements.actorId))
     .where(isNull(stockMovements.archivedAt))
     .orderBy(desc(stockMovements.id))
-    .limit(limit);
+    .limit(limit)
+    .offset(offset);
 }

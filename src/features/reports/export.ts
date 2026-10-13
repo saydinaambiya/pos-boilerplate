@@ -61,11 +61,15 @@ export function reportCsv(report: SalesReport, section: ReportSection, locale: L
         col(t("total"), "total"),
       ],
     },
-    products: { rows: report.products, columns: [col(t("product"), "name"), ...lineColumns] },
+    products: {
+      rows: report.products,
+      columns: [col(t("brand"), "brand"), col(t("product"), "name"), ...lineColumns],
+    },
     variants: {
       rows: report.variants,
       columns: [
         col(t("sku"), "sku"),
+        col(t("brand"), "brand"),
         col(t("product"), "name"),
         col(t("color"), "color"),
         ...lineColumns,

@@ -261,10 +261,21 @@ export async function getLowStock(session: Session, limit = 10) {
   return queryLowStock(limit);
 }
 
-/** Latest stock changes across all goods, shown beside the stock list (FR-STK-10). */
-export async function getRecentMovements(session: Session, limit = 30) {
+/** Stock changes per page of the history beside the stock list (FR-STK-10). */
+export const RECENT_MOVEMENTS_PAGE_SIZE = 10;
+
+/**
+ * Latest stock changes across all goods, shown beside the stock list a
+ * page at a time like the list itself (FR-STK-10).
+ */
+export async function getRecentMovements(
+  session: Session,
+  page = 1,
+  pageSize = RECENT_MOVEMENTS_PAGE_SIZE,
+) {
   assertPermission(session, "page:stock");
-  return queryRecentMovements(limit);
+  const rows = await queryRecentMovements(pageSize + 1, (page - 1) * pageSize);
+  return { movements: rows.slice(0, pageSize), hasNextPage: rows.length > pageSize };
 }
 
 /** Movement history with type and store-time-zone date filters (FR-STK-06). */

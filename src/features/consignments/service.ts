@@ -11,6 +11,7 @@ import { assertPermission } from "@/lib/auth/authorize";
 import type { Session } from "@/lib/auth/session";
 import type { RequestContext } from "@/lib/http/request-context";
 import { calculateSale } from "@/lib/money/calculate";
+import { cutPrice } from "@/lib/money/cut";
 import { readSetting } from "@/lib/settings/store";
 import { storeClosedFor } from "@/lib/settings/store-hours-guard";
 
@@ -38,7 +39,14 @@ export type TakeResult =
       ok: false;
       reason: "forbidden" | "invalid-salesperson" | "invalid-items" | "store-closed";
     }
-  | { ok: false; reason: "insufficient-stock"; variantId: string; available: number };
+  | {
+      ok: false;
+      reason: "insufficient-stock";
+      variantId: string;
+      /** Pieces, or roll centimetres when `isRoll` (FR-CSG-09). */
+      available: number;
+      isRoll: boolean;
+    };
 
 type SettleReason =
   | "not-found"
@@ -99,8 +107,9 @@ function seesEveryone(session: Session): boolean {
  * Records goods a salesperson takes out (FR-CSG-02). Each call is one dated
  * pickup kept in the history; it joins the salesperson's open consignment
  * or opens one. Stock leaves the shelf now through `CONSIGNMENT_OUT`
- * movements, under the same stock rules as a sale (FR-STK-03/04). A retry
- * with the same idempotency key returns the first result.
+ * movements, under the same stock rules as a sale (FR-STK-03/04). A roll's
+ * quantity is centimetres, priced per meter (FR-CSG-09). A retry with the
+ * same idempotency key returns the first result.
  */
 export async function takeGoods(
   session: Session,
@@ -180,7 +189,13 @@ export async function takeGoods(
         if (!moved.ok) {
           throw new TakeAbort(
             moved.reason === "insufficient-stock"
-              ? { ok: false, reason: "insufficient-stock", variantId, available: moved.available }
+              ? {
+                  ok: false,
+                  reason: "insufficient-stock",
+                  variantId,
+                  available: moved.available,
+                  isRoll: variants.get(variantId)?.isRoll ?? false,
+                }
               : { ok: false, reason: "invalid-items" },
           );
         }
@@ -365,7 +380,8 @@ function settlementOf(input: SettleGoodsInput): OutstandingChange {
  * part needs the salesperson's own `consignment:sell`, the returned part
  * `consignment:return` (ADR-0024). Sold goods become one sale for the named buyer, paid in full by cash or
  * transfer or put on store credit, in the actor's open shift like any POS
- * sale; it writes no second stock movement because the goods already left
+ * sale; meters sold off a roll become one custom cut priced per meter
+ * (FR-CSG-09, FR-ROL-04); it writes no second stock movement because the goods already left
  * at pickup. Returned goods go back on the shelf. Everything, sale
  * included, happens in one transaction, so an over-settlement rolls the
  * sale back. Idempotent through the sale's or the batch's key.
@@ -412,10 +428,14 @@ export async function settleGoods(
       (await consignmentBalances(db, consignmentId)).map((row) => [row.variantId, row]),
     );
     const tax = await readSetting("tax");
-    const lines = soldLines.map((line) => ({ variantId: line.variantId, qty: line.sold }));
+    const lines = soldLines.map((line) =>
+      balances.get(line.variantId)?.isRoll
+        ? { variantId: line.variantId, qty: 1, lengthCm: line.sold }
+        : { variantId: line.variantId, qty: line.sold },
+    );
     const grandTotal = calculateSale(
       lines.map((line) => ({
-        unitPrice: balances.get(line.variantId)?.price ?? 0,
+        unitPrice: cutPrice(balances.get(line.variantId)?.price ?? 0, line.lengthCm),
         qty: line.qty,
         discount: null,
       })),

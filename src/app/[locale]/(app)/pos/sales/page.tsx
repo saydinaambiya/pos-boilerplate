@@ -42,7 +42,7 @@ const statusChips = {
 } as const;
 
 /**
- * Transaction history (FR-POS-10, FR-HK-04): sales in a date range with
+ * Transaction history (FR-POS-13, FR-HK-04): sales in a date range with
  * invoice search and cashier, method and status filters that apply as they
  * change. Each row opens the sale in a dialog (`?view=`) for reprint, PDF and
  * void (ADR-0018).
@@ -252,6 +252,11 @@ export default async function SalesHistoryPage({ searchParams }: PageProps<"/[lo
                             : method,
                         )
                         .join(" + ")}
+                      {sale.transferBanks.length > 0 ? (
+                        <span className="block text-xs text-ink-muted">
+                          {sale.transferBanks.join(", ")}
+                        </span>
+                      ) : null}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {money(sale.grandTotal)}

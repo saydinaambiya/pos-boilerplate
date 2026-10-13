@@ -93,8 +93,11 @@ describe("cutting rolls (FR-ROL-03, ADR-0023)", () => {
       );
     expect(moves.map((move) => move.type)).toEqual(["CUT", "CUT", "CUT", "CUT"]);
 
-    const [cut] = await getRecentCuts(session);
+    const {
+      cuts: [cut],
+    } = await getRecentCuts(session);
     expect(cut).toMatchObject({ usedCm: 800, stockAfter: 3200 });
+    expect(await getRecentCuts(session, 2)).toEqual({ cuts: [], hasNextPage: false });
     expect(cut?.pieces).toEqual([
       { size: "93x47", qty: 4 },
       { size: "100x70", qty: 2 },
@@ -171,7 +174,9 @@ describe("cutting rolls (FR-ROL-03, ADR-0023)", () => {
     expect(await stockOf(piece("93x47"))).toBe(0);
     expect(await stockOf(rollId)).toBe(800);
 
-    const [cut] = await getRecentCuts(session);
+    const {
+      cuts: [cut],
+    } = await getRecentCuts(session);
     expect(cut).toMatchObject({ defect: true, pieces: [{ size: "93x47", qty: 1 }] });
     const levels = await getStockLevels(session, {
       q: "mihrab",

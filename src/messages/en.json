@@ -796,7 +796,8 @@
     "recentLine": "{type} · stock now {stock}",
     "recentBy": "{time} · by {name}",
     "quantityKg": "Weight (kg)",
-    "countedKg": "Counted weight (kg)"
+    "countedKg": "Counted weight (kg)",
+    "historyPagination": "History page navigation"
   },
   "Variants": {
     "title": "Colour variants",
@@ -1098,7 +1099,7 @@
     "status": "Status",
     "statuses": {
       "COMPLETED": "Completed",
-      "COMPLETED_WITH_KASBON": "Completed (store credit)",
+      "COMPLETED_WITH_KASBON": "Store credit",
       "VOIDED": "Voided"
     },
     "methods": {
@@ -1934,8 +1935,8 @@
     "returnDescription": "Enter how many came back to the store. Stock goes up straight away.",
     "saveSold": "Save sold goods",
     "saveReturned": "Save returned goods",
-    "nothingSold": "Enter a sold quantity for at least one item.",
-    "nothingReturned": "Enter a returned quantity for at least one item.",
+    "nothingSold": "Pick at least one sold item.",
+    "nothingReturned": "Pick at least one returned item.",
     "tooManySold": "More {name} sold than the {count} still carried.",
     "tooManyReturned": "More {name} returned than the {count} still carried.",
     "viewOnly": "Store staff record goods taken out and brought back. You can see the history here.",
@@ -1957,10 +1958,22 @@
     "reducedField": "Reduced",
     "reducedOf": "Reduced, {name}",
     "saveReduced": "Save reduction",
-    "nothingReduced": "Enter a reduced quantity for at least one item.",
+    "nothingReduced": "Pick at least one item to reduce.",
     "tooManyReduced": "The reduced quantity for {name} is more than the {count} still carried.",
     "colMotif": "Motif",
-    "colColor": "Colour"
+    "colColor": "Colour",
+    "rollWord": "Roll",
+    "pickItem": "Pick an item",
+    "pickItemPlaceholder": "Search the goods carried…",
+    "pickItemHint": "Pick the item first, then enter the amount. {count} kinds of goods are still out.",
+    "searchChoice": "Search…",
+    "noMatch": "No matching goods.",
+    "nothingPicked": "No goods picked yet.",
+    "perMeter": "{price} / m",
+    "inMeters": "{label} (m)",
+    "metersOf": "Meters of {name}",
+    "missingQty": "Enter an amount for {name}, or remove it.",
+    "meterUnit": "m"
   },
   "Cutting": {
     "title": "Cut Rolls",
@@ -2025,7 +2038,8 @@
     "togglePieces": "Pieces of {name} ({count})",
     "pieceStock": "{count} pcs",
     "defect": "Defect",
-    "rollUnit": "Roll (m)"
+    "rollUnit": "Roll (m)",
+    "historyPagination": "History page navigation"
   },
   "Expenses": {
     "title": "Daily expenses",

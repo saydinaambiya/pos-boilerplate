@@ -17,7 +17,10 @@ import { basisPointsToPercent } from "@/lib/settings/rates";
 
 import { ReportCard } from "./report-card";
 
-type LineRow = Omit<SalesReport["products"][number], "id" | "name"> & { id: string | null };
+type LineRow = Omit<SalesReport["products"][number], "id" | "name" | "brand"> & {
+  id: string | null;
+  brand?: string | null;
+};
 
 /** Rows shown per table; the CSV always has every row. */
 const TABLE_ROWS = 50;
@@ -65,6 +68,7 @@ export async function SalesDetails({ report }: { report: SalesReport }) {
     caption: string,
     rows: Row[],
     label: (row: Row) => ReactNode,
+    withBrand = false,
   ) =>
     rows.length === 0 ? (
       empty
@@ -74,6 +78,7 @@ export async function SalesDetails({ report }: { report: SalesReport }) {
           <TableCaption>{caption}</TableCaption>
           <TableHeader>
             <TableRow>
+              {withBrand ? <TableHead>{t("brand")}</TableHead> : null}
               <TableHead>{t("name")}</TableHead>
               <TableHead className="text-right">{t("qty")}</TableHead>
               <TableHead className="text-right">{t("revenue")}</TableHead>
@@ -82,6 +87,11 @@ export async function SalesDetails({ report }: { report: SalesReport }) {
           <TableBody>
             {rows.slice(0, TABLE_ROWS).map((row) => (
               <TableRow key={row.id ?? "none"}>
+                {withBrand ? (
+                  <TableCell className="[overflow-wrap:anywhere]">
+                    {row.brand ?? t("noBrand")}
+                  </TableCell>
+                ) : null}
                 <TableCell className="[overflow-wrap:anywhere]">{label(row)}</TableCell>
                 <TableCell className="text-right tabular-nums">{row.qty}</TableCell>
                 <TableCell className="text-right tabular-nums">{money(row.revenue)}</TableCell>
@@ -171,16 +181,21 @@ export async function SalesDetails({ report }: { report: SalesReport }) {
 
         {card(
           "products",
-          lineTable(t("productsCaption"), report.products, (row) => row.name),
+          lineTable(t("productsCaption"), report.products, (row) => row.name, true),
         )}
         {card(
           "variants",
-          lineTable(t("variantsCaption"), report.variants, (row) => (
-            <>
-              {row.color ? `${row.name} — ${row.color}` : row.name}
-              <span className="block text-xs text-ink-muted">{row.sku}</span>
-            </>
-          )),
+          lineTable(
+            t("variantsCaption"),
+            report.variants,
+            (row) => (
+              <>
+                {row.color ? `${row.name} — ${row.color}` : row.name}
+                <span className="block text-xs text-ink-muted">{row.sku}</span>
+              </>
+            ),
+            true,
+          ),
         )}
         {card(
           "brands",

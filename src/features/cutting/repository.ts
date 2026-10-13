@@ -132,7 +132,7 @@ export async function cutExists(executor: Executor, key: string): Promise<boolea
  * Latest cuts, newest first: the roll side of each `CUT` (negative
  * centimetres) with the pieces it produced, grouped by the cut's reference.
  */
-export async function queryRecentCuts(limit: number) {
+export async function queryRecentCuts(limit: number, offset = 0) {
   const cuts = await db
     .select({
       id: stockMovements.referenceId,
@@ -155,7 +155,8 @@ export async function queryRecentCuts(limit: number) {
       ),
     )
     .orderBy(desc(stockMovements.id))
-    .limit(limit);
+    .limit(limit)
+    .offset(offset);
   const ids = cuts.flatMap((cut) => (cut.id ? [cut.id] : []));
   const pieces =
     ids.length === 0

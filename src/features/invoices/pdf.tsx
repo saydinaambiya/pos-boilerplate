@@ -186,13 +186,17 @@ function InvoicePdf({
                 style={{ height: 40, width: 120, objectFit: "contain", marginBottom: 6 }}
               />
             ) : null}
-            <Text style={[styles.bold, { fontSize: 13 }]}>{doc.store.name}</Text>
+            <Text style={[styles.bold, { fontSize: 13, lineHeight: 1.3, marginBottom: 2 }]}>
+              {doc.store.name}
+            </Text>
             {storeLines.map((text, index) => (
               <Text key={index}>{text}</Text>
             ))}
           </View>
           <View style={{ alignItems: "flex-end" }}>
-            <Text style={[styles.bold, { fontSize: 18 }]}>{labels.invoice.toUpperCase()}</Text>
+            <Text style={[styles.bold, { fontSize: 18, lineHeight: 1.2, marginBottom: 2 }]}>
+              {labels.invoice.toUpperCase()}
+            </Text>
             {doc.voided ? <Text style={styles.bold}>{labels.voided}</Text> : null}
             <Text>{`${labels.number} ${doc.invoiceNo}`}</Text>
             <Text>{`${labels.date} ${doc.issuedAtText}`}</Text>

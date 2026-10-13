@@ -299,7 +299,7 @@ function saleListConditions(query: SaleListQuery) {
   return and(...conditions);
 }
 
-/** One page of sales, newest first, with cashier, methods and customer (FR-POS-10). */
+/** One page of sales, newest first, with cashier, methods, transfer banks and customer (FR-POS-13). */
 export async function querySales(query: SaleListQuery, page: number, pageSize: number) {
   return db
     .select({
@@ -313,6 +313,12 @@ export async function querySales(query: SaleListQuery, page: number, pageSize: n
       methods: sql<string[]>`array(
         select distinct ${payments.method}::text from ${payments} where ${payments.saleId} = ${sales.id}
         union select 'KASBON' from ${kasbons} where ${kasbons.saleId} = ${sales.id}
+      )`,
+      transferBanks: sql<string[]>`array(
+        select distinct ${bankAccounts.bankName} from ${payments}
+        inner join ${bankAccounts} on ${bankAccounts.id} = ${payments.bankAccountId}
+        where ${payments.saleId} = ${sales.id} and ${payments.method} = 'TRANSFER'
+        order by 1
       )`,
     })
     .from(sales)

@@ -53,9 +53,14 @@ export async function getRoll(session: Session, id: string) {
   return { ...roll, pieces: await listRollPieces(db, id) };
 }
 
-export async function getRecentCuts(session: Session, limit = 30) {
+/** Cuts per page of the history beside the roll list (FR-ROL-03). */
+export const RECENT_CUTS_PAGE_SIZE = 10;
+
+/** Latest cuts, a page at a time like the roll list (FR-ROL-03). */
+export async function getRecentCuts(session: Session, page = 1, pageSize = RECENT_CUTS_PAGE_SIZE) {
   assertPermission(session, "page:cutting");
-  return queryRecentCuts(limit);
+  const rows = await queryRecentCuts(pageSize + 1, (page - 1) * pageSize);
+  return { cuts: rows.slice(0, pageSize), hasNextPage: rows.length > pageSize };
 }
 
 /**
