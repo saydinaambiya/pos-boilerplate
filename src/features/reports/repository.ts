@@ -213,34 +213,38 @@ const lineColumns = {
   cogs: num(cogs),
 };
 
-/** Lines per product, best sellers first. */
+/** Lines per product with its current brand, best sellers first. */
 export async function salesByProduct(window: ReportWindow) {
   return db
-    .select({ id: products.id, name: products.name, ...lineColumns })
+    .select({ id: products.id, name: products.name, brand: brands.name, ...lineColumns })
     .from(saleItems)
     .innerJoin(sales, eq(sales.id, saleItems.saleId))
     .innerJoin(productVariants, eq(productVariants.id, saleItems.variantId))
     .innerJoin(products, eq(products.id, productVariants.productId))
+    .leftJoin(brands, eq(brands.id, products.brandId))
     .where(counted(window))
-    .groupBy(products.id, products.name)
+    .groupBy(products.id, products.name, brands.name)
     .orderBy(desc(sql`sum(${saleItems.lineTotal})`), asc(products.name));
 }
 
-/** Lines per variant with the colour as sold. */
+/** Lines per variant with the colour as sold and the product's current brand. */
 export async function salesByVariant(window: ReportWindow) {
   return db
     .select({
       id: saleItems.variantId,
       sku: productVariants.sku,
       name: sql<string>`max(${saleItems.nameSnapshot})`,
+      brand: brands.name,
       color: sql<string | null>`max(${saleItems.variantSnapshot})`,
       ...lineColumns,
     })
     .from(saleItems)
     .innerJoin(sales, eq(sales.id, saleItems.saleId))
     .innerJoin(productVariants, eq(productVariants.id, saleItems.variantId))
+    .innerJoin(products, eq(products.id, productVariants.productId))
+    .leftJoin(brands, eq(brands.id, products.brandId))
     .where(counted(window))
-    .groupBy(saleItems.variantId, productVariants.sku)
+    .groupBy(saleItems.variantId, productVariants.sku, brands.name)
     .orderBy(desc(sql`sum(${saleItems.lineTotal})`), asc(productVariants.sku));
 }
 

@@ -140,7 +140,7 @@ describe("sales report (FR-RPT-01..04)", () => {
     expect(report.summary).not.toHaveProperty("grossProfit");
     expect(report.products[0]).not.toHaveProperty("margin");
     expect([...reportCsv(report, "products", "id")][0]).toBe(
-      "Produk,Qty,Diskon item,Penjualan\r\n",
+      "Merk,Produk,Qty,Diskon item,Penjualan\r\n",
     );
   });
 
