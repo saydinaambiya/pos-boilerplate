@@ -260,6 +260,13 @@
       "when": 1791814701948,
       "tag": "0036_accessories",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1791874235360,
+      "tag": "0037_optional_customer_phone",
+      "breakpoints": true
     }
   ]
 }

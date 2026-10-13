@@ -74,7 +74,7 @@ async function sellable() {
 }
 
 interface Credit {
-  customer: { name: string; phone: string; note: string };
+  customer: { name: string; phone: string | null; note: string };
   dueDate: KasbonCheckoutInput["dueDate"];
 }
 
@@ -151,6 +151,23 @@ describe("store credit at checkout (FR-PAY-05, FR-KSB-01/02)", () => {
     expect(all).toHaveLength(1);
     expect(all[0]).toMatchObject({ name: "Ibu Sari", note: "Tetangga" });
     expect(sale?.customerId).toBe(all[0]?.id);
+  });
+
+  it("opens a credit without a phone, one customer row each (ADR-0047)", async () => {
+    await grant("kasbon:create");
+    const session = await cashier();
+    await openShift(session, { openingCash: 0 }, testContext());
+    const variantId = await sellable();
+    const noPhone = credit({ customer: { name: "Pak Budi", phone: null, note: "" } });
+
+    const first = await sellOnCredit(session, variantId, 0, noPhone);
+    if (!first.ok) throw new Error(first.reason);
+    const second = await sellOnCredit(session, variantId, 0, noPhone);
+    if (!second.ok) throw new Error(second.reason);
+    expect(await kasbonOf(first.saleId)).toMatchObject({ total: 100_000, status: "OPEN" });
+    const all = await db.select().from(customers);
+    expect(all).toHaveLength(2);
+    expect(all.every((row) => row.name === "Pak Budi" && row.phone === null)).toBe(true);
   });
 
   it("needs kasbon:create, a real remainder and a due date from today", async () => {

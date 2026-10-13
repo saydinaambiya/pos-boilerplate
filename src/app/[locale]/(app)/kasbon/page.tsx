@@ -170,9 +170,11 @@ export default async function KasbonPage({ searchParams }: PageProps<"/[locale]/
                     >
                       {kasbon.customerName}
                     </Link>
-                    <span className="block text-xs font-normal text-ink-muted tabular-nums">
-                      {formatIndonesianPhone(kasbon.customerPhone)}
-                    </span>
+                    {kasbon.customerPhone ? (
+                      <span className="block text-xs font-normal text-ink-muted tabular-nums">
+                        {formatIndonesianPhone(kasbon.customerPhone)}
+                      </span>
+                    ) : null}
                   </TableCell>
                   <TableCell className="tabular-nums">{kasbon.invoiceNo}</TableCell>
                   <TableCell className="text-right tabular-nums">{money(kasbon.total)}</TableCell>

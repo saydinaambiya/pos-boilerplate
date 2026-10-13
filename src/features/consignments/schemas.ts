@@ -63,8 +63,8 @@ export type SettlementPayment = z.infer<typeof settlementPayment>;
 /**
  * A settlement (FR-CSG-03/04): per variant how many were sold and how many
  * come back; what is left stays with the salesperson. Sold goods become a
- * sale for the named buyer (FR-POS-11); store credit needs the phone
- * (BR-11).
+ * sale for the named buyer (FR-POS-11); the phone stays optional, also on
+ * store credit (BR-11, ADR-0047).
  */
 export const settleGoodsInput = z
   .object({
@@ -87,14 +87,7 @@ export const settleGoodsInput = z
   .refine((value) => value.lines.every((line) => line.sold === 0) || value.customer !== null, {
     path: ["customer"],
     error: "required",
-  })
-  .refine(
-    (value) =>
-      value.payment.method !== "KASBON" ||
-      value.lines.every((line) => line.sold === 0) ||
-      value.customer?.phone != null,
-    { path: ["customer", "phone"], error: "required" },
-  );
+  });
 export type SettleGoodsInput = z.infer<typeof settleGoodsInput>;
 
 export const consignmentFilters = ["open", "closed"] as const;

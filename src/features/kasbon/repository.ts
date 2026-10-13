@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, desc, eq, ilike, isNull, ne, or, type SQL, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, isNotNull, isNull, ne, or, type SQL, sql } from "drizzle-orm";
 
 import type { ShiftKind } from "@/features/shifts/kind";
 import { openShiftScope } from "@/features/shifts/repository";
@@ -20,10 +20,19 @@ import type { CustomerInput, KasbonFilter } from "./schemas";
 
 /**
  * Finds the customer by phone or creates them; a repeat customer keeps one
- * row and their name and note follow the latest entry (FR-KSB-01).
+ * row and their name and note follow the latest entry (FR-KSB-01). A
+ * customer without a phone gets a row of their own (ADR-0047).
  */
 export async function upsertCustomer(executor: Executor, input: CustomerInput): Promise<string> {
   const note = input.note === "" ? null : input.note;
+  if (input.phone === null) {
+    const [row] = await executor
+      .insert(customers)
+      .values({ name: input.name, phone: null, note })
+      .returning({ id: customers.id });
+    if (!row) throw new Error("Customer insert returned no row");
+    return row.id;
+  }
   const [row] = await executor
     .insert(customers)
     .values({ name: input.name, phone: input.phone, note })
@@ -52,7 +61,10 @@ export async function insertKasbon(
   return row.id;
 }
 
-/** Customers matching a name or phone fragment, for re-selection at the POS. */
+/**
+ * Customers with a phone matching a name or phone fragment, for
+ * re-selection at the POS (ADR-0047).
+ */
 export async function queryCustomers(term: string, limit: number) {
   const pattern = `%${term.replace(/[\\%_]/g, "\\$&")}%`;
   const digits = term.replace(/\D/g, "").replace(/^0/, "");
@@ -65,9 +77,12 @@ export async function queryCustomers(term: string, limit: number) {
     })
     .from(customers)
     .where(
-      or(
-        ilike(customers.name, pattern),
-        ...(digits.length >= 3 ? [ilike(customers.phone, `%${digits}%`)] : []),
+      and(
+        isNotNull(customers.phone),
+        or(
+          ilike(customers.name, pattern),
+          ...(digits.length >= 3 ? [ilike(customers.phone, `%${digits}%`)] : []),
+        ),
       ),
     )
     .orderBy(asc(customers.name))

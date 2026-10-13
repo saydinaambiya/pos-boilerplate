@@ -229,14 +229,13 @@ export async function checkout(
       if (input.kasbon ? kasbonTotal <= 0 : kasbonTotal !== 0)
         throw new CheckoutAbort({ ok: false, reason: "payment-mismatch" });
       const { customer } = input;
-      const customerId =
-        input.kasbon && customer.phone
-          ? await resolveKasbonCustomer(tx, {
-              name: customer.name,
-              phone: customer.phone,
-              note: input.kasbon.note,
-            })
-          : null;
+      const customerId = input.kasbon
+        ? await resolveKasbonCustomer(tx, {
+            name: customer.name,
+            phone: customer.phone,
+            note: input.kasbon.note,
+          })
+        : null;
 
       const sequence = await nextInvoiceSequence(tx, storeDay(operations.timeZone, now));
       const invoiceNo = `${operations.invoicePrefix}${storeDay(operations.timeZone, now)}-${String(sequence).padStart(operations.invoiceSequenceDigits, "0")}`;

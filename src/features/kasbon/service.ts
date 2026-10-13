@@ -62,7 +62,7 @@ export type KasbonPaymentResult =
       available?: number;
     };
 
-/** The customer for a new store credit, re-used by phone (FR-KSB-01). */
+/** The customer for a new store credit, re-used by phone when given (FR-KSB-01, ADR-0047). */
 export async function resolveKasbonCustomer(
   tx: Executor,
   customer: CustomerInput,

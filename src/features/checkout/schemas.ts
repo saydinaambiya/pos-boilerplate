@@ -67,11 +67,7 @@ export const checkoutInput = z
     /** Puts the unpaid remainder on store credit for this customer (FR-PAY-05). */
     kasbon: kasbonCheckoutInput.optional(),
   })
-  .strict()
-  .refine((value) => !value.kasbon || value.customer.phone !== null, {
-    path: ["customer", "phone"],
-    error: "required",
-  });
+  .strict();
 
 export type CheckoutInput = z.infer<typeof checkoutInput>;
 export type CheckoutPayment = CheckoutInput["payments"][number];
