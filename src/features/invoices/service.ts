@@ -7,7 +7,7 @@ import { getSale, getSaleForVerifiedLink } from "@/features/checkout/service";
 import type { Session } from "@/lib/auth/session";
 import { translatorFor } from "@/lib/i18n/translator";
 import { formatKg } from "@/lib/format/quantity";
-import { variantLabel } from "@/lib/format/variant-label";
+import { detailsWithoutBrand, variantLabel } from "@/lib/format/variant-label";
 import { signToken, verifyToken } from "@/lib/security/signed-token";
 import { basisPointsToPercent } from "@/lib/settings/rates";
 import { readSetting } from "@/lib/settings/store";
@@ -48,10 +48,10 @@ async function buildDocument(sale: SaleDetail, locale: Locale): Promise<InvoiceD
     customerName: sale.customerName,
     voided: sale.status === "VOIDED",
     items: sale.items.map((item) => ({
-      name: variantLabel(item.nameSnapshot, item.variantSnapshot),
+      name: variantLabel(item.nameSnapshot, item.variantSnapshot, item.brandName),
       details:
         [
-          item.detailsSnapshot,
+          detailsWithoutBrand(item.detailsSnapshot, item.brandName),
           item.lengthCm === null
             ? null
             : `${locale === "en" ? "Cut" : "Potong"} ${String(item.lengthCm)}cm`,

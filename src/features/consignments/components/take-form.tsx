@@ -17,6 +17,7 @@ import { defectWord, formatSize, productDetailsLine } from "@/features/catalog/s
 import { useRouter } from "@/i18n/navigation";
 import { formatCurrency } from "@/lib/format/currency";
 import { formatMeters, parseMetersToCm } from "@/lib/format/length";
+import { brandedName } from "@/lib/format/variant-label";
 import { cn } from "@/lib/utils/cn";
 
 import { searchConsignmentCatalogAction, takeGoodsAction } from "../actions";
@@ -67,14 +68,15 @@ function variantName(
 }
 
 /**
- * Product name, then its brand, motif and the variant, so lookalike goods
- * stay apart (FR-CSG-08).
+ * Brand and product name, then its motif and the variant, so lookalike
+ * goods stay apart (FR-CSG-08, FR-PRD-08).
  */
 function variantLabel(product: PosProduct, variant: PosVariant, locale: string, rollWord: string) {
-  const name = [product.brandName, product.motif, variantName(product, variant, locale, rollWord)]
+  const name = [product.motif, variantName(product, variant, locale, rollWord)]
     .filter(Boolean)
     .join(" · ");
-  return name ? `${product.name} — ${name}` : product.name;
+  const title = brandedName(product.name, product.brandName);
+  return name ? `${title} — ${name}` : title;
 }
 
 /**
@@ -234,10 +236,10 @@ export function TakeForm({ locale, salespeople, defaultSalespersonId }: TakeForm
             {visible.map((product) => (
               <li key={product.id} className="rounded-control border border-border p-2">
                 <p className="mb-1 text-sm font-medium text-ink">
-                  {product.name}
-                  {productDetailsLine(product, locale) ? (
+                  {brandedName(product.name, product.brandName)}
+                  {productDetailsLine({ ...product, brandName: null }, locale) ? (
                     <span className="block text-xs font-normal text-ink-muted">
-                      {productDetailsLine(product, locale)}
+                      {productDetailsLine({ ...product, brandName: null }, locale)}
                     </span>
                   ) : null}
                 </p>

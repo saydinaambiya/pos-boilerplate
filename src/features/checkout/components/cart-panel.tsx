@@ -12,6 +12,7 @@ import { Select } from "@/components/ui/select";
 import type { Locale } from "@/config/locales";
 import { formatCurrency } from "@/lib/format/currency";
 import { parseRupiah } from "@/lib/format/rupiah-input";
+import { variantLabel } from "@/lib/format/variant-label";
 import type { ItemDiscount, SaleTotals, TaxRules, VoucherRule } from "@/lib/money/calculate";
 import { basisPointsToPercent, percentToBasisPoints } from "@/lib/settings/rates";
 
@@ -132,7 +133,7 @@ function VoucherField(
 }
 
 function itemName(item: CartItem) {
-  return item.colorName ? `${item.name} · ${item.colorName}` : item.name;
+  return variantLabel(item.name, item.colorName, item.brandName);
 }
 
 /** Per-line discount editor (FR-POS-02); shown only with `pos:item-discount`. */

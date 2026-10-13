@@ -22,6 +22,7 @@ import { formatSize, productDetailsLine } from "@/features/catalog/sizes";
 import { Link } from "@/i18n/navigation";
 import { formatCurrency } from "@/lib/format/currency";
 import { formatKg } from "@/lib/format/quantity";
+import { brandedName } from "@/lib/format/variant-label";
 import { cutPrice, weighPrice } from "@/lib/money/cut";
 import { calculateSale, type TaxRules, type VoucherRule } from "@/lib/money/calculate";
 import { cn } from "@/lib/utils/cn";
@@ -87,8 +88,8 @@ function isTyping(target: EventTarget | null) {
 /**
  * The POS screen (FR-POS-01..05, FR-POS-10): product grid with search and
  * brand filter, colour picker (with sizes and custom cuts for rolls,
- * FR-ROL-04), cart and payment. Tiles and cart lines name the motif
- * (FR-POS-12). The preview uses the
+ * FR-ROL-04), cart and payment. Tiles and cart lines name the brand beside
+ * the product (FR-PRD-08) and the motif (FR-POS-12). The preview uses the
  * same `calculateSale` as the server, which recomputes on checkout.
  */
 export function PosTerminal(props: PosTerminalProps) {
@@ -126,6 +127,7 @@ export function PosTerminal(props: PosTerminalProps) {
         return {
           ...item,
           motif: known.product.motif,
+          brandName: known.product.brandName,
           unitPrice:
             item.weightG === undefined
               ? cutPrice(known.variant.price, item.lengthCm)
@@ -205,6 +207,7 @@ export function PosTerminal(props: PosTerminalProps) {
       const line = {
         variantId: variant.id,
         name: product.name,
+        brandName: product.brandName,
         colorName: described === "" ? null : described,
         unitPrice:
           weightG === undefined
@@ -358,11 +361,11 @@ export function PosTerminal(props: PosTerminalProps) {
                       className="flex h-full min-h-24 w-full flex-col gap-1 rounded-card bg-surface p-3 text-left shadow-card hover:ring-2 hover:ring-primary focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <span className="line-clamp-2 font-medium [overflow-wrap:anywhere] text-ink">
-                        {product.name}
+                        {brandedName(product.name, product.brandName)}
                       </span>
-                      {productDetailsLine({ ...product, motif: null }, locale) ? (
+                      {productDetailsLine({ ...product, brandName: null, motif: null }, locale) ? (
                         <span className="line-clamp-1 text-xs [overflow-wrap:anywhere] text-ink-muted">
-                          {productDetailsLine({ ...product, motif: null }, locale)}
+                          {productDetailsLine({ ...product, brandName: null, motif: null }, locale)}
                         </span>
                       ) : null}
                       {product.motif ? (

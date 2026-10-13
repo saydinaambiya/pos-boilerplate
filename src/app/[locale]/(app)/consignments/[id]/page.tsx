@@ -38,8 +38,8 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * Item name with its brand, motif, colour and size, e.g.
- * "Karpet · Turkiye · Mihrab · Merah" (FR-CSG-08).
+ * Item name with its brand beside it, then motif, colour and size, e.g.
+ * "Turkiye · Karpet · Mihrab · Merah" (FR-CSG-08, FR-PRD-08).
  */
 function itemLabel(item: {
   name: string;
@@ -49,7 +49,8 @@ function itemLabel(item: {
 }) {
   return variantLabel(
     item.name,
-    [item.brandName, item.motif, item.variantName].filter(Boolean).join(" · ") || null,
+    [item.motif, item.variantName].filter(Boolean).join(" · ") || null,
+    item.brandName,
   );
 }
 
@@ -104,13 +105,8 @@ export default async function ConsignmentPage({
   const amount = (item: { isRoll: boolean }, qty: number) =>
     item.isRoll ? formatMeters(qty, locale) : String(qty);
   const days = [...new Set(consignment.batches.map((batch) => dayOf(batch.createdAt)))];
-  const goodsDetails = (item: {
-    brandName: string | null;
-    motif: string | null;
-    colorName: string | null;
-  }) =>
+  const goodsDetails = (item: { motif: string | null; colorName: string | null }) =>
     [
-      item.brandName ? `${t("colBrand")}: ${item.brandName}` : null,
       item.motif ? `${t("colMotif")}: ${item.motif}` : null,
       item.colorName ? `${t("colColor")}: ${item.colorName}` : null,
     ]
@@ -193,7 +189,9 @@ export default async function ConsignmentPage({
                   <TableCell className="[overflow-wrap:anywhere]">
                     {balance.brandName ?? "—"}
                   </TableCell>
-                  <TableCell className="[overflow-wrap:anywhere]">{nameOf(balance)}</TableCell>
+                  <TableCell className="[overflow-wrap:anywhere]">
+                    {nameOf({ ...balance, brandName: null })}
+                  </TableCell>
                   <TableCell className="[overflow-wrap:anywhere]">{balance.motif ?? "—"}</TableCell>
                   <TableCell className="[overflow-wrap:anywhere]">
                     {balance.colorName ?? "—"}

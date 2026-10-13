@@ -267,6 +267,13 @@
       "when": 1791874235360,
       "tag": "0037_optional_customer_phone",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1791874662681,
+      "tag": "0038_sale_item_brand",
+      "breakpoints": true
     }
   ]
 }

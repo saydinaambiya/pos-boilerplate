@@ -7,6 +7,8 @@ import type { ItemDiscount } from "@/lib/money/calculate";
 export interface CartItem {
   variantId: string;
   name: string;
+  /** Shown beside the name; refreshed from the catalogue when known (FR-PRD-08). */
+  brandName?: string | null;
   /** Colour plus size or cut length, as shown in the cart. */
   colorName: string | null;
   unitPrice: number;

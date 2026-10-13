@@ -272,6 +272,7 @@ export async function checkout(
             saleId,
             variantId: line.variantId,
             nameSnapshot: variant?.productName ?? "",
+            brandSnapshot: variant?.brandName ?? null,
             variantSnapshot: colorOf(variant?.attributes)?.name ?? null,
             detailsSnapshot: variant ? productDetailsLine(variant) || null : null,
             unitPrice: priced[index]?.unitPrice ?? 0,

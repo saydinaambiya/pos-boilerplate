@@ -264,7 +264,7 @@ export default async function CuttingPage({ searchParams }: PageProps<"/[locale]
               {cuts.map((cut) => (
                 <li key={cut.id} className="rounded-card border border-border p-3 text-sm">
                   <p className="flex flex-wrap items-center gap-2 font-medium [overflow-wrap:anywhere] text-ink">
-                    {variantLabel(cut.productName, cut.colorName)}
+                    {variantLabel(cut.productName, cut.colorName, cut.brandName)}
                     {cut.defect ? <Chip tone="warning">{t("defectChip")}</Chip> : null}
                   </p>
                   <p className="text-xs text-ink-muted">
@@ -331,7 +331,9 @@ export default async function CuttingPage({ searchParams }: PageProps<"/[locale]
           closeHref={{ pathname: "/cutting", query: kept }}
           closeLabel={tCommon("close")}
           size="lg"
-          title={t("cutTitle", { name: variantLabel(selected.productName, selected.colorName) })}
+          title={t("cutTitle", {
+            name: variantLabel(selected.productName, selected.colorName, selected.brandName),
+          })}
           description={t("cutDescription")}
         >
           <NextIntlClientProvider

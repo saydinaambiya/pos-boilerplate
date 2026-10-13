@@ -223,7 +223,11 @@ export default async function OnlineOrderPage({
                           key={item.id}
                           name={`condition:${item.id}`}
                           label={t("conditionFor", {
-                            name: variantLabel(item.nameSnapshot, item.variantSnapshot),
+                            name: variantLabel(
+                              item.nameSnapshot,
+                              item.variantSnapshot,
+                              item.brandName,
+                            ),
                             qty: item.qty,
                           })}
                           options={[

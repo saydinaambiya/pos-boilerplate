@@ -151,7 +151,10 @@ export async function insertIdempotencyRecord(
   await executor.insert(idempotencyKeys).values(values);
 }
 
-/** A sale with its lines, payments, cashier and any store credit, for the receipt view. */
+/**
+ * A sale with its lines, payments, cashier and any store credit, for the
+ * receipt view. Lines carry the brand frozen at sale time (FR-PRD-08).
+ */
 export async function findSaleDetail(saleId: string) {
   const [sale] = await db
     .select({
@@ -196,6 +199,7 @@ export async function findSaleDetail(saleId: string) {
         nameSnapshot: saleItems.nameSnapshot,
         variantSnapshot: saleItems.variantSnapshot,
         detailsSnapshot: saleItems.detailsSnapshot,
+        brandName: saleItems.brandSnapshot,
         unitPrice: saleItems.unitPrice,
         qty: saleItems.qty,
         lengthCm: saleItems.lengthCm,

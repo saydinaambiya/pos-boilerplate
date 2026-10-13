@@ -153,6 +153,8 @@ export const saleItems = pgTable(
       .notNull()
       .references(() => productVariants.id, { onDelete: "restrict" }),
     nameSnapshot: text().notNull(),
+    /** Brand at sale time, shown beside the name (FR-PRD-08, ADR-0047). */
+    brandSnapshot: text(),
     variantSnapshot: text(),
     /** Brand · motif · thickness · size at sale time, printed under the name (FR-PRD-06, FR-INV-01). */
     detailsSnapshot: text(),

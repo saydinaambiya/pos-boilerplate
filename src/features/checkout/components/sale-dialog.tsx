@@ -20,7 +20,7 @@ import type { Session } from "@/lib/auth/session";
 import { formatCurrency } from "@/lib/format/currency";
 import { formatIndonesianPhone } from "@/lib/format/phone";
 import { formatKg } from "@/lib/format/quantity";
-import { variantLabel } from "@/lib/format/variant-label";
+import { detailsWithoutBrand, variantLabel } from "@/lib/format/variant-label";
 import { basisPointsToPercent } from "@/lib/settings/rates";
 
 import { getSale } from "../service";
@@ -111,11 +111,13 @@ export async function SaleDialog({ session, saleId, closeHref }: SaleDialogProps
           {sale.items.map((item) => (
             <TableRow key={item.id}>
               <TableCell className="[overflow-wrap:anywhere]">
-                {variantLabel(item.nameSnapshot, item.variantSnapshot)}
-                {item.detailsSnapshot || item.lengthCm !== null || item.weightG !== null ? (
+                {variantLabel(item.nameSnapshot, item.variantSnapshot, item.brandName)}
+                {detailsWithoutBrand(item.detailsSnapshot, item.brandName) ||
+                item.lengthCm !== null ||
+                item.weightG !== null ? (
                   <span className="block text-xs text-ink-muted">
                     {[
-                      item.detailsSnapshot,
+                      detailsWithoutBrand(item.detailsSnapshot, item.brandName),
                       item.lengthCm === null
                         ? null
                         : t("cutLabel", { length: String(item.lengthCm) }),

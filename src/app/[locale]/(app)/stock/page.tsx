@@ -218,7 +218,7 @@ export default async function StockPage({ searchParams }: PageProps<"/[locale]/s
                     }
                   >
                     {brandGroup.map((group) => {
-                      const name = stockItemLabel(group, t("defect"));
+                      const name = stockItemLabel({ ...group, brandName: null }, t("defect"));
                       return (
                         <TableSubGroup
                           key={`${group.variantId}-${String(searched)}`}
@@ -269,7 +269,10 @@ export default async function StockPage({ searchParams }: PageProps<"/[locale]/s
                                     <Link
                                       href={`/stock/${piece.variantId}`}
                                       aria-label={t("open", {
-                                        name: stockItemLabel(piece, t("defect")),
+                                        name: stockItemLabel(
+                                          { ...piece, brandName: null },
+                                          t("defect"),
+                                        ),
                                       })}
                                       className="underline-offset-4 hover:underline"
                                     >
@@ -344,10 +347,9 @@ export default async function StockPage({ searchParams }: PageProps<"/[locale]/s
           ) : (
             <ol aria-label={t("recentTitle")} className="flex flex-col gap-3">
               {recent.map((movement) => {
-                const details = [
-                  movement.brandName ? `${t("brand")}: ${movement.brandName}` : null,
-                  movement.motif ? `${t("motif")}: ${movement.motif}` : null,
-                ].filter(Boolean);
+                const details = [movement.motif ? `${t("motif")}: ${movement.motif}` : null].filter(
+                  Boolean,
+                );
                 return (
                   <li key={movement.id} className="rounded-card border border-border p-3 text-sm">
                     <p className="flex items-start justify-between gap-3">
