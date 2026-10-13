@@ -3,6 +3,7 @@ import { gzipSync } from "node:zlib";
 import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 
+import { E2E_BRAND } from "./accounts";
 import { expect, test } from "./fixtures";
 import { addPiece, cashierAtPos, choose, createStockedProduct, expectResult } from "./helpers";
 
@@ -49,16 +50,18 @@ test.describe("POS terminal and checkout (FR-POS, FR-PAY)", () => {
     await brandChips.getByRole("button", { name: "Semua" }).click();
     await addPiece(page, product);
     await expect(cart).toContainText("Motif: Nappa");
-    await cart.getByRole("button", { name: `Tambah ${product}` }).click();
-    await cart.getByRole("button", { name: `Tambah ${product}` }).click();
-    await expect(cart.getByLabel(`Jumlah ${product}`)).toHaveValue("3");
+    await cart.getByRole("button", { name: `Tambah ${E2E_BRAND} · ${product}` }).click();
+    await cart.getByRole("button", { name: `Tambah ${E2E_BRAND} · ${product}` }).click();
+    await expect(cart.getByLabel(`Jumlah ${E2E_BRAND} · ${product}`)).toHaveValue("3");
     await expect(cart).toContainText(/Rp\s8\.000 × 3\s*Rp\s24\.000/);
     const total = await cartTotal(page);
     expect(total).toBeGreaterThanOrEqual(24_000);
 
     await page.reload();
     await expect(
-      page.getByRole("complementary", { name: "Keranjang" }).getByLabel(`Jumlah ${product}`),
+      page
+        .getByRole("complementary", { name: "Keranjang" })
+        .getByLabel(`Jumlah ${E2E_BRAND} · ${product}`),
     ).toHaveValue("3");
 
     const results = await new AxeBuilder({ page })
@@ -90,7 +93,8 @@ test.describe("POS terminal and checkout (FR-POS, FR-PAY)", () => {
     await expect(page.getByTestId("invoice")).toContainText(rupiah(100_000 - total));
     await expect(page.getByTestId("invoice")).toContainText("Tunai diterima");
     await expect(page.getByTestId("invoice")).toContainText(`Pembeli ${run}`);
-    await expect(page.getByTestId("invoice")).toContainText("Merk Uji · Nappa · 2mm · 93cm x 47cm");
+    await expect(page.getByTestId("invoice")).toContainText(`${E2E_BRAND} · ${product} · Red`);
+    await expect(page.getByTestId("invoice")).toContainText("Nappa · 2mm · 93cm x 47cm");
     const saleId = /invoices\/([0-9a-f-]+)/.exec(page.url())?.[1] ?? "";
     await page.goto(`/id/pos/sales/${saleId}`);
     await expect(page).toHaveURL(new RegExp(`/id/pos/sales\\?view=${saleId}$`));
@@ -124,7 +128,9 @@ test.describe("POS terminal and checkout (FR-POS, FR-PAY)", () => {
     await page.getByRole("searchbox", { name: "Cari produk" }).fill(product);
     await addPiece(page, product);
     await expect(
-      page.getByRole("complementary", { name: "Keranjang" }).getByLabel(`Jumlah ${product}`),
+      page
+        .getByRole("complementary", { name: "Keranjang" })
+        .getByLabel(`Jumlah ${E2E_BRAND} · ${product}`),
     ).toHaveValue("1");
     await page.locator("body").click({ position: { x: 5, y: 5 } });
     await page.keyboard.press("Escape");

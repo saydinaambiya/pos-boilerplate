@@ -16,14 +16,16 @@ const run = Date.now().toString(36);
 const product = `Keripik Sales ${run}`;
 const sku = `SALES-${run}`.toUpperCase();
 const item = `${product} · Red · 93cm x 47cm`;
-/** The item with its brand and motif, as forms list it (FR-CSG-08). */
-const withMotif = `${product} · ${E2E_BRAND} · Nappa · Red · 93cm x 47cm`;
+/** The item with its brand beside it and its motif, as forms list it (FR-CSG-08, FR-PRD-08). */
+const withMotif = `${E2E_BRAND} · ${product} · Nappa · Red · 93cm x 47cm`;
 /** The item without its colour, as the balance table and the history name it. */
 const goods = `${product} · 93cm x 47cm`;
+/** The item in the dated history, with its brand beside it (FR-CSG-08, FR-PRD-08). */
+const historyGoods = `${E2E_BRAND} · ${goods}`;
 /** The line under each history item (FR-CSG-08). */
-const details = `Merk: ${E2E_BRAND} · Motif: Nappa · Warna: Red`;
+const details = "Motif: Nappa · Warna: Red";
 /** The colour's roll, carried by the meter (FR-CSG-09). */
-const rollItem = `${product} · ${E2E_BRAND} · Nappa · Red · Roll`;
+const rollItem = `${E2E_BRAND} · ${product} · Nappa · Red · Roll`;
 
 /** Searches the goods still carried and picks one before its amount is entered (FR-CSG-09). */
 async function pickGoods(dialog: Locator, label: string) {
@@ -59,9 +61,9 @@ test.describe("field sales goods (FR-CSG-01..08, ADR-0024)", () => {
     await choose(take, "Sales", accounts.posCashier.name);
     await take.getByRole("searchbox").fill(product);
     await take
-      .getByRole("button", { name: `Tambah ${product} — ${E2E_BRAND} · Nappa · Red · 93cm x 47cm` })
+      .getByRole("button", { name: `Tambah ${E2E_BRAND} · ${product} — Nappa · Red · 93cm x 47cm` })
       .click();
-    await take.getByLabel(`Jumlah ${product}`).fill("5");
+    await take.getByLabel(`Jumlah ${E2E_BRAND} · ${product}`).fill("5");
     await take.getByRole("button", { name: "Simpan barang dibawa" }).click();
     await expectResult(page, "Barang yang dibawa sudah dicatat.");
     await expect(page).toHaveURL(/\/id\/consignments\/[0-9a-f-]+$/);
@@ -73,9 +75,9 @@ test.describe("field sales goods (FR-CSG-01..08, ADR-0024)", () => {
     const more = page.getByRole("dialog", { name: "Ambil barang" });
     await more.getByRole("searchbox").fill(product);
     await more
-      .getByRole("button", { name: `Tambah ${product} — ${E2E_BRAND} · Nappa · Red · 93cm x 47cm` })
+      .getByRole("button", { name: `Tambah ${E2E_BRAND} · ${product} — Nappa · Red · 93cm x 47cm` })
       .click();
-    await more.getByLabel(`Jumlah ${product}`).fill("2");
+    await more.getByLabel(`Jumlah ${E2E_BRAND} · ${product}`).fill("2");
     await more.getByRole("button", { name: "Simpan barang dibawa" }).click();
     await expectResult(page, "Barang yang dibawa sudah dicatat.");
     await expect(balance.getByRole("row", { name: new RegExp(goods) })).toContainText("7");
@@ -108,7 +110,7 @@ test.describe("field sales goods (FR-CSG-01..08, ADR-0024)", () => {
     await expect(
       page
         .getByRole("listitem")
-        .filter({ hasText: new RegExp(`^${goods}\\s*${details}\\s*1 dikurangi$`) }),
+        .filter({ hasText: new RegExp(`^${historyGoods}\\s*${details}\\s*1 dikurangi$`) }),
     ).toHaveCount(1);
   });
 
@@ -122,7 +124,7 @@ test.describe("field sales goods (FR-CSG-01..08, ADR-0024)", () => {
     const historyLine = (what: string) =>
       page
         .getByRole("listitem")
-        .filter({ hasText: new RegExp(`^${goods}\\s*${details}\\s*${what}$`) });
+        .filter({ hasText: new RegExp(`^${historyGoods}\\s*${details}\\s*${what}$`) });
     await expect(historyLine("5 diambil")).toHaveCount(1);
     await expect(historyLine("2 diambil")).toHaveCount(1);
     await expect(historyLine("1 dikurangi")).toHaveCount(1);
@@ -197,7 +199,7 @@ test.describe("field sales goods (FR-CSG-01..08, ADR-0024)", () => {
     const take = page.getByRole("dialog", { name: "Ambil barang" });
     await choose(take, "Sales", accounts.posCashier.name);
     await take.getByRole("searchbox").fill(product);
-    const rollButton = `${product} — ${E2E_BRAND} · Nappa · Red · Roll`;
+    const rollButton = `${E2E_BRAND} · ${product} — Nappa · Red · Roll`;
     await take.getByRole("button", { name: `Tambah ${rollButton}` }).click();
     await take.getByRole("button", { name: "Simpan barang dibawa" }).click();
     await expect(take.getByRole("alert")).toContainText(`Isi jumlah untuk ${rollButton}`);

@@ -137,7 +137,7 @@ test.describe("brands & products (FR-CAT-02, FR-PRD)", () => {
     await page.getByRole("link", { name: `Ubah Kopi Susu ${run}` }).click();
     await page.getByRole("button", { name: "Hapus" }).click();
     await page
-      .getByRole("dialog", { name: `Hapus Kopi Susu ${run}?` })
+      .getByRole("dialog", { name: new RegExp(`^Hapus .+ · Kopi Susu ${run}\\?$`) })
       .getByRole("button", { name: "Hapus" })
       .click();
     await expect(page.getByText("Produk dihapus.")).toBeVisible();

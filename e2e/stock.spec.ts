@@ -80,10 +80,10 @@ test.describe("stock ledger (FR-STK)", () => {
     await expect(changes).toHaveCount(3);
     await expect(changes.first()).toContainText("Write-off · stok jadi 4,5m");
     await expect(changes.first()).toContainText("Basah");
-    await expect(changes.first()).toContainText(`Merk: ${E2E_BRAND} · Motif: Nappa`);
+    await expect(changes.first()).toContainText("Motif: Nappa");
     await changes
       .first()
-      .getByRole("link", { name: `${product} · Red · Roll` })
+      .getByRole("link", { name: `${E2E_BRAND} · ${product} · Red · Roll` })
       .click();
     await expect(page).toHaveURL(/\/id\/stock\/[0-9a-f-]+$/);
   });
@@ -116,7 +116,7 @@ test.describe("stock ledger (FR-STK)", () => {
   test("books a defect cut apart and filters defect stock (FR-ROL-05)", async ({ page }) => {
     await page.goto(`/id/cutting?q=${encodeURIComponent(product)}`);
     await page.getByRole("link", { name: `Potong ${product} · Red`, exact: true }).click();
-    const dialog = page.getByRole("dialog", { name: `Potong ${product} · Red` });
+    const dialog = page.getByRole("dialog", { name: `Potong ${E2E_BRAND} · ${product} · Red` });
     await dialog.getByLabel("Panjang dipotong (m)").fill("0,5");
     await dialog.getByLabel("Barang cacat").check();
     await expect(dialog).toContainText("Hasil potongan cacat");
@@ -137,7 +137,7 @@ test.describe("stock ledger (FR-STK)", () => {
   test("refuses a cut longer than the roll", async ({ page }) => {
     await page.goto(`/id/cutting?q=${encodeURIComponent(product)}`);
     await page.getByRole("link", { name: `Potong ${product} · Red`, exact: true }).click();
-    const dialog = page.getByRole("dialog", { name: `Potong ${product} · Red` });
+    const dialog = page.getByRole("dialog", { name: `Potong ${E2E_BRAND} · ${product} · Red` });
     await dialog.getByLabel("Panjang dipotong (m)").fill("4");
     await dialog.getByLabel(/^100cm x 140cm/).fill("5");
     await expect(dialog).toContainText("-1,5m");
