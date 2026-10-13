@@ -30,7 +30,7 @@ import { Link } from "@/i18n/navigation";
 import { requirePermission } from "@/lib/auth/guard";
 import { formatMeters } from "@/lib/format/length";
 import { variantLabel } from "@/lib/format/variant-label";
-import { firstParam } from "@/lib/utils/search-params";
+import { firstParam, historyPageOf } from "@/lib/utils/search-params";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Cutting");
@@ -39,7 +39,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /**
  * Cut Rolls (FR-ROL-03, ADR-0023): every active roll with the meters left
- * and the latest cuts, grouped per brand like the product list with each
+ * and the latest cuts, paged on their own through `?history=` like the list, grouped per brand like the product list with each
  * roll's pieces folded under it, ten brands a page; brands start closed
  * until a search applies (ADR-0040, ADR-0041). `?roll=` opens the cut
  * form over the list (ADR-0018).
@@ -52,22 +52,36 @@ export default async function CuttingPage({ searchParams }: PageProps<"/[locale]
     page: firstParam(raw.page) ?? "1",
   });
   const rollId = z.uuid().safeParse(firstParam(raw.roll));
+  const historyPage = historyPageOf(firstParam(raw.history));
 
-  const [t, tCommon, format, locale, messages, { rolls, hasNextPage }, cuts, selected] =
-    await Promise.all([
-      getTranslations("Cutting"),
-      getTranslations("Common"),
-      getFormatter(),
-      getLocale(),
-      getMessages(),
-      getRolls(session, filters),
-      getRecentCuts(session),
-      rollId.success ? getRoll(session, rollId.data) : Promise.resolve(undefined),
-    ]);
+  const [
+    t,
+    tCommon,
+    format,
+    locale,
+    messages,
+    { rolls, hasNextPage },
+    { cuts, hasNextPage: moreHistory },
+    selected,
+  ] = await Promise.all([
+    getTranslations("Cutting"),
+    getTranslations("Common"),
+    getFormatter(),
+    getLocale(),
+    getMessages(),
+    getRolls(session, filters),
+    getRecentCuts(session, historyPage),
+    rollId.success ? getRoll(session, rollId.data) : Promise.resolve(undefined),
+  ]);
   const meters = (cm: number) => formatMeters(cm, locale);
   const query = (pageNumber: number) => ({
     ...(filters.q ? { q: filters.q } : {}),
     ...(pageNumber > 1 ? { page: String(pageNumber) } : {}),
+    ...(historyPage > 1 ? { history: String(historyPage) } : {}),
+  });
+  const historyQuery = (historyNumber: number) => ({
+    ...query(filters.page),
+    history: String(historyNumber),
   });
   const kept = query(filters.page);
   const searched = filters.q !== "";
@@ -279,6 +293,36 @@ export default async function CuttingPage({ searchParams }: PageProps<"/[locale]
               ))}
             </ol>
           )}
+          {historyPage > 1 || moreHistory ? (
+            <nav
+              aria-label={t("historyPagination")}
+              className="mt-4 flex items-center justify-end gap-2"
+            >
+              {historyPage > 1 ? (
+                <Button asChild variant="ghost">
+                  <Link
+                    href={{ pathname: "/cutting", query: historyQuery(historyPage - 1) }}
+                    scroll={false}
+                  >
+                    {t("previous")}
+                  </Link>
+                </Button>
+              ) : null}
+              <span className="text-sm text-ink-muted">
+                {t("pageLabel", { page: historyPage })}
+              </span>
+              {moreHistory ? (
+                <Button asChild variant="secondary">
+                  <Link
+                    href={{ pathname: "/cutting", query: historyQuery(historyPage + 1) }}
+                    scroll={false}
+                  >
+                    {t("next")}
+                  </Link>
+                </Button>
+              ) : null}
+            </nav>
+          ) : null}
         </Card>
       </div>
 

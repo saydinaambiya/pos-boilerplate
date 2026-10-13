@@ -796,7 +796,8 @@
     "recentLine": "{type} · stock now {stock}",
     "recentBy": "{time} · by {name}",
     "quantityKg": "Weight (kg)",
-    "countedKg": "Counted weight (kg)"
+    "countedKg": "Counted weight (kg)",
+    "historyPagination": "History page navigation"
   },
   "Variants": {
     "title": "Colour variants",
@@ -2037,7 +2038,8 @@
     "togglePieces": "Pieces of {name} ({count})",
     "pieceStock": "{count} pcs",
     "defect": "Defect",
-    "rollUnit": "Roll (m)"
+    "rollUnit": "Roll (m)",
+    "historyPagination": "History page navigation"
   },
   "Expenses": {
     "title": "Daily expenses",

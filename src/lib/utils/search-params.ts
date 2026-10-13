@@ -18,3 +18,12 @@ export function keptQuery(raw: RawSearchParams, drop: readonly string[]): Record
   }
   return query;
 }
+
+/**
+ * Page of a side history paged apart from its list (`?history=`), 1 when
+ * missing or invalid (FR-STK-10, FR-ROL-03).
+ */
+export function historyPageOf(value: string | undefined): number {
+  const page = Number(value);
+  return Number.isInteger(page) && page >= 1 && page <= 1000 ? page : 1;
+}

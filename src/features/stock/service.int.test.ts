@@ -220,7 +220,8 @@ describe("recent stock changes (FR-STK-10)", () => {
     await receiveStock(session, second, { qty: 3, note: "" }, testContext());
     await writeOffStock(session, second, { qty: 1, reason: "Rusak" }, testContext());
 
-    const recent = await getRecentMovements(session);
+    const { movements: recent, hasNextPage } = await getRecentMovements(session);
+    expect(hasNextPage).toBe(false);
     expect(
       recent.map((movement) => [
         movement.productName,
@@ -235,6 +236,11 @@ describe("recent stock changes (FR-STK-10)", () => {
       ["Produk ONE", "IN", 5, 5, "Faktur 7"],
     ]);
     expect(recent[0]?.actorName).toBe(fixtures.owner.name);
-    expect(await getRecentMovements(session, 1)).toHaveLength(1);
+    const firstPage = await getRecentMovements(session, 1, 2);
+    expect(firstPage.movements.map((movement) => movement.type)).toEqual(["WRITE_OFF", "IN"]);
+    expect(firstPage.hasNextPage).toBe(true);
+    const secondPage = await getRecentMovements(session, 2, 2);
+    expect(secondPage.movements.map((movement) => movement.reason)).toEqual(["Faktur 7"]);
+    expect(secondPage.hasNextPage).toBe(false);
   });
 });

@@ -30,6 +30,7 @@ import { formatThickness } from "@/lib/format/length";
 import { formatStock, stockMeasure } from "@/lib/format/quantity";
 import { stockItemLabel, variantLabel } from "@/lib/format/variant-label";
 import { cn } from "@/lib/utils/cn";
+import { historyPageOf } from "@/lib/utils/search-params";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Stock");
@@ -43,7 +44,8 @@ export async function generateMetadata(): Promise<Metadata> {
  * roll in meters with its pieces folded under it, all shown on a click or
  * once a search or filter is applied (ADR-0023, ADR-0038, ADR-0040,
  * ADR-0041). Beside it, the latest stock changes of all goods, each
- * linking to its full history (FR-STK-10). A plain visit starts
+ * linking to its full history, paged on its own through `?history=` like
+ * the list (FR-STK-10). A plain visit starts
  * with only stock that has a minimum; unticking it sends `minimum=0`, so
  * the hidden field keeps the choice in the URL.
  */
@@ -63,14 +65,16 @@ export default async function StockPage({ searchParams }: PageProps<"/[locale]/s
     sort: first(raw.sort),
     page: first(raw.page) ?? "1",
   });
-  const [t, format, locale, thicknesses, page, recent] = await Promise.all([
-    getTranslations("Stock"),
-    getFormatter(),
-    getLocale(),
-    getThicknesses(session),
-    getStockLevels(session, filters),
-    getRecentMovements(session),
-  ]);
+  const historyPage = historyPageOf(first(raw.history));
+  const [t, format, locale, thicknesses, page, { movements: recent, hasNextPage: moreHistory }] =
+    await Promise.all([
+      getTranslations("Stock"),
+      getFormatter(),
+      getLocale(),
+      getThicknesses(session),
+      getStockLevels(session, filters),
+      getRecentMovements(session, historyPage),
+    ]);
   const amount = (level: { isRoll: boolean; unit: string }, value: number) =>
     formatStock(stockMeasure(level), value, locale);
   const signed = (level: { isRoll: boolean; unit: string }, value: number) =>
@@ -93,6 +97,11 @@ export default async function StockPage({ searchParams }: PageProps<"/[locale]/s
     ...(filters.thickness === undefined ? {} : { thickness: String(filters.thickness) }),
     ...(filters.sort === "name" ? {} : { sort: filters.sort }),
     ...(pageNumber > 1 ? { page: String(pageNumber) } : {}),
+    ...(historyPage > 1 ? { history: String(historyPage) } : {}),
+  });
+  const historyQuery = (historyNumber: number) => ({
+    ...query(filters.page),
+    history: String(historyNumber),
   });
 
   return (
@@ -385,6 +394,36 @@ export default async function StockPage({ searchParams }: PageProps<"/[locale]/s
               })}
             </ol>
           )}
+          {historyPage > 1 || moreHistory ? (
+            <nav
+              aria-label={t("historyPagination")}
+              className="mt-4 flex items-center justify-end gap-2"
+            >
+              {historyPage > 1 ? (
+                <Button asChild variant="ghost">
+                  <Link
+                    href={{ pathname: "/stock", query: historyQuery(historyPage - 1) }}
+                    scroll={false}
+                  >
+                    {t("previous")}
+                  </Link>
+                </Button>
+              ) : null}
+              <span className="text-sm text-ink-muted">
+                {t("pageLabel", { page: historyPage })}
+              </span>
+              {moreHistory ? (
+                <Button asChild variant="secondary">
+                  <Link
+                    href={{ pathname: "/stock", query: historyQuery(historyPage + 1) }}
+                    scroll={false}
+                  >
+                    {t("next")}
+                  </Link>
+                </Button>
+              ) : null}
+            </nav>
+          ) : null}
         </Card>
       </div>
     </>

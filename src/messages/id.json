@@ -796,7 +796,8 @@
     "recentLine": "{type} · stok jadi {stock}",
     "recentBy": "{time} · oleh {name}",
     "quantityKg": "Berat (kg)",
-    "countedKg": "Berat fisik (kg)"
+    "countedKg": "Berat fisik (kg)",
+    "historyPagination": "Navigasi halaman riwayat"
   },
   "Variants": {
     "title": "Varian warna",
@@ -2037,7 +2038,8 @@
     "togglePieces": "Potongan {name} ({count})",
     "pieceStock": "{count} pcs",
     "defect": "Cacat",
-    "rollUnit": "Roll (m)"
+    "rollUnit": "Roll (m)",
+    "historyPagination": "Navigasi halaman riwayat"
   },
   "Expenses": {
     "title": "Pengeluaran harian",
