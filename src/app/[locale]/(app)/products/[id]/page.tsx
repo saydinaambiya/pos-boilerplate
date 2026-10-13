@@ -14,6 +14,7 @@ import { VariantsSection } from "@/features/catalog/components/variants-section"
 import { getBrands, getProduct } from "@/features/catalog/service";
 import { formatMeters, formatThickness } from "@/lib/format/length";
 import { formatStock, stockMeasure } from "@/lib/format/quantity";
+import { brandedName } from "@/lib/format/variant-label";
 import { Link } from "@/i18n/navigation";
 import { requirePermission } from "@/lib/auth/guard";
 import { firstParam } from "@/lib/utils/search-params";
@@ -48,9 +49,8 @@ export default async function EditProductPage({
   return (
     <>
       <PageHeader
-        title={product.name}
+        title={brandedName(product.name, product.brandName)}
         description={[
-          product.brandName,
           product.motif,
           product.thickness ? formatThickness(product.thickness, locale) : null,
           product.hasVariants ? null : product.sku,
@@ -107,7 +107,7 @@ export default async function EditProductPage({
             successHref="/products"
             labels={{
               trigger: t("delete"),
-              title: t("deleteTitle", { name: product.name }),
+              title: t("deleteTitle", { name: brandedName(product.name, product.brandName) }),
               description: t("deleteDescription"),
               confirm: t("delete"),
               cancel: tCommon("cancel"),

@@ -18,14 +18,14 @@ export const emptyCustomerDraft: CustomerDraft = { name: "", phone: "" };
 
 /**
  * Whether the buyer can be submitted (FR-POS-11): a name always, a phone
- * when it is given or the sale goes on store credit (BR-11). The server
- * validates again.
+ * only when it is given, also on store credit (BR-11, ADR-0047). The
+ * server validates again.
  */
-export function customerDraftErrors(draft: CustomerDraft, phoneRequired: boolean) {
+export function customerDraftErrors(draft: CustomerDraft) {
   const phone = draft.phone.trim();
   return {
     name: draft.name.trim() === "",
-    phone: phone === "" ? phoneRequired : normalizeIndonesianPhone(phone) === null,
+    phone: phone !== "" && normalizeIndonesianPhone(phone) === null,
   };
 }
 
@@ -33,21 +33,19 @@ interface CustomerFieldsProps {
   locale: Locale;
   draft: CustomerDraft;
   onChange: (draft: CustomerDraft) => void;
-  phoneRequired: boolean;
   showErrors: boolean;
   errors: ReturnType<typeof customerDraftErrors>;
 }
 
 /**
- * Buyer name (required) and phone (optional, required for store credit)
- * asked on every sale (FR-POS-11). Typing either suggests earlier store
+ * Buyer name (required) and phone (optional) asked on every sale
+ * (FR-POS-11, ADR-0047). Typing either suggests earlier store
  * credit customers so they are re-used rather than duplicated (FR-KSB-01).
  */
 export function CustomerFields({
   locale,
   draft,
   onChange,
-  phoneRequired,
   showErrors,
   errors,
 }: CustomerFieldsProps) {
@@ -105,7 +103,7 @@ export function CustomerFields({
       </div>
       <div className="flex flex-col gap-1.5">
         <label htmlFor={`${id}-phone`} className="text-sm font-medium text-ink">
-          {phoneRequired ? t("customerPhone") : t("customerPhoneOptional")}
+          {t("customerPhoneOptional")}
         </label>
         <Input
           id={`${id}-phone`}
@@ -122,7 +120,7 @@ export function CustomerFields({
         />
         {showErrors && errors.phone ? (
           <p id={`${id}-phone-error`} className="text-sm text-danger-ink">
-            {draft.phone.trim() === "" ? t("customerPhoneRequired") : t("customerPhoneInvalid")}
+            {t("customerPhoneInvalid")}
           </p>
         ) : null}
       </div>

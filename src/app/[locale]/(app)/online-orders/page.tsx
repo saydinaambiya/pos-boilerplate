@@ -23,6 +23,7 @@ import type { OnlineOrderStatus } from "@/features/online-orders/transitions";
 import { Link } from "@/i18n/navigation";
 import { requirePermission } from "@/lib/auth/guard";
 import { formatCurrency } from "@/lib/format/currency";
+import { brandedName } from "@/lib/format/variant-label";
 import { cn } from "@/lib/utils/cn";
 import { firstParam as first, keptQuery } from "@/lib/utils/search-params";
 
@@ -173,14 +174,15 @@ export default async function OnlineOrdersPage({
                 </div>
                 <p className="text-sm [overflow-wrap:anywhere] text-ink">
                   {t("itemSummary", {
-                    first: order.firstItem ?? "",
+                    first: order.firstItem
+                      ? brandedName(order.firstItem, order.firstItemBrand)
+                      : "",
                     count: order.itemCount,
                   })}
                 </p>
-                {order.firstItemBrand || order.firstItemMotif || order.firstItemColor ? (
+                {order.firstItemMotif || order.firstItemColor ? (
                   <p className="text-xs [overflow-wrap:anywhere] text-ink-muted">
                     {[
-                      order.firstItemBrand ? `${t("brand")}: ${order.firstItemBrand}` : null,
                       order.firstItemMotif ? `${t("motif")}: ${order.firstItemMotif}` : null,
                       order.firstItemColor ? `${t("color")}: ${order.firstItemColor}` : null,
                     ]

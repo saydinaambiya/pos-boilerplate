@@ -431,6 +431,7 @@ export async function findVariant(variantId: string) {
     .select({
       ...variantColumns,
       productName: products.name,
+      brandName: brands.name,
       productPrice: products.price,
       productActive: products.isActive,
       hasVariants: products.hasVariants,
@@ -440,6 +441,7 @@ export async function findVariant(variantId: string) {
     })
     .from(productVariants)
     .innerJoin(products, eq(products.id, productVariants.productId))
+    .leftJoin(brands, eq(brands.id, products.brandId))
     .where(eq(productVariants.id, variantId))
     .limit(1);
   return row;

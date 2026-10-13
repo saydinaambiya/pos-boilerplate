@@ -143,7 +143,7 @@ export async function searchCustomersAction(
   const rows = await searchCustomers(session, typeof term === "string" ? term : "");
   return rows.map((row) => ({
     name: row.name,
-    phone: formatIndonesianPhone(row.phone),
+    phone: row.phone === null ? "" : formatIndonesianPhone(row.phone),
     note: row.note ?? "",
   }));
 }

@@ -105,7 +105,7 @@ describe("invoice document (FR-INV-04/05)", () => {
     expect(invoiceLabels("en", en).ppn).toBe("VAT 0%");
   });
 
-  it("prints brand, motif and thickness as frozen at sale time (FR-PRD-06)", async () => {
+  it("prints brand, motif and thickness as frozen at sale time (FR-PRD-06, FR-PRD-08)", async () => {
     const session = await owner();
     const brand = await createBrand(session, { name: "Turkiye" }, testContext());
     if (!brand.ok) throw new Error(brand.reason);
@@ -127,7 +127,7 @@ describe("invoice document (FR-INV-04/05)", () => {
     );
 
     const document = await getInvoiceDocument(session, saleId, "id");
-    expect(document?.items).toMatchObject([{ name: "Sajadah", details: "Turkiye · Mihrab · 8mm" }]);
+    expect(document?.items).toMatchObject([{ name: "Turkiye · Sajadah", details: "Mihrab · 8mm" }]);
     if (!document) throw new Error("document expected");
     const labels = invoiceLabels("id", document);
     for (const size of invoiceSizes) {

@@ -45,7 +45,7 @@ export async function VariantDialog({ session, productId, variantId }: VariantDi
       closeHref={`/products/${productId}`}
       closeLabel={tCommon("close")}
       size="lg"
-      title={variantLabel(variant.productName, name)}
+      title={variantLabel(variant.productName, name, variant.brandName)}
       description={variant.sku}
     >
       <div className="flex flex-wrap items-center justify-between gap-3">

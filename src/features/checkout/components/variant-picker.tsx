@@ -13,6 +13,7 @@ import { formatSize, productDetailsLine } from "@/features/catalog/sizes";
 import { formatCurrency } from "@/lib/format/currency";
 import { formatMeters, parseDecimal } from "@/lib/format/length";
 import { formatKg, parseKgToGrams } from "@/lib/format/quantity";
+import { brandedName } from "@/lib/format/variant-label";
 import { cutPrice, weighPrice } from "@/lib/money/cut";
 
 interface VariantPickerProps {
@@ -81,9 +82,9 @@ export function VariantPicker(props: VariantPickerProps) {
           {product
             ? t("chooseVariantFor", {
                 name: [
-                  product.name,
+                  brandedName(product.name, product.brandName),
                   (roll ?? weighing)?.colorName,
-                  productDetailsLine(product, props.locale),
+                  productDetailsLine({ ...product, brandName: null }, props.locale),
                 ]
                   .filter(Boolean)
                   .join(" · "),

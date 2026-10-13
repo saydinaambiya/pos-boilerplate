@@ -150,7 +150,7 @@ export function SettleForm(props: SettleFormProps) {
   const cash = parseRupiah(cashPart) ?? 0;
   const splitError = method === "SPLIT" && (cash <= 0 || cash >= total);
   const paysQris = method === "QRIS" || (method === "SPLIT" && restMethod === "QRIS");
-  const customerErrors = customerDraftErrors(customer, hasSale && method === "KASBON");
+  const customerErrors = customerDraftErrors(customer);
   const amount = (item: OutstandingItem, qty: number) =>
     item.isRoll ? formatMeters(qty, locale) : String(qty);
   const qtyId = (variantId: string) => `${id}-${variantId}-qty`;
@@ -356,7 +356,6 @@ export function SettleForm(props: SettleFormProps) {
             locale={locale}
             draft={customer}
             onChange={setCustomer}
-            phoneRequired={method === "KASBON"}
             showErrors={showErrors}
             errors={customerErrors}
           />

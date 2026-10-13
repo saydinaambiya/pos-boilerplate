@@ -79,7 +79,7 @@ export async function cutPieces(
 ) {
   await page.goto(`/id/cutting?q=${encodeURIComponent(name)}`);
   await page.getByRole("link", { name: `Potong ${name} · Red`, exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: `Potong ${name} · Red` });
+  const dialog = page.getByRole("dialog", { name: `Potong ${E2E_BRAND} · ${name} · Red` });
   await dialog.getByLabel("Panjang dipotong (m)").fill(meters);
   await dialog.getByLabel(new RegExp(`^${size}`)).fill(count);
   await dialog.getByRole("button", { name: "Simpan potongan" }).click();

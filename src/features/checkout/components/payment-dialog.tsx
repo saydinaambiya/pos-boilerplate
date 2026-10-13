@@ -125,7 +125,7 @@ export function PaymentDialog(props: PaymentDialogProps) {
   const sourceBank = sourceBankOf(source);
   const downPayment = kasbon.downPayment.trim() === "" ? 0 : parseRupiah(kasbon.downPayment);
   const kasbonErrors = kasbonDraftErrors(downPayment, grandTotal);
-  const customerErrors = customerDraftErrors(customer, mode === "kasbon");
+  const customerErrors = customerDraftErrors(customer);
   const valid =
     mode === "kasbon"
       ? true
@@ -229,7 +229,6 @@ export function PaymentDialog(props: PaymentDialogProps) {
             locale={locale}
             draft={customer}
             onChange={setCustomer}
-            phoneRequired={mode === "kasbon"}
             showErrors={showErrors}
             errors={customerErrors}
           />

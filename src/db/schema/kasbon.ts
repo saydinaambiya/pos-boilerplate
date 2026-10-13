@@ -16,14 +16,17 @@ import { sales } from "./sales";
 
 const money = () => bigint({ mode: "number" });
 
-/** Store-credit customers, re-selectable by phone (FR-KSB-01, BR-11). */
+/**
+ * Store-credit customers, re-selectable by phone when one is given
+ * (FR-KSB-01, BR-11, ADR-0047).
+ */
 export const customers = pgTable(
   "customers",
   {
     id: id(),
     name: text().notNull(),
-    /** Normalised to `+62…`. */
-    phone: text().notNull(),
+    /** Normalised to `+62…`; null when the buyer gave none. */
+    phone: text(),
     note: text(),
     ...timestamps,
   },

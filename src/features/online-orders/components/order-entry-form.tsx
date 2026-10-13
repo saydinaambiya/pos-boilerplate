@@ -17,6 +17,7 @@ import { defectWord, formatSize, productDetailsLine } from "@/features/catalog/s
 import { useRouter } from "@/i18n/navigation";
 import { formatCurrency } from "@/lib/format/currency";
 import { parseRupiah } from "@/lib/format/rupiah-input";
+import { brandedName } from "@/lib/format/variant-label";
 
 import { createOnlineOrderAction, searchOrderCatalogAction } from "../actions";
 
@@ -50,9 +51,11 @@ function variantName(variant: PosVariant, locale: string): string | null {
   );
 }
 
+/** Brand and product name, then the variant (FR-PRD-08). */
 function variantLabel(product: PosProduct, variant: PosVariant, locale: string) {
   const name = variantName(variant, locale);
-  return name ? `${product.name} — ${name}` : product.name;
+  const title = brandedName(product.name, product.brandName);
+  return name ? `${title} — ${name}` : title;
 }
 
 /**
@@ -254,10 +257,10 @@ export function OrderEntryForm({ locale, marketplaces }: OrderEntryFormProps) {
             {visible.map((product) => (
               <li key={product.id} className="rounded-control border border-border p-2">
                 <p className="mb-1 text-sm font-medium text-ink">
-                  {product.name}
-                  {productDetailsLine(product, locale) ? (
+                  {brandedName(product.name, product.brandName)}
+                  {productDetailsLine({ ...product, brandName: null }, locale) ? (
                     <span className="block text-xs font-normal text-ink-muted">
-                      {productDetailsLine(product, locale)}
+                      {productDetailsLine({ ...product, brandName: null }, locale)}
                     </span>
                   ) : null}
                 </p>

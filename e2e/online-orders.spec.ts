@@ -37,13 +37,19 @@ test.describe("online orders from entry to return (FR-ONL)", () => {
 
     await entry.getByLabel("Kode order").fill(code.toLowerCase());
     await page.getByRole("searchbox", { name: "Cari produk" }).fill(product);
-    await page.getByRole("button", { name: `Tambah ${product} — Red · 93cm x 47cm` }).click();
-    await page.getByRole("button", { name: `Tambah ${product} — Red · 93cm x 47cm` }).click();
-    await expect(page.getByRole("textbox", { name: `Jumlah ${product}` })).toHaveValue("2");
+    await page
+      .getByRole("button", { name: `Tambah ${E2E_BRAND} · ${product} — Red · 93cm x 47cm` })
+      .click();
+    await page
+      .getByRole("button", { name: `Tambah ${E2E_BRAND} · ${product} — Red · 93cm x 47cm` })
+      .click();
+    await expect(
+      page.getByRole("textbox", { name: `Jumlah ${E2E_BRAND} · ${product}` }),
+    ).toHaveValue("2");
     await expect(page.getByRole("list", { name: "Item pesanan" })).toContainText("Harga toko Rp");
     await page.getByRole("button", { name: "Simpan pesanan" }).click();
-    await expect(page.getByText(`Isi harga jual untuk ${product}`)).toBeVisible();
-    await page.getByLabel(`Harga marketplace ${product}`).fill("45.000");
+    await expect(page.getByText(`Isi harga jual untuk ${E2E_BRAND} · ${product}`)).toBeVisible();
+    await page.getByLabel(`Harga marketplace ${E2E_BRAND} · ${product}`).fill("45.000");
     await page.getByLabel("Ongkir (opsional)").fill("10.000");
     await page.getByRole("button", { name: "Simpan pesanan" }).click();
 
@@ -65,7 +71,10 @@ test.describe("online orders from entry to return (FR-ONL)", () => {
     await expect(page).toHaveURL(/q=/);
     await expect(
       page.getByRole("list", { name: "Daftar pesanan" }).getByRole("listitem"),
-    ).toContainText(`Merk: ${E2E_BRAND} · Motif: Nappa · Warna: Red`);
+    ).toContainText(`${E2E_BRAND} · ${product}`);
+    await expect(
+      page.getByRole("list", { name: "Daftar pesanan" }).getByRole("listitem"),
+    ).toContainText("Motif: Nappa · Warna: Red");
     await page.getByRole("link", { name: `Buka pesanan ${code}` }).click();
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(code);
 
@@ -80,7 +89,11 @@ test.describe("online orders from entry to return (FR-ONL)", () => {
 
     await page.getByRole("button", { name: "Terima retur" }).click();
     const dialog = page.getByRole("dialog", { name: "Ubah status ke Retur diterima?" });
-    await choose(dialog, `Kondisi ${product} · Red · 93cm x 47cm (2 pcs)`, "Rusak — write-off");
+    await choose(
+      dialog,
+      `Kondisi ${E2E_BRAND} · ${product} · Red · 93cm x 47cm (2 pcs)`,
+      "Rusak — write-off",
+    );
     await dialog.getByRole("button", { name: "Terima retur" }).click();
     await expect(page.getByRole("table", { name: "Item pesanan" })).toContainText(
       "Rusak — write-off",

@@ -1,16 +1,19 @@
 import { z } from "zod";
 
-import { indonesianPhone, optionalIndonesianPhone } from "@/lib/validation/phone";
+import { optionalIndonesianPhone } from "@/lib/validation/phone";
 import { MAX_RUPIAH } from "@/lib/validation/money";
 import { plainText } from "@/lib/validation/text";
 
 const isoDate = z.iso.date();
 
-/** Customer on a store credit; the phone is the re-selection key (FR-KSB-01, BR-11). */
+/**
+ * Customer on a store credit; the phone, when given, is the re-selection
+ * key (FR-KSB-01, BR-11, ADR-0047).
+ */
 export const customerInput = z
   .object({
     name: plainText(80),
-    phone: indonesianPhone,
+    phone: optionalIndonesianPhone,
     note: plainText(200, 0),
   })
   .strict();
@@ -18,7 +21,7 @@ export type CustomerInput = z.infer<typeof customerInput>;
 
 /**
  * Buyer named on every sale (FR-POS-11): the name is required, the phone
- * optional. A store credit additionally needs the phone (BR-11).
+ * optional, also on store credit (BR-11, ADR-0047).
  */
 export const saleCustomerInput = z
   .object({

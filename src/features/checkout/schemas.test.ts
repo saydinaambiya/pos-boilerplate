@@ -26,11 +26,11 @@ describe("checkout buyer (FR-POS-11)", () => {
     ).toBe(false);
   });
 
-  it("needs the phone when the remainder goes on store credit (BR-11)", () => {
+  it("keeps the phone optional on store credit (BR-11, ADR-0047)", () => {
     const kasbon = { note: "", dueDate: null };
     expect(
       checkoutInput.safeParse({ ...base, customer: { name: "Budi", phone: "" }, kasbon }).success,
-    ).toBe(false);
+    ).toBe(true);
     expect(
       checkoutInput.safeParse({
         ...base,

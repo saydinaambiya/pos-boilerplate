@@ -17,7 +17,7 @@ Records are immutable once accepted; a new record supersedes an old one.
 | [0009](./0009-sale-calculation.md)                                  | Sale calculation, rounding and inclusive tax                      | Accepted                    |
 | [0010](./0010-invoices-print-and-pdf.md)                            | Invoice printing, PDF and signed download links                   | Accepted                    |
 | [0011](./0011-generic-approvals.md)                                 | Generic approval engine                                           | Accepted                    |
-| [0012](./0012-store-credit.md)                                      | Store credit, installments and the cash drawer                    | Amended by 0035             |
+| [0012](./0012-store-credit.md)                                      | Store credit, installments and the cash drawer                    | Amended by 0035, 0047       |
 | [0013](./0013-online-orders.md)                                     | Manual marketplace orders and their stock                         | Accepted                    |
 | [0014](./0014-sales-reports.md)                                     | Sales reports, cost snapshots and CSV export                      | Amended by 0032             |
 | [0015](./0015-housekeeping.md)                                      | Monthly housekeeping by export and mark                           | Amended by 0032             |
@@ -26,7 +26,7 @@ Records are immutable once accepted; a new record supersedes an old one.
 | [0018](./0018-dialogs-and-auto-filters.md)                          | Dialogs instead of single-form pages; auto filters                | Accepted                    |
 | [0019](./0019-devices-hours-and-loading.md)                         | Device limit, store hours, buyer name and loading                 | Amended by 0036             |
 | [0020](./0020-field-sales-consignments.md)                          | Field sales consignments                                          | Amended by 0024, 0042, 0046 |
-| [0021](./0021-product-details.md)                                   | Product brand, motif and size                                     | Amended by 0023             |
+| [0021](./0021-product-details.md)                                   | Product brand, motif and size                                     | Amended by 0023, 0047       |
 | [0022](./0022-remove-categories.md)                                 | Remove product categories in favour of brands                     | Accepted                    |
 | [0023](./0023-roll-stock.md)                                        | Rolls cut into pieces                                             | Amended by 0038, 0046       |
 | [0024](./0024-consignment-roles.md)                                 | Store staff record salespeople's goods                            | Accepted                    |
@@ -52,3 +52,4 @@ Records are immutable once accepted; a new record supersedes an old one.
 | [0044](./0044-shared-store-shift.md)                                | One shared store shift, sales shifts apart and without a float    | Accepted                    |
 | [0045](./0045-accessories-and-goods-sold-by-the-kg.md)              | Accessories, and goods sold by the kg                             | Accepted                    |
 | [0046](./0046-rolls-carried-by-the-meter.md)                        | Rolls carried by the meter, a search-first Sales form             | Accepted                    |
+| [0047](./0047-brand-beside-names-and-optional-credit-phone.md)      | Brand beside product names, an optional phone on store credit     | Accepted                    |

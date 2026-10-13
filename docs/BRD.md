@@ -2,7 +2,7 @@
 
 | Atribut         | Nilai              |
 | --------------- | ------------------ |
-| Versi dokumen   | 0.30.0 (draft)     |
+| Versi dokumen   | 0.31.0 (draft)     |
 | Tanggal         | 2026-10-13         |
 | Pemilik         | Owner              |
 | Status          | Menunggu review    |
@@ -42,6 +42,7 @@
 | 0.28.0 | 2026-10-12 | Masukan v1.10: satu shift kasir dipakai bersama, catatan modal awal, shift sales tanpa modal dan terpisah (Q-50)                                      |
 | 0.29.0 | 2026-10-12 | Masukan v1.10: kategori aksesoris seperti lem dan benang, satuan pcs/ml/kg (Q-51)                                                                     |
 | 0.30.0 | 2026-10-13 | Masukan v1.11: bank tujuan transfer dan status "Kas bon" di riwayat transaksi, sales menjual roll per meter, merk di rekap produk (Q-52)              |
+| 0.31.0 | 2026-10-13 | Masukan v1.12: merk di samping nama produk, no. HP opsional juga untuk kas bon (Q-53)                                                                 |
 
 ---
 
@@ -204,7 +205,7 @@ Owner pilih rentang (data ≥ 3 bulan) ─▶ Unduh CSV langsung ─▶ Data dit
 | BR-08 | Diskon manual per item dan satu voucher per transaksi dapat digabung. Diskon tidak boleh membuat total menjadi negatif.                                                                                                                                                                                                                                          |
 | BR-09 | Voucher dapat berupa persentase atau nominal. Minimum belanja dan maksimum potongan bersifat opsional.                                                                                                                                                                                                                                                           |
 | BR-10 | Voucher baru, perubahan voucher, dan pengaktifan kembali voucher wajib di-approve approver. Penonaktifan berlaku langsung.                                                                                                                                                                                                                                       |
-| BR-11 | Kas bon wajib mencantumkan nama dan nomor HP pelanggan; jatuh tempo opsional.                                                                                                                                                                                                                                                                                    |
+| BR-11 | Kas bon wajib mencantumkan nama pelanggan; nomor HP dan jatuh tempo opsional.                                                                                                                                                                                                                                                                                    |
 | BR-12 | Kas bon dapat dicicil. Cicilan/pelunasan yang dicatat pekerja yang sedang buka kasir dalam jam buka toko langsung mengurangi saldo; selain itu baru mengurangi saldo setelah di-approve approver.                                                                                                                                                                |
 | BR-13 | Pengaju tidak dapat menyetujui pengajuannya sendiri. Aksi yang dilakukan Owner sendiri otomatis disetujui.                                                                                                                                                                                                                                                       |
 | BR-14 | PPN dan service charge dapat diaktifkan/dinonaktifkan dan tarifnya dapat diatur.                                                                                                                                                                                                                                                                                 |
@@ -306,3 +307,4 @@ Owner pilih rentang (data ≥ 3 bulan) ─▶ Unduh CSV langsung ─▶ Data dit
 | Q-50 | Apakah tiap kasir harus membuka shift sendiri?                                 | Tidak. Toko punya satu shift kasir; akun kasir lain tinggal melanjutkan dan siapa pun boleh menutupnya. Modal awal bisa diberi catatan. Shift sales terpisah dari shift toko, hanya terlihat oleh sales itu sendiri, dan dibuka tanpa modal awal karena sales tidak membawa uang. | Diputuskan |
 | Q-51 | Bagaimana menjual barang selain karpet, seperti lem dan benang?                | Lewat kategori aksesoris: merk, nama produk, warna dari daftar yang ada, dan satuan pcs, ml, atau kg. Barang kg boleh dijual pecahan (mis. 0,5 kg) di kasir dengan harga per kg; ml dijual per ml utuh.                                                                           | Diputuskan |
 | Q-52 | Apakah sales bisa membawa dan menjual roll per meter?                          | Ya, seperti potongan custom di kasir toko. Petugas mencatat berapa meter yang dibawa. Sales mencatat meter yang terjual dengan harga per meter, dan sisanya bisa dikembalikan. Di HP, sales mencari dan memilih barang dulu, lalu mengisi jumlahnya.                              | Diputuskan |
+| Q-53 | Apakah no. HP pembeli wajib diisi?                                             | Tidak, juga untuk kas bon. Pelanggan kas bon dengan no. HP bisa dipilih ulang; tanpa no. HP dicatat baru tiap kas bon. Merk ditampilkan di samping nama produk di semua tempat produk dimuat.                                                                                     | Diputuskan |

@@ -1,16 +1,40 @@
-/** Display name of a sellable variant, e.g. "Kaos Polos · Merah" (PRD §3.1.1). */
-export function variantLabel(productName: string, colorName: string | null): string {
-  return colorName ? `${productName} · ${colorName}` : productName;
+/** Product name with its brand beside it, e.g. "Fox · Karpet Mihrab" (FR-PRD-08). */
+export function brandedName(productName: string, brandName?: string | null): string {
+  return brandName ? `${brandName} · ${productName}` : productName;
 }
 
 /**
- * Display name of a stock row: its colour, then "Roll" or the piece size,
- * e.g. "Karpet Mihrab · Merah · 93cm x 47cm", with the defect label on a
+ * Display name of a sellable variant with its brand, e.g.
+ * "Fox · Kaos Polos · Merah" (PRD §3.1.1, FR-PRD-08).
+ */
+export function variantLabel(
+  productName: string,
+  colorName: string | null,
+  brandName?: string | null,
+): string {
+  const name = brandedName(productName, brandName);
+  return colorName ? `${name} · ${colorName}` : name;
+}
+
+/**
+ * A frozen details line without its leading brand, for rows that already
+ * show the brand beside the name (FR-PRD-06, FR-PRD-08).
+ */
+export function detailsWithoutBrand(details: string | null, brandName?: string | null) {
+  if (!details || !brandName) return details;
+  if (details === brandName) return null;
+  return details.startsWith(`${brandName} · `) ? details.slice(brandName.length + 3) : details;
+}
+
+/**
+ * Display name of a stock row: its brand when given, colour, then "Roll"
+ * or the piece size, e.g. "Fox · Karpet Mihrab · Merah · 93cm x 47cm", with the defect label on a
  * defect piece (ADR-0023, FR-ROL-05).
  */
 export function stockItemLabel(
   item: {
     productName: string;
+    brandName?: string | null;
     colorName: string | null;
     size: string | null;
     isRoll: boolean;
@@ -20,7 +44,7 @@ export function stockItemLabel(
 ): string {
   const suffix = item.isRoll ? "Roll" : item.size ? formatSizeLabel(item.size) : null;
   return [
-    variantLabel(item.productName, item.colorName),
+    variantLabel(item.productName, item.colorName, item.brandName),
     suffix,
     item.isDefect ? defectLabel : null,
   ]
@@ -30,14 +54,15 @@ export function stockItemLabel(
 
 /**
  * Name of goods without their colour, for lists that show the colour in
- * its own column, e.g. "Karpet · 93cm x 47cm · Cacat" (FR-CSG-08, FR-ONL-09).
+ * its own column, e.g. "Fox · Karpet · 93cm x 47cm · Cacat" (FR-CSG-08,
+ * FR-ONL-09, FR-PRD-08).
  */
 export function goodsName(
-  item: { name: string; size: string | null; isDefect: boolean },
+  item: { name: string; brandName?: string | null; size: string | null; isDefect: boolean },
   defectLabel = "Cacat",
 ): string {
   return [
-    item.name,
+    brandedName(item.name, item.brandName),
     item.size ? formatSizeLabel(item.size) : null,
     item.isDefect ? defectLabel : null,
   ]

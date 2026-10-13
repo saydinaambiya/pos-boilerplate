@@ -76,10 +76,14 @@ export default async function KasbonDetailPage({ params }: PageProps<"/[locale]/
     <>
       <PageHeader
         title={kasbon.customerName}
-        description={t("detailSubtitle", {
-          phone: formatIndonesianPhone(kasbon.customerPhone),
-          invoiceNo: kasbon.invoiceNo,
-        })}
+        description={
+          kasbon.customerPhone
+            ? t("detailSubtitle", {
+                phone: formatIndonesianPhone(kasbon.customerPhone),
+                invoiceNo: kasbon.invoiceNo,
+              })
+            : kasbon.invoiceNo
+        }
         actions={
           <Button asChild variant="secondary">
             <Link href="/kasbon">{t("back")}</Link>

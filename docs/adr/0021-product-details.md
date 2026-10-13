@@ -1,6 +1,6 @@
 # ADR-0021: Product brand, motif and size
 
-- Status: Accepted; size per product superseded by [ADR-0023](./0023-roll-stock.md)
+- Status: Accepted; size per product superseded by [ADR-0023](./0023-roll-stock.md); brand beside the name by [ADR-0047](./0047-brand-beside-names-and-optional-credit-phone.md)
 - Date: 2026-09-28
 - Requirements: PRD FR-PRD-04, FR-PRD-06, FR-CAT-02, §3.16; BRD BR-28, Q-09, Q-10
 
