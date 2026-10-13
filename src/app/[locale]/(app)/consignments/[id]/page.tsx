@@ -26,6 +26,7 @@ import { getOpenShift } from "@/features/shifts/service";
 import { defectWord } from "@/features/catalog/sizes";
 import { Link } from "@/i18n/navigation";
 import { requirePermission } from "@/lib/auth/guard";
+import { formatMeters } from "@/lib/format/length";
 import { goodsName, variantLabel } from "@/lib/format/variant-label";
 import { storeDate } from "@/lib/format/zoned-time";
 import { readSetting } from "@/lib/settings/store";
@@ -53,7 +54,7 @@ function itemLabel(item: {
 }
 
 /**
- * One salesperson's goods (FR-CSG-02..05, FR-CSG-07/08): what is still out per item and
+ * One salesperson's goods (FR-CSG-02..05, FR-CSG-07..09): what is still out per item, rolls in meters, and
  * every pickup and settlement grouped by day, newest first. `?take=1` adds
  * goods and `?reduce=1` takes off goods entered by mistake (pickup staff),
  * `?return=1` records goods brought back (shop
@@ -96,6 +97,12 @@ export default async function ConsignmentPage({
   const shiftOpen = canSell ? (await getOpenShift(session)) !== null : false;
   const canReturn = open && outstanding.length > 0 && session.permissions.has("consignment:return");
   const dayOf = (date: Date) => storeDate(date, operations.timeZone);
+  const nameOf = (item: Parameters<typeof goodsName>[0] & { isRoll: boolean }) => {
+    const name = goodsName(item, defectWord(locale));
+    return item.isRoll ? `${name} · ${t("rollWord")}` : name;
+  };
+  const amount = (item: { isRoll: boolean }, qty: number) =>
+    item.isRoll ? formatMeters(qty, locale) : String(qty);
   const days = [...new Set(consignment.batches.map((batch) => dayOf(batch.createdAt)))];
   const goodsDetails = (item: {
     brandName: string | null;
@@ -186,18 +193,22 @@ export default async function ConsignmentPage({
                   <TableCell className="[overflow-wrap:anywhere]">
                     {balance.brandName ?? "—"}
                   </TableCell>
-                  <TableCell className="[overflow-wrap:anywhere]">
-                    {goodsName(balance, defectWord(locale))}
-                  </TableCell>
+                  <TableCell className="[overflow-wrap:anywhere]">{nameOf(balance)}</TableCell>
                   <TableCell className="[overflow-wrap:anywhere]">{balance.motif ?? "—"}</TableCell>
                   <TableCell className="[overflow-wrap:anywhere]">
                     {balance.colorName ?? "—"}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">{balance.taken}</TableCell>
-                  <TableCell className="text-right tabular-nums">{balance.sold}</TableCell>
-                  <TableCell className="text-right tabular-nums">{balance.returned}</TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {amount(balance, balance.taken)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {amount(balance, balance.sold)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {amount(balance, balance.returned)}
+                  </TableCell>
                   <TableCell className="text-right font-semibold tabular-nums">
-                    {balance.outstanding}
+                    {amount(balance, balance.outstanding)}
                   </TableCell>
                 </TableRow>
               ))}
@@ -249,7 +260,7 @@ export default async function ConsignmentPage({
                             {batch.items.map((item) => (
                               <li key={item.id} className="flex justify-between gap-3">
                                 <span className="min-w-0 [overflow-wrap:anywhere]">
-                                  {goodsName(item, defectWord(locale))}
+                                  {nameOf(item)}
                                   {goodsDetails(item) ? (
                                     <span className="block text-xs text-ink-muted">
                                       {goodsDetails(item)}
@@ -257,7 +268,7 @@ export default async function ConsignmentPage({
                                   ) : null}
                                 </span>
                                 <span className="shrink-0 text-ink-muted tabular-nums">
-                                  {t(`items.${item.kind}`, { qty: item.qty })}
+                                  {t(`items.${item.kind}`, { qty: amount(item, item.qty) })}
                                 </span>
                               </li>
                             ))}
@@ -323,9 +334,12 @@ export default async function ConsignmentPage({
               mode={dialog}
               items={outstanding.map((balance) => ({
                 variantId: balance.variantId,
-                label: itemLabel(balance),
+                label: balance.isRoll
+                  ? `${itemLabel(balance)} · ${t("rollWord")}`
+                  : itemLabel(balance),
                 price: balance.price,
                 outstanding: balance.outstanding,
+                isRoll: balance.isRoll,
               }))}
               tax={await readSetting("tax")}
               bankAccounts={await getCheckoutBankAccounts(session)}

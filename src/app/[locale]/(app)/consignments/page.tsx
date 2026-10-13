@@ -24,6 +24,7 @@ import { getConsignments, getSalespeopleFor } from "@/features/consignments/serv
 import { Link } from "@/i18n/navigation";
 import { requirePermission } from "@/lib/auth/guard";
 import { formatCurrency } from "@/lib/format/currency";
+import { formatMeters } from "@/lib/format/length";
 import { firstParam } from "@/lib/utils/search-params";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -133,7 +134,14 @@ export default async function ConsignmentsPage({
                   {status === "OPEN" ? (
                     <>
                       <TableCell className="text-right tabular-nums">
-                        {t("units", { count: row.outstanding })}
+                        {[
+                          row.outstanding > 0 || row.outstandingCm === 0
+                            ? t("units", { count: row.outstanding })
+                            : null,
+                          row.outstandingCm > 0 ? formatMeters(row.outstandingCm, locale) : null,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
                         {money(row.outstandingValue)}

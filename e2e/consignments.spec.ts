@@ -1,3 +1,5 @@
+import type { Locator } from "@playwright/test";
+
 import { accounts, E2E_BRAND } from "./accounts";
 import { expect, test } from "./fixtures";
 import {
@@ -6,6 +8,7 @@ import {
   createStockedProduct,
   expectResult,
   grantEmployeePermission,
+  pick,
 } from "./helpers";
 
 /** Names are unique per run because the E2E database is not truncated between runs. */
@@ -19,6 +22,13 @@ const withMotif = `${product} · ${E2E_BRAND} · Nappa · Red · 93cm x 47cm`;
 const goods = `${product} · 93cm x 47cm`;
 /** The line under each history item (FR-CSG-08). */
 const details = `Merk: ${E2E_BRAND} · Motif: Nappa · Warna: Red`;
+/** The colour's roll, carried by the meter (FR-CSG-09). */
+const rollItem = `${product} · ${E2E_BRAND} · Nappa · Red · Roll`;
+
+/** Searches the goods still carried and picks one before its amount is entered (FR-CSG-09). */
+async function pickGoods(dialog: Locator, label: string) {
+  await pick(dialog, "Pilih barang", label, product);
+}
 
 test.describe("field sales goods (FR-CSG-01..08, ADR-0024)", () => {
   test.skip(({ isMobile }) => isMobile, "stateful consignment flows run once, on desktop");
@@ -75,6 +85,7 @@ test.describe("field sales goods (FR-CSG-01..08, ADR-0024)", () => {
     await page.goto(consignmentUrl);
     await page.getByRole("link", { name: "Kurangi barang", exact: true }).click();
     const reduce = page.getByRole("dialog", { name: "Kurangi barang bawaan" });
+    await pickGoods(reduce, withMotif);
     await reduce.getByLabel(`Dikurangi, ${withMotif}`).fill("8");
     await reduce.getByRole("button", { name: "Simpan pengurangan" }).click();
     await expect(reduce.getByRole("alert")).toContainText("lebih dari 7 yang masih dibawa");
@@ -118,6 +129,7 @@ test.describe("field sales goods (FR-CSG-01..08, ADR-0024)", () => {
 
     await page.getByRole("link", { name: "Catat terjual" }).click();
     const sell = page.getByRole("dialog", { name: "Catat barang terjual" });
+    await pickGoods(sell, withMotif);
     await expect(sell.getByLabel(`Dikembalikan, ${withMotif}`)).toHaveCount(0);
     await sell.getByLabel(`Terjual, ${withMotif}`).fill("4");
     await sell.getByLabel("Nama pelanggan").fill(`Warung ${run}`);
@@ -153,6 +165,7 @@ test.describe("field sales goods (FR-CSG-01..08, ADR-0024)", () => {
     await page.goto(consignmentUrl);
     await page.getByRole("link", { name: "Catat pengembalian" }).click();
     const back = page.getByRole("dialog", { name: "Catat barang dikembalikan" });
+    await pickGoods(back, withMotif);
     await expect(back.getByLabel(`Terjual, ${withMotif}`)).toHaveCount(0);
     await back.getByLabel(`Dikembalikan, ${withMotif}`).fill("2");
     await back.getByRole("button", { name: "Simpan barang dikembalikan" }).click();
@@ -173,5 +186,46 @@ test.describe("field sales goods (FR-CSG-01..08, ADR-0024)", () => {
 
     await page.goto(`/id/stock?q=${sku}`);
     await expect(page.getByRole("row", { name: new RegExp(item) })).toContainText("16");
+  });
+
+  test("a salesperson carries a roll by the meter and sells part of it (FR-CSG-09)", async ({
+    page,
+    browser,
+  }) => {
+    test.slow();
+    await page.goto("/id/consignments?take=1");
+    const take = page.getByRole("dialog", { name: "Ambil barang" });
+    await choose(take, "Sales", accounts.posCashier.name);
+    await take.getByRole("searchbox").fill(product);
+    const rollButton = `${product} — ${E2E_BRAND} · Nappa · Red · Roll`;
+    await take.getByRole("button", { name: `Tambah ${rollButton}` }).click();
+    await take.getByRole("button", { name: "Simpan barang dibawa" }).click();
+    await expect(take.getByRole("alert")).toContainText(`Isi jumlah untuk ${rollButton}`);
+    await take.getByLabel(`Meter ${rollButton}`).fill("3,5");
+    await take.getByRole("button", { name: "Simpan barang dibawa" }).click();
+    await expectResult(page, "Barang yang dibawa sudah dicatat.");
+    await expect(page).toHaveURL(/\/id\/consignments\/[0-9a-f-]+$/);
+    const rollUrl = new URL(page.url()).pathname;
+    const rollRow = page
+      .getByRole("table", { name: "Ringkasan per barang" })
+      .getByRole("row", { name: new RegExp(`${product} · Roll`) });
+    await expect(rollRow.getByRole("cell").nth(7)).toHaveText("3,5m");
+
+    const sales = await cashierAtPos(browser);
+    await sales.goto(rollUrl);
+    await sales.getByRole("link", { name: "Catat terjual" }).click();
+    const sell = sales.getByRole("dialog", { name: "Catat barang terjual" });
+    await pickGoods(sell, rollItem);
+    await sell.getByLabel(`Terjual, ${rollItem}`).fill("1,5");
+    await expect(sell).toContainText("Rp 5.000 / m · Masih dibawa 3,5m");
+    await sell.getByLabel("Nama pelanggan").fill(`Toko Meter ${run}`);
+    await sell.getByRole("button", { name: "Simpan barang terjual" }).click();
+    await expectResult(sales, /Barang terjual sudah dicatat\. Transaksi INV-\d{8}-\d{4} dibuat\./);
+    const soldRow = sales
+      .getByRole("table", { name: "Ringkasan per barang" })
+      .getByRole("row", { name: new RegExp(`${product} · Roll`) });
+    await expect(soldRow.getByRole("cell").nth(5)).toHaveText("1,5m");
+    await expect(soldRow.getByRole("cell").nth(7)).toHaveText("2m");
+    await sales.context().close();
   });
 });

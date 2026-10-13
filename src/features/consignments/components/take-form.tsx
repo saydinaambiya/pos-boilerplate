@@ -16,6 +16,7 @@ import type { PosProduct, PosVariant } from "@/features/catalog/pos-types";
 import { defectWord, formatSize, productDetailsLine } from "@/features/catalog/sizes";
 import { useRouter } from "@/i18n/navigation";
 import { formatCurrency } from "@/lib/format/currency";
+import { formatMeters, parseMetersToCm } from "@/lib/format/length";
 import { cn } from "@/lib/utils/cn";
 
 import { searchConsignmentCatalogAction, takeGoodsAction } from "../actions";
@@ -23,8 +24,12 @@ import { searchConsignmentCatalogAction, takeGoodsAction } from "../actions";
 interface Line {
   variantId: string;
   label: string;
+  /** Per piece, or on a roll per meter. */
   price: number;
   qty: number;
+  /** A roll is taken by the meter, typed in `meters` (FR-CSG-09). */
+  isRoll: boolean;
+  meters: string;
 }
 
 interface TakeFormProps {
@@ -34,13 +39,27 @@ interface TakeFormProps {
   defaultSalespersonId: string;
 }
 
-/** Colour and, for a piece cut from a roll, its size and defect flag (ADR-0023, FR-ROL-05). */
-function variantName(variant: PosVariant, locale: string): string | null {
+/** The roll row of a colour, whose stock is centimetres (ADR-0023). */
+function isRollRow(product: PosProduct, variant: PosVariant): boolean {
+  return product.isRoll && variant.parentId === null;
+}
+
+/**
+ * Colour and, for a piece cut from a roll, its size and defect flag, or
+ * the roll word for the roll itself (ADR-0023, FR-ROL-05, FR-CSG-09).
+ */
+function variantName(
+  product: PosProduct,
+  variant: PosVariant,
+  locale: string,
+  rollWord: string,
+): string | null {
   return (
     [
       variant.colorName,
       variant.size ? formatSize(variant.size) : null,
       variant.isDefect ? defectWord(locale) : null,
+      isRollRow(product, variant) ? rollWord : null,
     ]
       .filter(Boolean)
       .join(" · ") || null
@@ -51,16 +70,16 @@ function variantName(variant: PosVariant, locale: string): string | null {
  * Product name, then its brand, motif and the variant, so lookalike goods
  * stay apart (FR-CSG-08).
  */
-function variantLabel(product: PosProduct, variant: PosVariant, locale: string) {
-  const name = [product.brandName, product.motif, variantName(variant, locale)]
+function variantLabel(product: PosProduct, variant: PosVariant, locale: string, rollWord: string) {
+  const name = [product.brandName, product.motif, variantName(product, variant, locale, rollWord)]
     .filter(Boolean)
     .join(" · ");
   return name ? `${product.name} — ${name}` : product.name;
 }
 
 /**
- * Pickup form (FR-CSG-02): who takes the goods, items per variant from a
- * server-side search with quantities, and a note. The idempotency key is
+ * Pickup form (FR-CSG-02/09): who takes the goods, items per variant from a
+ * server-side search with quantities, pieces or a roll's meters, and a note. The idempotency key is
  * kept across retries so a double submit records one pickup.
  */
 export function TakeForm({ locale, salespeople, defaultSalespersonId }: TakeFormProps) {
@@ -93,23 +112,41 @@ export function TakeForm({ locale, salespeople, defaultSalespersonId }: TakeForm
   }, [term, locale]);
 
   const money = (amount: number) => formatCurrency(amount, locale);
+  const rollWord = t("rollWord");
+  const labelOf = (product: PosProduct, variant: PosVariant) =>
+    variantLabel(product, variant, locale, rollWord);
   const visible = term.trim().length >= 2 ? results : [];
 
   const add = (product: PosProduct, variant: PosVariant) => {
+    const isRoll = isRollRow(product, variant);
     setLines((current) =>
       current.some((line) => line.variantId === variant.id)
         ? current.map((line) =>
-            line.variantId === variant.id ? { ...line, qty: Math.min(line.qty + 1, 9999) } : line,
+            line.variantId === variant.id && !line.isRoll
+              ? { ...line, qty: Math.min(line.qty + 1, 9999) }
+              : line,
           )
         : [
             ...current,
             {
               variantId: variant.id,
-              label: variantLabel(product, variant, locale),
+              label: labelOf(product, variant),
               price: variant.price,
-              qty: 1,
+              qty: isRoll ? 0 : 1,
+              isRoll,
+              meters: "",
             },
           ],
+    );
+  };
+  const setMeters = (variantId: string, text: string) => {
+    const meters = text.replace(/[^\d.,]/g, "").slice(0, 9);
+    setLines((current) =>
+      current.map((line) =>
+        line.variantId === variantId
+          ? { ...line, meters, qty: parseMetersToCm(meters) ?? 0 }
+          : line,
+      ),
     );
   };
   const setQty = (variantId: string, qty: number) => {
@@ -124,6 +161,11 @@ export function TakeForm({ locale, salespeople, defaultSalespersonId }: TakeForm
     if (pending) return;
     if (lines.length === 0) {
       setError(t("errors.noItems"));
+      return;
+    }
+    const missing = lines.find((line) => line.qty < 1);
+    if (missing) {
+      setError(t("missingQty", { name: missing.label }));
       return;
     }
     setError(null);
@@ -205,7 +247,7 @@ export function TakeForm({ locale, salespeople, defaultSalespersonId }: TakeForm
                       key={variant.id}
                       size="sm"
                       variant="secondary"
-                      aria-label={t("addItem", { name: variantLabel(product, variant, locale) })}
+                      aria-label={t("addItem", { name: labelOf(product, variant) })}
                       onClick={() => {
                         add(product, variant);
                       }}
@@ -219,10 +261,14 @@ export function TakeForm({ locale, salespeople, defaultSalespersonId }: TakeForm
                           className="size-4"
                         />
                       ) : null}
-                      {variantName(variant, locale) ?? t("addPlain")}
+                      {variantName(product, variant, locale, rollWord) ?? t("addPlain")}
                       {product.trackStock ? (
                         <span className="text-ink-muted tabular-nums">
-                          {t("inStock", { count: variant.stockQty })}
+                          {t("inStock", {
+                            count: isRollRow(product, variant)
+                              ? formatMeters(variant.stockQty, locale)
+                              : String(variant.stockQty),
+                          })}
                         </span>
                       ) : null}
                     </Button>
@@ -239,41 +285,59 @@ export function TakeForm({ locale, salespeople, defaultSalespersonId }: TakeForm
                 <span className="min-w-0 flex-1 text-sm [overflow-wrap:anywhere] text-ink">
                   {line.label}
                   <span className="block text-xs text-ink-muted tabular-nums">
-                    {money(line.price)}
+                    {line.isRoll ? t("perMeter", { price: money(line.price) }) : money(line.price)}
                   </span>
                 </span>
-                <span className="flex items-center gap-1">
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    aria-label={t("decrease", { name: line.label })}
-                    onClick={() => {
-                      setQty(line.variantId, line.qty - 1);
-                    }}
-                  >
-                    <Minus aria-hidden="true" />
-                  </Button>
-                  <Input
-                    aria-label={t("quantityOf", { name: line.label })}
-                    value={String(line.qty)}
-                    onChange={(event) => {
-                      const qty = Number.parseInt(event.target.value, 10);
-                      if (Number.isFinite(qty)) setQty(line.variantId, qty);
-                    }}
-                    inputMode="numeric"
-                    className="w-16 text-center tabular-nums"
-                  />
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    aria-label={t("increase", { name: line.label })}
-                    onClick={() => {
-                      setQty(line.variantId, line.qty + 1);
-                    }}
-                  >
-                    <Plus aria-hidden="true" />
-                  </Button>
-                </span>
+                {line.isRoll ? (
+                  <span className="flex items-center gap-1">
+                    <Input
+                      aria-label={t("metersOf", { name: line.label })}
+                      value={line.meters}
+                      onChange={(event) => {
+                        setMeters(line.variantId, event.target.value);
+                      }}
+                      inputMode="decimal"
+                      placeholder="0,0"
+                      className="w-24 text-center tabular-nums"
+                    />
+                    <span aria-hidden="true" className="text-sm text-ink-muted">
+                      {t("meterUnit")}
+                    </span>
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      aria-label={t("decrease", { name: line.label })}
+                      onClick={() => {
+                        setQty(line.variantId, line.qty - 1);
+                      }}
+                    >
+                      <Minus aria-hidden="true" />
+                    </Button>
+                    <Input
+                      aria-label={t("quantityOf", { name: line.label })}
+                      value={String(line.qty)}
+                      onChange={(event) => {
+                        const qty = Number.parseInt(event.target.value, 10);
+                        if (Number.isFinite(qty)) setQty(line.variantId, qty);
+                      }}
+                      inputMode="numeric"
+                      className="w-16 text-center tabular-nums"
+                    />
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      aria-label={t("increase", { name: line.label })}
+                      onClick={() => {
+                        setQty(line.variantId, line.qty + 1);
+                      }}
+                    >
+                      <Plus aria-hidden="true" />
+                    </Button>
+                  </span>
+                )}
                 <Button
                   size="icon"
                   variant="ghost"

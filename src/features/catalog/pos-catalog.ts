@@ -49,9 +49,9 @@ function groupProducts(rows: Awaited<ReturnType<typeof queryPosCatalog>>): PosPr
 }
 
 /**
- * Only whole pieces leave the store with salespeople or marketplace orders;
- * rolls are cut and goods sold by the kg are weighed at the POS (FR-ROL-04,
- * ADR-0023, ADR-0045).
+ * Only whole pieces leave the store with marketplace orders; rolls are cut
+ * and goods sold by the kg are weighed at the POS (FR-ROL-04, ADR-0023,
+ * ADR-0045).
  */
 function withoutRolls(products: PosProduct[]): PosProduct[] {
   return products
@@ -100,10 +100,16 @@ export async function searchOrderCatalog(session: Session, term: string) {
   return withoutRolls(groupProducts(rows));
 }
 
-/** Product search for goods a salesperson takes out (FR-CSG-02); needs no POS access. */
+/**
+ * Product search for goods a salesperson takes out (FR-CSG-02); needs no
+ * POS access. Rolls are offered by the meter like at the POS (FR-CSG-09);
+ * goods sold by the kg stay in the store (ADR-0045).
+ */
 export async function searchConsignmentCatalog(session: Session, term: string) {
   assertPermission(session, "page:consignments");
   const search = term.trim().slice(0, 60);
   if (search === "") return [];
-  return withoutRolls(groupProducts(await queryPosCatalog({ limit: SEARCH_ROWS, search })));
+  return groupProducts(await queryPosCatalog({ limit: SEARCH_ROWS, search })).filter(
+    (product) => product.isRoll || product.unit !== "kg",
+  );
 }

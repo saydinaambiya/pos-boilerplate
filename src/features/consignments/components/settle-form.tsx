@@ -1,11 +1,13 @@
 "use client";
 
+import { Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useId, useRef, useState, useTransition } from "react";
 
 import { useGlobalPending } from "@/components/feedback/loading-indicator";
 import { useShowResult } from "@/components/feedback/result-provider";
 import { Button } from "@/components/ui/button";
+import { Combobox } from "@/components/ui/combobox";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { MoneyInput } from "@/components/ui/money-input";
@@ -26,8 +28,10 @@ import {
 } from "@/features/checkout/components/source-bank-field";
 import { useRouter } from "@/i18n/navigation";
 import { formatCurrency } from "@/lib/format/currency";
+import { formatMeters, parseMetersToCm } from "@/lib/format/length";
 import { parseRupiah } from "@/lib/format/rupiah-input";
 import { calculateSale, type TaxRules } from "@/lib/money/calculate";
+import { cutPrice } from "@/lib/money/cut";
 import { cn } from "@/lib/utils/cn";
 
 import { reduceGoodsAction, settleGoodsAction } from "../actions";
@@ -37,8 +41,11 @@ type Method = "CASH" | "TRANSFER" | "QRIS" | "SPLIT" | "KASBON";
 export interface OutstandingItem {
   variantId: string;
   label: string;
+  /** Per piece, or on a roll per meter (FR-CSG-09). */
   price: number;
+  /** Pieces, or on a roll centimetres. */
   outstanding: number;
+  isRoll: boolean;
 }
 
 interface SettleFormProps {
@@ -59,14 +66,12 @@ interface SettleFormProps {
   today: string;
 }
 
-const toQty = (text: string) => {
+/** Typed amount in stored units: whole pieces, or a roll's meters as cm; 0 when invalid. */
+const toQty = (item: OutstandingItem, text: string) => {
+  if (item.isRoll) return parseMetersToCm(text) ?? 0;
   const value = Number.parseInt(text, 10);
   return Number.isFinite(value) && value > 0 ? value : 0;
 };
-
-type Field = "sold" | "returned" | "reduced";
-
-const fieldOf = { sell: "sold", return: "returned", reduce: "reduced" } as const;
 
 const messagesOf = {
   sell: {
@@ -93,23 +98,25 @@ const messagesOf = {
 } as const;
 
 /**
- * Settlement form (FR-CSG-03/04/07). In `sell` mode the salesperson enters
- * how many of each item were sold, the buyer (FR-POS-11) and how it is
- * paid, also part cash with the rest by transfer or QRIS (ADR-0033); the
- * total is a preview and the server prices the sale. In `return`
- * mode the shop floor enters how many came back, and in `reduce` mode
- * pickup staff enter how many were recorded by mistake.
+ * Settlement form (FR-CSG-03/04/07/09), laid out for phones: the user
+ * searches the goods still out, picks one and then enters its amount, in
+ * meters for a roll. In `sell` mode the salesperson also enters the buyer
+ * (FR-POS-11) and how it is paid, also part cash with the rest by transfer
+ * or QRIS (ADR-0033); the total is a preview and the server prices the
+ * sale, a roll per meter like a custom cut at the POS. In `return` mode the
+ * shop floor enters how many came back, and in `reduce` mode pickup staff
+ * enter how many were recorded by mistake.
  */
 export function SettleForm(props: SettleFormProps) {
   const { locale, items, mode } = props;
-  const field = fieldOf[mode];
   const messages = messagesOf[mode];
   const t = useTranslations("Consignments");
   const tPos = useTranslations("Pos");
   const id = useId();
   const router = useRouter();
   const showResult = useShowResult();
-  const [quantities, setQuantities] = useState<Record<string, Partial<Record<Field, string>>>>({});
+  const [picked, setPicked] = useState<readonly string[]>([]);
+  const [quantities, setQuantities] = useState<Record<string, string>>({});
   const [customer, setCustomer] = useState<CustomerDraft>(emptyCustomerDraft);
   const [method, setMethod] = useState<Method>("CASH");
   const [bankAccountId, setBankAccountId] = useState(props.bankAccounts[0]?.id ?? "");
@@ -126,18 +133,17 @@ export function SettleForm(props: SettleFormProps) {
   useGlobalPending(pending);
 
   const money = (amount: number) => formatCurrency(amount, locale);
-  const lines = items.map((item) => {
-    const entry = quantities[item.variantId];
-    return {
-      item,
-      sold: toQty(entry?.sold ?? ""),
-      returned: toQty(entry?.returned ?? ""),
-      reduced: toQty(entry?.reduced ?? ""),
-    };
+  const lines = picked.flatMap((variantId) => {
+    const item = items.find((entry) => entry.variantId === variantId);
+    return item ? [{ item, qty: toQty(item, quantities[variantId] ?? "") }] : [];
   });
-  const soldLines = lines.filter((line) => line.sold > 0);
+  const soldLines = mode === "sell" ? lines.filter((line) => line.qty > 0) : [];
   const total = calculateSale(
-    soldLines.map((line) => ({ unitPrice: line.item.price, qty: line.sold, discount: null })),
+    soldLines.map((line) =>
+      line.item.isRoll
+        ? { unitPrice: cutPrice(line.item.price, line.qty), qty: 1, discount: null }
+        : { unitPrice: line.item.price, qty: line.qty, discount: null },
+    ),
     props.tax,
   ).grandTotal;
   const hasSale = soldLines.length > 0;
@@ -145,12 +151,20 @@ export function SettleForm(props: SettleFormProps) {
   const splitError = method === "SPLIT" && (cash <= 0 || cash >= total);
   const paysQris = method === "QRIS" || (method === "SPLIT" && restMethod === "QRIS");
   const customerErrors = customerDraftErrors(customer, hasSale && method === "KASBON");
-  const set = (variantId: string, value: string) => {
+  const amount = (item: OutstandingItem, qty: number) =>
+    item.isRoll ? formatMeters(qty, locale) : String(qty);
+  const qtyId = (variantId: string) => `${id}-${variantId}-qty`;
+  const set = (item: OutstandingItem, value: string) => {
     setQuantities((current) => ({
       ...current,
-      [variantId]: { ...current[variantId], [field]: value.replace(/\D/g, "").slice(0, 4) },
+      [item.variantId]: item.isRoll
+        ? value.replace(/[^\d.,]/g, "").slice(0, 9)
+        : value.replace(/\D/g, "").slice(0, 6),
     }));
   };
+  const options = items
+    .filter((item) => !picked.includes(item.variantId))
+    .map((item) => ({ value: item.variantId, label: item.label }));
 
   const methods: readonly { value: Method; label: string }[] = [
     { value: "CASH", label: t("methodCash") },
@@ -162,17 +176,21 @@ export function SettleForm(props: SettleFormProps) {
 
   const submit = () => {
     if (pending) return;
-    const entered = lines.filter((line) => line[field] > 0);
-    if (entered.length === 0) {
+    if (lines.length === 0) {
       setError(t(messages.nothing));
       return;
     }
-    const over = entered.find((line) => line[field] > line.item.outstanding);
+    const missing = lines.find((line) => line.qty === 0);
+    if (missing) {
+      setError(t("missingQty", { name: missing.item.label }));
+      return;
+    }
+    const over = lines.find((line) => line.qty > line.item.outstanding);
     if (over) {
       setError(
         t(messages.tooMany, {
           name: over.item.label,
-          count: over.item.outstanding,
+          count: amount(over.item, over.item.outstanding),
         }),
       );
       return;
@@ -211,18 +229,15 @@ export function SettleForm(props: SettleFormProps) {
           mode === "reduce"
             ? await reduceGoodsAction(locale, props.consignmentId, {
                 idempotencyKey: idempotencyKey.current,
-                lines: entered.map((line) => ({
-                  variantId: line.item.variantId,
-                  qty: line.reduced,
-                })),
+                lines: lines.map((line) => ({ variantId: line.item.variantId, qty: line.qty })),
                 note,
               })
             : await settleGoodsAction(locale, props.consignmentId, {
                 idempotencyKey: idempotencyKey.current,
-                lines: entered.map((line) => ({
+                lines: lines.map((line) => ({
                   variantId: line.item.variantId,
-                  sold: mode === "sell" ? line.sold : 0,
-                  returned: mode === "return" ? line.returned : 0,
+                  sold: mode === "sell" ? line.qty : 0,
+                  returned: mode === "return" ? line.qty : 0,
                 })),
                 customer: hasSale ? { name: customer.name, phone: customer.phone } : null,
                 payment: hasSale ? payment : { method: "CASH" },
@@ -249,39 +264,87 @@ export function SettleForm(props: SettleFormProps) {
         submit();
       }}
     >
-      <ul className="flex flex-col divide-y divide-border">
-        {lines.map(({ item }) => (
-          <li key={item.variantId} className="grid gap-2 py-3 sm:grid-cols-[1fr_6rem]">
-            <span className="text-sm [overflow-wrap:anywhere] text-ink">
-              {item.label}
-              <span className="block text-xs text-ink-muted tabular-nums">
-                {mode === "sell"
-                  ? `${money(item.price)} · ${t("outstandingOf", { count: item.outstanding })}`
-                  : t("outstandingOf", { count: item.outstanding })}
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor={`${id}-pick`} className="text-sm font-medium text-ink">
+          {t("pickItem")}
+        </label>
+        <Combobox
+          id={`${id}-pick`}
+          value=""
+          onValueChange={(variantId) => {
+            setPicked((current) =>
+              current.includes(variantId) ? current : [...current, variantId],
+            );
+            setError(null);
+          }}
+          focusAfterPick={(variantId) => document.getElementById(qtyId(variantId))}
+          options={options}
+          placeholder={t("pickItemPlaceholder")}
+          searchPlaceholder={t("searchChoice")}
+          emptyText={t("noMatch")}
+          aria-describedby={`${id}-pick-hint`}
+        />
+        <p id={`${id}-pick-hint`} className="text-xs text-ink-muted">
+          {t("pickItemHint", { count: items.length })}
+        </p>
+      </div>
+
+      {lines.length > 0 ? (
+        <ul className="flex flex-col divide-y divide-border">
+          {lines.map(({ item }) => (
+            <li key={item.variantId} className="flex items-end gap-3 py-3">
+              <span className="min-w-0 flex-1 text-sm [overflow-wrap:anywhere] text-ink">
+                {item.label}
+                <span className="block text-xs text-ink-muted tabular-nums">
+                  {[
+                    mode === "sell"
+                      ? item.isRoll
+                        ? t("perMeter", { price: money(item.price) })
+                        : money(item.price)
+                      : null,
+                    t("outstandingOf", { count: amount(item, item.outstanding) }),
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </span>
               </span>
-            </span>
-            <div className="flex flex-col gap-1">
-              <label
-                htmlFor={`${id}-${item.variantId}-${field}`}
-                className="text-xs font-medium text-ink-muted"
-              >
-                <span aria-hidden="true">{t(messages.label)}</span>
-                <span className="sr-only">{t(messages.itemOf, { name: item.label })}</span>
-              </label>
-              <Input
-                id={`${id}-${item.variantId}-${field}`}
-                inputMode="numeric"
-                value={quantities[item.variantId]?.[field] ?? ""}
-                onChange={(event) => {
-                  set(item.variantId, event.target.value);
+              <div className="flex w-24 shrink-0 flex-col gap-1">
+                <label
+                  htmlFor={qtyId(item.variantId)}
+                  className="text-xs font-medium text-ink-muted"
+                >
+                  <span aria-hidden="true">
+                    {item.isRoll ? t("inMeters", { label: t(messages.label) }) : t(messages.label)}
+                  </span>
+                  <span className="sr-only">{t(messages.itemOf, { name: item.label })}</span>
+                </label>
+                <Input
+                  id={qtyId(item.variantId)}
+                  inputMode={item.isRoll ? "decimal" : "numeric"}
+                  value={quantities[item.variantId] ?? ""}
+                  onChange={(event) => {
+                    set(item, event.target.value);
+                  }}
+                  placeholder={item.isRoll ? "0,0" : "0"}
+                  className="text-center tabular-nums"
+                />
+              </div>
+              <Button
+                size="icon"
+                variant="ghost"
+                aria-label={t("removeItem", { name: item.label })}
+                onClick={() => {
+                  setPicked((current) => current.filter((entry) => entry !== item.variantId));
                 }}
-                placeholder="0"
-                className="text-center tabular-nums"
-              />
-            </div>
-          </li>
-        ))}
-      </ul>
+              >
+                <Trash2 aria-hidden="true" />
+              </Button>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-sm text-ink-muted">{t("nothingPicked")}</p>
+      )}
 
       {hasSale ? (
         <>

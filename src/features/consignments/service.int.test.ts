@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { DEFAULT_EMPLOYEE_ROLE, type Permission } from "@/config/permissions";
@@ -11,6 +11,7 @@ import {
   productVariants,
   rolePermissions,
   roles,
+  saleItems,
   sales,
   stockMovements,
 } from "@/db/schema";
@@ -129,6 +130,94 @@ describe("brand, motif and colour of goods carried (FR-CSG-08)", () => {
   });
 });
 
+describe("goods sold by the meter (FR-CSG-09)", () => {
+  /** A stock-tracked roll at 100.000 rupiah per meter with 20m on its roll row. */
+  async function roll() {
+    seq += 1;
+    const session = await owner();
+    const created = await createProduct(
+      session,
+      {
+        name: `Roll ${String(seq)}`,
+        price: 100_000,
+        unit: "pcs",
+        trackStock: true,
+        sku: `CSG-ROLL-${String(seq)}`,
+        minStock: 0,
+        sizePrices: { "93x47": 150_000, "100x70": 180_000, "50x140": 175_000, "100x140": 320_000 },
+      },
+      testContext(),
+    );
+    if (!created.ok) throw new Error(created.reason);
+    const [row] = await db
+      .select()
+      .from(productVariants)
+      .where(and(eq(productVariants.productId, created.id), isNull(productVariants.parentId)));
+    await receiveStock(session, row?.id ?? "", { qty: 2000, note: "" }, testContext());
+    return row?.id ?? "";
+  }
+
+  it("takes meters off the roll, sells them as a custom cut and restocks returns", async () => {
+    await grant("page:pos", "consignment:return");
+    const session = await salesperson();
+    await openShift(session, { openingCash: 0 }, testContext(), MONDAY);
+    const variantId = await roll();
+    const id = consignmentId(await take(session, variantId, 1000));
+    expect(await stockOf(variantId)).toBe(1000);
+
+    const sold = await settleGoods(
+      session,
+      id,
+      settlement([{ variantId, sold: 250, returned: 0 }]),
+      testContext(),
+      TUESDAY,
+    );
+    if (!sold.ok) throw new Error(sold.reason);
+    const [sale] = await db
+      .select()
+      .from(sales)
+      .where(eq(sales.id, sold.saleId ?? ""));
+    expect(sale?.grandTotal).toBe(250_000);
+    expect(
+      await db
+        .select({
+          qty: saleItems.qty,
+          lengthCm: saleItems.lengthCm,
+          unitPrice: saleItems.unitPrice,
+        })
+        .from(saleItems)
+        .where(eq(saleItems.saleId, sold.saleId ?? "")),
+    ).toEqual([{ qty: 1, lengthCm: 250, unitPrice: 250_000 }]);
+    expect(await stockOf(variantId)).toBe(1000);
+
+    await settleGoods(
+      session,
+      id,
+      settlement([{ variantId, sold: 0, returned: 150 }]),
+      testContext(),
+      TUESDAY,
+    );
+    expect(await stockOf(variantId)).toBe(1150);
+    expect((await getConsignment(session, id))?.balances).toMatchObject([
+      { isRoll: true, taken: 1000, sold: 250, returned: 150, outstanding: 600 },
+    ]);
+    expect(await getConsignments(session, "OPEN")).toMatchObject([
+      { id, outstanding: 0, outstandingCm: 600, outstandingValue: 600_000 },
+    ]);
+  });
+
+  it("refuses more meters than the roll holds and names the roll", async () => {
+    const session = await salesperson();
+    const variantId = await roll();
+    expect(await take(session, variantId, 2500)).toMatchObject({
+      ok: false,
+      reason: "insufficient-stock",
+      available: 2000,
+      isRoll: true,
+    });
+  });
+});
+
 describe("taking goods out (FR-CSG-01/02)", () => {
   it("takes stock off the shelf and keeps every day's pickup", async () => {
     const session = await salesperson();
@@ -162,6 +251,7 @@ describe("taking goods out (FR-CSG-01/02)", () => {
       reason: "insufficient-stock",
       variantId,
       available: 4,
+      isRoll: false,
     });
 
     const input = {

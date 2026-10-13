@@ -2,8 +2,8 @@
 
 | Atribut         | Nilai              |
 | --------------- | ------------------ |
-| Versi dokumen   | 0.29.0 (draft)     |
-| Tanggal         | 2026-10-12         |
+| Versi dokumen   | 0.30.0 (draft)     |
+| Tanggal         | 2026-10-13         |
 | Pemilik         | Owner              |
 | Status          | Menunggu review    |
 | Dokumen terkait | [PRD.md](./PRD.md) |
@@ -41,6 +41,7 @@
 | 0.27.0 | 2026-10-12 | Masukan v1.9: merk, motif, dan warna di pesanan online dan halaman Sales, riwayat perubahan stok di menu stok (Q-49)                                  |
 | 0.28.0 | 2026-10-12 | Masukan v1.10: satu shift kasir dipakai bersama, catatan modal awal, shift sales tanpa modal dan terpisah (Q-50)                                      |
 | 0.29.0 | 2026-10-12 | Masukan v1.10: kategori aksesoris seperti lem dan benang, satuan pcs/ml/kg (Q-51)                                                                     |
+| 0.30.0 | 2026-10-13 | Masukan v1.11: bank tujuan transfer dan status "Kas bon" di riwayat transaksi, sales menjual roll per meter, merk di rekap produk (Q-52)              |
 
 ---
 
@@ -304,3 +305,4 @@ Owner pilih rentang (data ≥ 3 bulan) ─▶ Unduh CSV langsung ─▶ Data dit
 | Q-49 | Bagaimana melihat perubahan stok, dan data apa yang tampil di pesanan online?  | Menu stok menampilkan riwayat perubahan stok terbaru seperti riwayat potong roll dan barang bawaan sales; tiap baris bisa dibuka ke riwayat lengkap barangnya. Pesanan online dan halaman Sales menampilkan merk, motif, dan warna, di tabel maupun di riwayat.                   | Diputuskan |
 | Q-50 | Apakah tiap kasir harus membuka shift sendiri?                                 | Tidak. Toko punya satu shift kasir; akun kasir lain tinggal melanjutkan dan siapa pun boleh menutupnya. Modal awal bisa diberi catatan. Shift sales terpisah dari shift toko, hanya terlihat oleh sales itu sendiri, dan dibuka tanpa modal awal karena sales tidak membawa uang. | Diputuskan |
 | Q-51 | Bagaimana menjual barang selain karpet, seperti lem dan benang?                | Lewat kategori aksesoris: merk, nama produk, warna dari daftar yang ada, dan satuan pcs, ml, atau kg. Barang kg boleh dijual pecahan (mis. 0,5 kg) di kasir dengan harga per kg; ml dijual per ml utuh.                                                                           | Diputuskan |
+| Q-52 | Apakah sales bisa membawa dan menjual roll per meter?                          | Ya, seperti potongan custom di kasir toko. Petugas mencatat berapa meter yang dibawa. Sales mencatat meter yang terjual dengan harga per meter, dan sisanya bisa dikembalikan. Di HP, sales mencari dan memilih barang dulu, lalu mengisi jumlahnya.                              | Diputuskan |

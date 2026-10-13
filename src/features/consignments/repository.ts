@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, type SQL, sql } from "drizzle-orm";
 
 import { isRollRowSql, soldByWeightSql, variantPriceSql } from "@/features/catalog/pricing-sql";
 import { db, type Executor } from "@/db/client";
@@ -101,7 +101,8 @@ export async function findTakeableVariants(executor: Executor, variantIds: reado
       size: productVariants.size,
       isDefect: productVariants.isDefect,
       price: variantPriceSql,
-      sellable: sql<boolean>`${products.isActive} AND ${productVariants.isActive} AND NOT ${isRollRowSql} AND NOT ${soldByWeightSql}`,
+      isRoll: isRollRowSql,
+      sellable: sql<boolean>`${products.isActive} AND ${productVariants.isActive} AND NOT ${soldByWeightSql}`,
     })
     .from(productVariants)
     .innerJoin(products, eq(products.id, productVariants.productId))
@@ -141,6 +142,7 @@ export async function consignmentBalances(executor: Executor, consignmentId: str
       size: productVariants.size,
       isDefect: productVariants.isDefect,
       trackStock: products.trackStock,
+      isRoll: isRollRowSql,
       price: variantPriceSql,
     })
     .from(consignmentItems)
@@ -154,6 +156,8 @@ export async function consignmentBalances(executor: Executor, consignmentId: str
       products.motif,
       productVariants.attributes,
       products.trackStock,
+      products.isRoll,
+      productVariants.parentId,
       productVariants.priceOverride,
       productVariants.size,
       productVariants.isDefect,
@@ -170,20 +174,30 @@ export async function consignmentBalances(executor: Executor, consignmentId: str
     .sort((a, b) => a.name.localeCompare(b.name) || a.variantId.localeCompare(b.variantId));
 }
 
-/** Consignments with salesperson and outstanding totals (FR-CSG-05). */
+/**
+ * Consignments with salesperson and outstanding totals (FR-CSG-05): pieces
+ * and roll centimetres apart, and their value, a roll's price being per
+ * meter (FR-CSG-09).
+ */
 export async function queryConsignments(query: {
   status: "OPEN" | "CLOSED";
   salespersonId: string | null;
   limit: number;
 }) {
-  const outstanding = sql<number>`coalesce((
-    select sum(case ${consignmentItems.kind} when 'TAKE' then ${consignmentItems.qty} else -${consignmentItems.qty} end)
-    from ${consignmentItems} where ${consignmentItems.consignmentId} = ${consignments.id}
-  ), 0)`.mapWith(Number);
-  const outstandingValue = sql<number>`coalesce((
-    select sum(case ${consignmentItems.kind} when 'TAKE' then ${consignmentItems.qty} else -${consignmentItems.qty} end * ${consignmentItems.unitPrice})
-    from ${consignmentItems} where ${consignmentItems.consignmentId} = ${consignments.id}
-  ), 0)`.mapWith(Number);
+  const signedQty = sql`case ${consignmentItems.kind} when 'TAKE' then ${consignmentItems.qty} else -${consignmentItems.qty} end`;
+  const outstandingOf = (expression: SQL) =>
+    sql<number>`coalesce((
+      select sum(${expression})
+      from ${consignmentItems}
+      inner join ${productVariants} on ${productVariants.id} = ${consignmentItems.variantId}
+      inner join ${products} on ${products.id} = ${productVariants.productId}
+      where ${consignmentItems.consignmentId} = ${consignments.id}
+    ), 0)`.mapWith(Number);
+  const outstanding = outstandingOf(sql`case when ${isRollRowSql} then 0 else ${signedQty} end`);
+  const outstandingCm = outstandingOf(sql`case when ${isRollRowSql} then ${signedQty} else 0 end`);
+  const outstandingValue = outstandingOf(
+    sql`case when ${isRollRowSql} then round(${signedQty} * ${consignmentItems.unitPrice} / 100.0) else ${signedQty} * ${consignmentItems.unitPrice} end`,
+  );
   const conditions = [eq(consignments.status, query.status)];
   if (query.salespersonId) conditions.push(eq(consignments.salespersonId, query.salespersonId));
   return db
@@ -196,6 +210,7 @@ export async function queryConsignments(query: {
       salespersonId: consignments.salespersonId,
       salespersonName: users.name,
       outstanding,
+      outstandingCm,
       outstandingValue,
     })
     .from(consignments)
@@ -256,6 +271,7 @@ export async function listBatches(consignmentId: string) {
         colorName: sql<string | null>`${productVariants.attributes} -> 'color' ->> 'name'`,
         size: productVariants.size,
         isDefect: productVariants.isDefect,
+        isRoll: isRollRowSql,
         unitPrice: consignmentItems.unitPrice,
       })
       .from(consignmentItems)

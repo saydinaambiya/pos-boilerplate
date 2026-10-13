@@ -57,8 +57,9 @@ yields all four sizes.
   `length_cm`, and a line on a piece must not. The unit price is the
   per-meter price times the length, rounded to whole rupiah (`cutPrice`,
   shared with the POS preview). The stock taken is `qty × length_cm`, and a
-  void puts the same amount back. Rolls are not taken out by salespeople or
-  sold through online orders. Only pieces are.
+  void puts the same amount back. Rolls are not sold through online orders.
+  Only pieces are. Salespeople carry rolls by the meter since
+  [ADR-0046](./0046-rolls-carried-by-the-meter.md).
 - **Thickness** is `products.thickness` (mm, up to two decimals). Brand,
   motif and thickness are required for new products and optional for older
   ones. Sale lines freeze brand · motif · thickness · size in
