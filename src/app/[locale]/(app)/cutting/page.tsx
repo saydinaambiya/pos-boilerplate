@@ -264,7 +264,11 @@ export default async function CuttingPage({ searchParams }: PageProps<"/[locale]
               {cuts.map((cut) => (
                 <li key={cut.id} className="rounded-card border border-border p-3 text-sm">
                   <p className="flex flex-wrap items-center gap-2 font-medium [overflow-wrap:anywhere] text-ink">
-                    {variantLabel(cut.productName, cut.colorName, cut.brandName)}
+                    {variantLabel(
+                      cut.productName,
+                      [cut.motif, cut.colorName].filter(Boolean).join(" · ") || null,
+                      cut.brandName,
+                    )}
                     {cut.defect ? <Chip tone="warning">{t("defectChip")}</Chip> : null}
                   </p>
                   <p className="text-xs text-ink-muted">
