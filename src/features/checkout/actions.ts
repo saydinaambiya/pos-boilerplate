@@ -11,7 +11,7 @@ import { searchCustomers } from "@/features/kasbon/service";
 import { storeClosedRejection } from "@/features/shifts/store-closed";
 import { routing } from "@/i18n/routing";
 import { previewVoucher } from "@/features/vouchers/service";
-import { requirePermission, requireSession } from "@/lib/auth/guard";
+import { requireAnyPermission, requirePermission, requireSession } from "@/lib/auth/guard";
 import { currentRequestContext } from "@/lib/http/request-context";
 import type { VoucherRule } from "@/lib/money/calculate";
 import { formatIndonesianPhone } from "@/lib/validation/phone";
@@ -103,13 +103,16 @@ export async function searchPosCatalogAction(
 export type VoucherPreview =
   { ok: true; code: string; name: string; rule: VoucherRule } | { ok: false; message: string };
 
-/** Checks a voucher code for the terminal preview; checkout validates again (FR-POS-03). */
+/**
+ * Checks a voucher code for the terminal or the Sales form preview; checkout
+ * validates again (FR-POS-03, FR-CSG-04).
+ */
 export async function checkVoucherAction(
   localeValue: unknown,
   code: unknown,
 ): Promise<VoucherPreview> {
   const locale = localeOf(localeValue);
-  const session = await requirePermission("page:pos", locale);
+  const session = await requireAnyPermission(["page:pos", "consignment:sell"], locale);
   const t = await getTranslations({ locale, namespace: "Pos" });
   const result = await previewVoucher(session, typeof code === "string" ? code : "");
   if (result.ok) return { ok: true, code: result.code, name: result.name, rule: result.rule };

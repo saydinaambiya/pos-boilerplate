@@ -111,6 +111,13 @@ test.describe("stock ledger (FR-STK)", () => {
         .filter({ hasText: product })
         .filter({ hasText: "Dipotong 1,5m, sisa roll 3m" }),
     ).toContainText("3 pcs 93cm x 47cm");
+    /** The cut names the roll's motif beside its colour (FR-ROL-03). */
+    await expect(
+      page
+        .getByRole("listitem")
+        .filter({ hasText: `${product} · Nappa · Red` })
+        .filter({ hasText: "Dipotong 1,5m, sisa roll 3m" }),
+    ).toHaveCount(1);
   });
 
   test("books a defect cut apart and filters defect stock (FR-ROL-05)", async ({ page }) => {

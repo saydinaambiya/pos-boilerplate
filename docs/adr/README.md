@@ -53,3 +53,5 @@ Records are immutable once accepted; a new record supersedes an old one.
 | [0045](./0045-accessories-and-goods-sold-by-the-kg.md)              | Accessories, and goods sold by the kg                             | Accepted                    |
 | [0046](./0046-rolls-carried-by-the-meter.md)                        | Rolls carried by the meter, a search-first Sales form             | Accepted                    |
 | [0047](./0047-brand-beside-names-and-optional-credit-phone.md)      | Brand beside product names, an optional phone on store credit     | Accepted                    |
+| [0048](./0048-sales-transaction-history-and-invoices.md)            | A transaction history for salespeople, with full invoices         | Accepted                    |
+| [0049](./0049-discounts-and-vouchers-on-sales.md)                   | Discounts and vouchers on Sales, motif in the cut history         | Accepted                    |

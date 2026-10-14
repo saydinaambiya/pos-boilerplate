@@ -6,15 +6,17 @@ import { variantSnapshotOf } from "@/features/catalog/schemas";
 import { type CheckoutFailure, checkout } from "@/features/checkout/service";
 import type { CheckoutInput } from "@/features/checkout/schemas";
 import { recordStockMovement } from "@/features/stock/service";
+import { previewVoucher } from "@/features/vouchers/service";
 import { recordAudit } from "@/lib/audit/audit";
 import { assertPermission } from "@/lib/auth/authorize";
 import type { Session } from "@/lib/auth/session";
 import type { RequestContext } from "@/lib/http/request-context";
-import { calculateSale } from "@/lib/money/calculate";
+import { calculateSale, type VoucherRule } from "@/lib/money/calculate";
 import { cutPrice } from "@/lib/money/cut";
 import { readSetting } from "@/lib/settings/store";
 import { storeClosedFor } from "@/lib/settings/store-hours-guard";
 
+import { seesEveryConsignment } from "./access";
 import {
   closeConsignment,
   consignmentBalances,
@@ -93,13 +95,6 @@ function canSellFor(session: Session, salespersonId: string): boolean {
   return (
     session.role.isSystem ||
     (salespersonId === session.user.id && session.permissions.has("consignment:sell"))
-  );
-}
-
-/** Pickup and return staff see every salesperson; salespeople see their own (FR-CSG-05). */
-function seesEveryone(session: Session): boolean {
-  return (
-    session.permissions.has("consignment:pickup") || session.permissions.has("consignment:return")
   );
 }
 
@@ -428,19 +423,38 @@ export async function settleGoods(
       (await consignmentBalances(db, consignmentId)).map((row) => [row.variantId, row]),
     );
     const tax = await readSetting("tax");
-    const lines = soldLines.map((line) =>
-      balances.get(line.variantId)?.isRoll
+    const lines: CheckoutInput["lines"] = soldLines.map((line) => ({
+      ...(balances.get(line.variantId)?.isRoll
         ? { variantId: line.variantId, qty: 1, lengthCm: line.sold }
-        : { variantId: line.variantId, qty: line.sold },
-    );
-    const grandTotal = calculateSale(
-      lines.map((line) => ({
-        unitPrice: cutPrice(balances.get(line.variantId)?.price ?? 0, line.lengthCm),
-        qty: line.qty,
-        discount: null,
-      })),
-      tax,
-    ).grandTotal;
+        : { variantId: line.variantId, qty: line.sold }),
+      ...(line.discount ? { discount: line.discount } : {}),
+    }));
+    const cart = lines.map((line) => ({
+      unitPrice: cutPrice(balances.get(line.variantId)?.price ?? 0, line.lengthCm),
+      qty: line.qty,
+      discount: line.discount ?? null,
+    }));
+    let voucherRule: VoucherRule | undefined;
+    if (input.voucherCode) {
+      const checked = await previewVoucher(session, input.voucherCode, now);
+      if (!checked.ok) {
+        return {
+          ok: false,
+          reason: "sale-failed",
+          sale: { ok: false, reason: `voucher-${checked.reason}` },
+        };
+      }
+      const { minPurchase } = checked.rule;
+      if (minPurchase != null && calculateSale(cart, tax).subtotal < minPurchase) {
+        return {
+          ok: false,
+          reason: "sale-failed",
+          sale: { ok: false, reason: "voucher-min-purchase" },
+        };
+      }
+      voucherRule = checked.rule;
+    }
+    const grandTotal = calculateSale(cart, tax, voucherRule).grandTotal;
     if (payment.method === "SPLIT" && payment.cash >= grandTotal) {
       return { ok: false, reason: "split-invalid" };
     }
@@ -448,6 +462,7 @@ export async function settleGoods(
       idempotencyKey: input.idempotencyKey,
       lines,
       customer,
+      ...(input.voucherCode ? { voucherCode: input.voucherCode } : {}),
       payments:
         payment.method === "KASBON" || grandTotal === 0
           ? []
@@ -572,7 +587,7 @@ export async function getConsignments(session: Session, status: "OPEN" | "CLOSED
   assertPermission(session, "page:consignments");
   return queryConsignments({
     status,
-    salespersonId: seesEveryone(session) ? null : session.user.id,
+    salespersonId: seesEveryConsignment(session) ? null : session.user.id,
     limit: status === "OPEN" ? 200 : 50,
   });
 }
@@ -582,7 +597,8 @@ export async function getConsignment(session: Session, id: string) {
   assertPermission(session, "page:consignments");
   const consignment = await findConsignment(id);
   if (!consignment) return undefined;
-  if (consignment.salespersonId !== session.user.id && !seesEveryone(session)) return undefined;
+  if (consignment.salespersonId !== session.user.id && !seesEveryConsignment(session))
+    return undefined;
   const [balances, batches] = await Promise.all([consignmentBalances(db, id), listBatches(id)]);
   return { ...consignment, balances, batches };
 }

@@ -66,7 +66,8 @@ export const DEFAULT_EMPLOYEE_ROLE = {
  * ADR-0024): Admin records pickups, Pramuniaga records returns, and Sales
  * sells what they carry, also after store hours (FR-SET-09). Sales keeps
  * a shift in the Sales menu and has no cashier, so it can only sell the
- * goods it carries (ADR-0029), and may sell them on store credit (ADR-0033).
+ * goods it carries (ADR-0029), and may sell them on store credit (ADR-0033)
+ * with manual line discounts like the cashier (ADR-0049).
  */
 export const SEEDED_ROLES = [
   {
@@ -87,7 +88,13 @@ export const SEEDED_ROLES = [
   },
   {
     name: "Sales",
-    permissions: ["page:consignments", "consignment:sell", "pos:after-hours", "kasbon:create"],
+    permissions: [
+      "page:consignments",
+      "consignment:sell",
+      "pos:after-hours",
+      "kasbon:create",
+      "pos:item-discount",
+    ],
   },
 ] as const satisfies readonly { name: string; permissions: readonly Permission[] }[];
 

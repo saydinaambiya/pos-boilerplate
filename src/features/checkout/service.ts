@@ -6,6 +6,7 @@ import { shiftKindFor } from "@/features/shifts/kind";
 import { db, type Executor } from "@/db/client";
 import { uniqueViolationConstraint } from "@/db/errors";
 import { colorOf } from "@/features/catalog/schemas";
+import { seesEveryConsignment } from "@/features/consignments/access";
 import { productDetailsLine } from "@/features/catalog/sizes";
 import { storeDate } from "@/lib/format/zoned-time";
 import { openKasbon, resolveKasbonCustomer } from "@/features/kasbon/service";
@@ -381,14 +382,24 @@ export async function checkout(
   }
 }
 
-/** Receipt data: the cashier's own sales, or any sale for `report:view` (NFR-SEC-07). */
+/**
+ * Receipt data (NFR-SEC-07): the cashier's own sales, or any sale for
+ * `report:view`. A sale of goods a salesperson carried is also open to that
+ * salesperson and to pickup and return staff, without the cashier
+ * (FR-CSG-10).
+ */
 export async function getSale(session: Session, saleId: string) {
-  assertPermission(session, "page:pos");
+  assertAnyPermission(session, ["page:pos", "page:consignments"]);
   const sale = await findSaleDetail(saleId);
   if (!sale) return undefined;
-  if (sale.cashierId !== session.user.id && !session.permissions.has("report:view"))
-    return undefined;
-  return sale;
+  const asCashier =
+    session.permissions.has("page:pos") &&
+    (sale.cashierId === session.user.id || session.permissions.has("report:view"));
+  const asSales =
+    sale.consignmentId !== null &&
+    session.permissions.has("page:consignments") &&
+    (sale.salespersonId === session.user.id || seesEveryConsignment(session));
+  return asCashier || asSales ? sale : undefined;
 }
 
 /**

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { sourceBank } from "@/features/checkout/schemas";
+import { itemDiscount, sourceBank } from "@/features/checkout/schemas";
 import { kasbonCheckoutInput, saleCustomerInput } from "@/features/kasbon/schemas";
 import { rupiah } from "@/lib/validation/money";
 import { plainText } from "@/lib/validation/text";
@@ -64,7 +64,8 @@ export type SettlementPayment = z.infer<typeof settlementPayment>;
  * A settlement (FR-CSG-03/04): per variant how many were sold and how many
  * come back; what is left stays with the salesperson. Sold goods become a
  * sale for the named buyer (FR-POS-11); the phone stays optional, also on
- * store credit (BR-11, ADR-0047).
+ * store credit (BR-11, ADR-0047). The sale takes line discounts and a
+ * voucher like the cashier (FR-CSG-04).
  */
 export const settleGoodsInput = z
   .object({
@@ -72,7 +73,13 @@ export const settleGoodsInput = z
     lines: z
       .array(
         z
-          .object({ variantId: z.uuid(), sold: quantity, returned: quantity })
+          .object({
+            variantId: z.uuid(),
+            sold: quantity,
+            returned: quantity,
+            /** On the sold part, like a line discount at the cashier (FR-POS-02). */
+            discount: itemDiscount.nullable().optional(),
+          })
           .strict()
           .refine((line) => line.sold + line.returned > 0, { error: "required" }),
       )
@@ -81,6 +88,8 @@ export const settleGoodsInput = z
     /** Required once anything is sold; a returns-only settlement has no buyer. */
     customer: saleCustomerInput.nullable(),
     payment: settlementPayment,
+    /** One voucher on the sale, as at the cashier (FR-POS-03). */
+    voucherCode: z.string().trim().max(20).optional(),
     note: plainText(200, 0),
   })
   .strict()

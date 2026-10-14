@@ -2,47 +2,48 @@
 
 | Atribut         | Nilai              |
 | --------------- | ------------------ |
-| Versi dokumen   | 0.31.0 (draft)     |
-| Tanggal         | 2026-10-13         |
+| Versi dokumen   | 0.32.0 (draft)     |
+| Tanggal         | 2026-10-14         |
 | Pemilik         | Owner              |
 | Status          | Menunggu review    |
 | Dokumen terkait | [PRD.md](./PRD.md) |
 
 ## Riwayat Perubahan
 
-| Versi  | Tanggal    | Perubahan                                                                                                                                             |
-| ------ | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0.1.0  | 2026-09-25 | Draft pertama                                                                                                                                         |
-| 0.2.0  | 2026-09-25 | Keputusan Q-01 (delegasi approval), Q-02 (harga exclusive), Q-03 (tanpa pembulatan; uang diterima & kembalian tidak disimpan)                         |
-| 0.3.0  | 2026-09-25 | Varian warna produk masuk scope v1                                                                                                                    |
-| 0.4.0  | 2026-09-25 | Pengaturan tampilan dipindah ke satu file config di kode                                                                                              |
-| 0.5.0  | 2026-09-25 | Identitas toko & logo diatur lewat file config oleh developer                                                                                         |
-| 0.6.0  | 2026-09-25 | Profil toko (alamat, kontak, NPWP, footer invoice) kembali dikelola owner                                                                             |
-| 0.7.0  | 2026-09-28 | Masukan user v1.0: nama pembeli, batas perangkat login, jam buka toko, barang bawaan sales (BR-24..27, Q-05..Q-08)                                    |
-| 0.8.0  | 2026-09-28 | Detail produk merk, motif, dan ukuran (BR-28, Q-09, Q-10); istilah "laku" menjadi "terjual"                                                           |
-| 0.9.0  | 2026-09-28 | Kategori produk tidak dipakai lagi; pengelompokan produk memakai merk (BR-28, Q-11)                                                                   |
-| 0.10.0 | 2026-09-29 | Masukan user v1.1: ketebalan, roll & potongan (BR-28, BR-29, Q-12..Q-15), peran sales dipisah dan kasir sales sampai malam (BR-24, BR-27, Q-16, Q-17) |
-| 0.11.0 | 2026-09-29 | QRIS, transfer tanpa referensi, harga manual pesanan online, penulisan satuan (Q-18..Q-21)                                                            |
-| 0.12.0 | 2026-09-29 | Daftar motif & warna tetap, barang cacat dari potong roll (Q-22..Q-24)                                                                                |
-| 0.13.0 | 2026-09-29 | Tanpa harga modal & laba; pengeluaran harian karyawan (Q-25..Q-28)                                                                                    |
-| 0.14.0 | 2026-09-29 | Beranda untuk semua role (Q-29)                                                                                                                       |
-| 0.15.0 | 2026-09-29 | Sales tanpa akses kasir (Q-30)                                                                                                                        |
-| 0.16.0 | 2026-09-29 | Perangkat login sebagai modal (Q-31)                                                                                                                  |
-| 0.17.0 | 2026-09-30 | Rekap uang masuk dan setoran ATM, rekap khusus Admin, housekeeping minimal 1 bulan, letak menu Pengeluaran (BR-18, Q-32..Q-39)                        |
-| 0.18.0 | 2026-09-30 | Motif dan warna "Lainnya" (Q-40)                                                                                                                      |
-| 0.19.0 | 2026-09-30 | Cicilan kas bon di kasir tanpa menunggu persetujuan (BR-12, Q-41)                                                                                     |
-| 0.20.0 | 2026-09-30 | Transaksi di luar jam buka ditolak dengan ajakan tutup shift (BR-24, Q-42)                                                                            |
-| 0.21.0 | 2026-09-30 | Pemulihan akun Owner bila lupa password (BR-30, Q-43)                                                                                                 |
-| 0.22.0 | 2026-10-01 | Masukan demo v1.4: produk per merk, stok per produk/motif/warna, roll dan 93×47 harus selalu ada (Q-44)                                               |
-| 0.23.0 | 2026-10-01 | Audit log lama bisa dihapus per rentang tanggal setelah diunduh (Q-45)                                                                                |
-| 0.24.0 | 2026-10-01 | Masukan demo v1.5: stok dan Potong Roll dikelompokkan seperti produk, warna tampil di semua daftar (Q-46)                                             |
-| 0.25.0 | 2026-10-02 | Masukan v1.6: produk bisa dihapus, urutkan dan filter ketebalan, 10 merk per halaman (Q-47)                                                           |
-| 0.26.0 | 2026-10-07 | Barang bawaan sales bisa dikurangi bila salah input, motif tampil di barang bawaan (Q-48)                                                             |
-| 0.27.0 | 2026-10-12 | Masukan v1.9: merk, motif, dan warna di pesanan online dan halaman Sales, riwayat perubahan stok di menu stok (Q-49)                                  |
-| 0.28.0 | 2026-10-12 | Masukan v1.10: satu shift kasir dipakai bersama, catatan modal awal, shift sales tanpa modal dan terpisah (Q-50)                                      |
-| 0.29.0 | 2026-10-12 | Masukan v1.10: kategori aksesoris seperti lem dan benang, satuan pcs/ml/kg (Q-51)                                                                     |
-| 0.30.0 | 2026-10-13 | Masukan v1.11: bank tujuan transfer dan status "Kas bon" di riwayat transaksi, sales menjual roll per meter, merk di rekap produk (Q-52)              |
-| 0.31.0 | 2026-10-13 | Masukan v1.12: merk di samping nama produk, no. HP opsional juga untuk kas bon (Q-53)                                                                 |
+| Versi  | Tanggal    | Perubahan                                                                                                                                                                    |
+| ------ | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0.1.0  | 2026-09-25 | Draft pertama                                                                                                                                                                |
+| 0.2.0  | 2026-09-25 | Keputusan Q-01 (delegasi approval), Q-02 (harga exclusive), Q-03 (tanpa pembulatan; uang diterima & kembalian tidak disimpan)                                                |
+| 0.3.0  | 2026-09-25 | Varian warna produk masuk scope v1                                                                                                                                           |
+| 0.4.0  | 2026-09-25 | Pengaturan tampilan dipindah ke satu file config di kode                                                                                                                     |
+| 0.5.0  | 2026-09-25 | Identitas toko & logo diatur lewat file config oleh developer                                                                                                                |
+| 0.6.0  | 2026-09-25 | Profil toko (alamat, kontak, NPWP, footer invoice) kembali dikelola owner                                                                                                    |
+| 0.7.0  | 2026-09-28 | Masukan user v1.0: nama pembeli, batas perangkat login, jam buka toko, barang bawaan sales (BR-24..27, Q-05..Q-08)                                                           |
+| 0.8.0  | 2026-09-28 | Detail produk merk, motif, dan ukuran (BR-28, Q-09, Q-10); istilah "laku" menjadi "terjual"                                                                                  |
+| 0.9.0  | 2026-09-28 | Kategori produk tidak dipakai lagi; pengelompokan produk memakai merk (BR-28, Q-11)                                                                                          |
+| 0.10.0 | 2026-09-29 | Masukan user v1.1: ketebalan, roll & potongan (BR-28, BR-29, Q-12..Q-15), peran sales dipisah dan kasir sales sampai malam (BR-24, BR-27, Q-16, Q-17)                        |
+| 0.11.0 | 2026-09-29 | QRIS, transfer tanpa referensi, harga manual pesanan online, penulisan satuan (Q-18..Q-21)                                                                                   |
+| 0.12.0 | 2026-09-29 | Daftar motif & warna tetap, barang cacat dari potong roll (Q-22..Q-24)                                                                                                       |
+| 0.13.0 | 2026-09-29 | Tanpa harga modal & laba; pengeluaran harian karyawan (Q-25..Q-28)                                                                                                           |
+| 0.14.0 | 2026-09-29 | Beranda untuk semua role (Q-29)                                                                                                                                              |
+| 0.15.0 | 2026-09-29 | Sales tanpa akses kasir (Q-30)                                                                                                                                               |
+| 0.16.0 | 2026-09-29 | Perangkat login sebagai modal (Q-31)                                                                                                                                         |
+| 0.17.0 | 2026-09-30 | Rekap uang masuk dan setoran ATM, rekap khusus Admin, housekeeping minimal 1 bulan, letak menu Pengeluaran (BR-18, Q-32..Q-39)                                               |
+| 0.18.0 | 2026-09-30 | Motif dan warna "Lainnya" (Q-40)                                                                                                                                             |
+| 0.19.0 | 2026-09-30 | Cicilan kas bon di kasir tanpa menunggu persetujuan (BR-12, Q-41)                                                                                                            |
+| 0.20.0 | 2026-09-30 | Transaksi di luar jam buka ditolak dengan ajakan tutup shift (BR-24, Q-42)                                                                                                   |
+| 0.21.0 | 2026-09-30 | Pemulihan akun Owner bila lupa password (BR-30, Q-43)                                                                                                                        |
+| 0.22.0 | 2026-10-01 | Masukan demo v1.4: produk per merk, stok per produk/motif/warna, roll dan 93×47 harus selalu ada (Q-44)                                                                      |
+| 0.23.0 | 2026-10-01 | Audit log lama bisa dihapus per rentang tanggal setelah diunduh (Q-45)                                                                                                       |
+| 0.24.0 | 2026-10-01 | Masukan demo v1.5: stok dan Potong Roll dikelompokkan seperti produk, warna tampil di semua daftar (Q-46)                                                                    |
+| 0.25.0 | 2026-10-02 | Masukan v1.6: produk bisa dihapus, urutkan dan filter ketebalan, 10 merk per halaman (Q-47)                                                                                  |
+| 0.26.0 | 2026-10-07 | Barang bawaan sales bisa dikurangi bila salah input, motif tampil di barang bawaan (Q-48)                                                                                    |
+| 0.27.0 | 2026-10-12 | Masukan v1.9: merk, motif, dan warna di pesanan online dan halaman Sales, riwayat perubahan stok di menu stok (Q-49)                                                         |
+| 0.28.0 | 2026-10-12 | Masukan v1.10: satu shift kasir dipakai bersama, catatan modal awal, shift sales tanpa modal dan terpisah (Q-50)                                                             |
+| 0.29.0 | 2026-10-12 | Masukan v1.10: kategori aksesoris seperti lem dan benang, satuan pcs/ml/kg (Q-51)                                                                                            |
+| 0.30.0 | 2026-10-13 | Masukan v1.11: bank tujuan transfer dan status "Kas bon" di riwayat transaksi, sales menjual roll per meter, merk di rekap produk (Q-52)                                     |
+| 0.31.0 | 2026-10-13 | Masukan v1.12: merk di samping nama produk, no. HP opsional juga untuk kas bon (Q-53)                                                                                        |
+| 0.32.0 | 2026-10-14 | Masukan v1.13: riwayat transaksi sales dipisah seperti riwayat admin, sales bisa melihat invoice lengkap (Q-54); diskon dan voucher di Sales, motif di riwayat potong (Q-55) |
 
 ---
 
@@ -308,3 +309,5 @@ Owner pilih rentang (data ≥ 3 bulan) ─▶ Unduh CSV langsung ─▶ Data dit
 | Q-51 | Bagaimana menjual barang selain karpet, seperti lem dan benang?                | Lewat kategori aksesoris: merk, nama produk, warna dari daftar yang ada, dan satuan pcs, ml, atau kg. Barang kg boleh dijual pecahan (mis. 0,5 kg) di kasir dengan harga per kg; ml dijual per ml utuh.                                                                           | Diputuskan |
 | Q-52 | Apakah sales bisa membawa dan menjual roll per meter?                          | Ya, seperti potongan custom di kasir toko. Petugas mencatat berapa meter yang dibawa. Sales mencatat meter yang terjual dengan harga per meter, dan sisanya bisa dikembalikan. Di HP, sales mencari dan memilih barang dulu, lalu mengisi jumlahnya.                              | Diputuskan |
 | Q-53 | Apakah no. HP pembeli wajib diisi?                                             | Tidak, juga untuk kas bon. Pelanggan kas bon dengan no. HP bisa dipilih ulang; tanpa no. HP dicatat baru tiap kas bon. Merk ditampilkan di samping nama produk di semua tempat produk dimuat.                                                                                     | Diputuskan |
+| Q-54 | Di mana sales melihat riwayat transaksi dan invoice-nya?                       | Di tab "Riwayat transaksi" halaman Sales, seperti riwayat transaksi kasir. Sales hanya melihat transaksinya sendiri dan bisa membuka invoice lengkap; catatan terjual tetap ada di riwayat barang dengan link ke invoice.                                                         | Diputuskan |
+| Q-55 | Apakah sales bisa memberi diskon saat mencatat barang terjual?                 | Ya, sama seperti kasir: diskon per item (persen atau rupiah) bagi pemegang izin diskon manual, dan satu voucher per transaksi. Riwayat potong juga menampilkan motif.                                                                                                             | Diputuskan |

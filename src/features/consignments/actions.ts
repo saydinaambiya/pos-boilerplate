@@ -115,15 +115,21 @@ export async function settleGoodsAction(
             return { ok: false, message: t("errors.storeClosed") };
           case "kasbon-forbidden":
             return { ok: false, message: tPos("errors.kasbonForbidden") };
+          case "discount-forbidden":
+            return { ok: false, message: tPos("errors.discountForbidden") };
+          case "voucher-invalid":
+            return { ok: false, message: tPos("errors.voucherInvalid") };
+          case "voucher-expired":
+            return { ok: false, message: tPos("errors.voucherExpired") };
+          case "voucher-not-started":
+            return { ok: false, message: tPos("errors.voucherNotStarted") };
+          case "voucher-quota":
+            return { ok: false, message: tPos("errors.voucherQuota") };
+          case "voucher-min-purchase":
+            return { ok: false, message: tPos("errors.voucherMinPurchase") };
           case "insufficient-stock":
           case "invalid-items":
-          case "discount-forbidden":
           case "idempotency-conflict":
-          case "voucher-invalid":
-          case "voucher-expired":
-          case "voucher-not-started":
-          case "voucher-quota":
-          case "voucher-min-purchase":
             return { ok: false, message: t("errors.invalid") };
         }
     }

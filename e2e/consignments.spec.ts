@@ -47,6 +47,7 @@ test.describe("field sales goods (FR-CSG-01..08, ADR-0024)", () => {
     });
     await grantEmployeePermission(page, "Halaman Sales (barang bawaan sales)");
     await grantEmployeePermission(page, "Sales: jual barang bawaan sendiri");
+    await grantEmployeePermission(page, "Diskon manual per item di kasir dan Sales");
     await page.goto("/id/settings/bank-accounts");
     await page.getByLabel("Nama bank").fill(`Sales ${run}`);
     await page.getByLabel("Nomor rekening").fill(Date.now().toString().slice(-10));
@@ -134,6 +135,13 @@ test.describe("field sales goods (FR-CSG-01..08, ADR-0024)", () => {
     await pickGoods(sell, withMotif);
     await expect(sell.getByLabel(`Dikembalikan, ${withMotif}`)).toHaveCount(0);
     await sell.getByLabel(`Terjual, ${withMotif}`).fill("4");
+    /** A line discount like at the cashier (FR-CSG-04, FR-POS-02). */
+    await sell.getByRole("button", { name: `Diskon untuk ${withMotif}` }).click();
+    const discount = sell.getByRole("group", { name: `Diskon untuk ${withMotif}` });
+    await discount.getByLabel("Nilai diskon").fill("10");
+    await discount.getByRole("button", { name: "Terapkan" }).click();
+    await expect(sell.getByText(/^Diskon −Rp/)).toBeVisible();
+    await expect(sell.getByText("Diskon item")).toBeVisible();
     await sell.getByLabel("Nama pelanggan").fill(`Warung ${run}`);
     /** Part cash, the rest by transfer (ADR-0033); the label names QRIS once a QRIS account exists. */
     await sell.getByLabel(/^Tunai \+/).check({ force: true });
@@ -159,7 +167,25 @@ test.describe("field sales goods (FR-CSG-01..08, ADR-0024)", () => {
       "2",
     ]);
     await expect(historyLine("4 terjual")).toHaveCount(1);
-    await expect(page.getByRole("link", { name: /Transaksi INV-/ }).first()).toBeVisible();
+
+    /** The full invoice opens right over the goods (FR-CSG-10). */
+    const invoiceLink = page.getByRole("link", { name: /Transaksi INV-/ }).first();
+    const invoiceNo = ((await invoiceLink.textContent()) ?? "").replace("Transaksi ", "");
+    await invoiceLink.click();
+    const receipt = page.getByRole("dialog", { name: `Struk ${invoiceNo}` });
+    await expect(receipt.getByRole("table", { name: "Item transaksi" })).toContainText(product);
+    await expect(receipt.getByRole("link", { name: "Cetak / PDF" })).toBeVisible();
+    await receipt.getByRole("button", { name: "Tutup" }).first().click();
+
+    /** The salesperson's sales sit in their own tab, like the cashier's history (FR-CSG-10). */
+    await page.goto("/consignments/sales");
+    await expect(page.getByRole("link", { name: "Riwayat transaksi" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    await expect(page.getByLabel("Sales", { exact: true })).toHaveCount(0);
+    await page.getByRole("link", { name: `Buka transaksi ${invoiceNo}` }).click();
+    await expect(page.getByRole("dialog", { name: `Struk ${invoiceNo}` })).toBeVisible();
     await page.context().close();
   });
 

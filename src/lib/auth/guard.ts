@@ -43,3 +43,13 @@ export async function requirePermission(permission: Permission, locale?: Locale)
   if (!session.permissions.has(permission)) forbidden();
   return session;
 }
+
+/** Requires any one of the permissions; renders the 403 page otherwise (FR-RBAC-02). */
+export async function requireAnyPermission(
+  permissions: readonly Permission[],
+  locale?: Locale,
+): Promise<Session> {
+  const session = await requireSession(locale);
+  if (!permissions.some((permission) => session.permissions.has(permission))) forbidden();
+  return session;
+}

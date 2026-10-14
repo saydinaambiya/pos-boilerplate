@@ -131,7 +131,7 @@ export async function cutExists(executor: Executor, key: string): Promise<boolea
 /**
  * Latest cuts, newest first: the roll side of each `CUT` (negative
  * centimetres) with the pieces it produced, grouped by the cut's reference.
- * Each carries the roll's brand (FR-PRD-08).
+ * Each carries the roll's brand (FR-PRD-08) and motif (FR-ROL-03).
  */
 export async function queryRecentCuts(limit: number, offset = 0) {
   const cuts = await db
@@ -143,6 +143,7 @@ export async function queryRecentCuts(limit: number, offset = 0) {
       actorName: users.name,
       productName: products.name,
       brandName: brands.name,
+      motif: products.motif,
       colorName: sql<string | null>`${productVariants.attributes} -> 'color' ->> 'name'`,
     })
     .from(stockMovements)
