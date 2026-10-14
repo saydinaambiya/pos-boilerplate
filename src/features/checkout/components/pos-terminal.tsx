@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import type { Locale } from "@/config/locales";
+import { ColorSwatch } from "@/features/catalog/components/color-swatch";
 import type { PosProduct, PosVariant } from "@/features/catalog/pos-types";
 import { formatSize, productDetailsLine } from "@/features/catalog/sizes";
 import { Link } from "@/i18n/navigation";
@@ -65,6 +66,35 @@ function sellables(product: PosProduct): PosVariant[] {
     : product.variants;
 }
 
+/**
+ * One grid tile per colour (FR-POS-14): a product with several colours is
+ * split into copies holding one colour each, with that roll's pieces.
+ */
+function byColor(
+  product: PosProduct,
+): { key: string; product: PosProduct; color: PosVariant | null }[] {
+  const colors = product.variants.filter((variant) => variant.parentId === null);
+  if (colors.length <= 1) {
+    return [
+      {
+        key: product.id,
+        product,
+        color: product.hasVariants || product.isRoll ? (colors[0] ?? null) : null,
+      },
+    ];
+  }
+  return colors.map((color) => ({
+    key: `${product.id}:${color.id}`,
+    product: {
+      ...product,
+      variants: product.variants.filter(
+        (variant) => variant.id === color.id || variant.parentId === color.id,
+      ),
+    },
+    color,
+  }));
+}
+
 function matches(product: PosProduct, term: string) {
   const needle = term.toLowerCase();
   return (
@@ -88,8 +118,9 @@ function isTyping(target: EventTarget | null) {
 /**
  * The POS screen (FR-POS-01..05, FR-POS-10): product grid with search and
  * brand filter, colour picker (with sizes and custom cuts for rolls,
- * FR-ROL-04), cart and payment. Tiles and cart lines name the brand beside
- * the product (FR-PRD-08) and the motif (FR-POS-12). The preview uses the
+ * FR-ROL-04), cart and payment. Each colour has its own tile (FR-POS-14).
+ * Tiles and cart lines name the brand beside the product (FR-PRD-08) and
+ * the motif (FR-POS-12). The preview uses the
  * same `calculateSale` as the server, which recomputes on checkout.
  */
 export function PosTerminal(props: PosTerminalProps) {
@@ -166,11 +197,12 @@ export function PosTerminal(props: PosTerminalProps) {
 
   const visible = useMemo(() => {
     const source = props.truncated && remote ? remote : props.catalog;
-    return source.filter(
-      (product) =>
-        (brand === null || product.brandId === brand) &&
-        (props.truncated || term.trim() === "" || matches(product, term.trim())),
-    );
+    return source
+      .filter((product) => brand === null || product.brandId === brand)
+      .flatMap(byColor)
+      .filter(
+        (tile) => props.truncated || term.trim() === "" || matches(tile.product, term.trim()),
+      );
   }, [props.catalog, props.truncated, remote, brand, term]);
 
   const maxQty = useCallback(
@@ -230,8 +262,9 @@ export function PosTerminal(props: PosTerminalProps) {
   const pick = (product: PosProduct) => {
     const [only] = product.variants;
     const weighed = product.unit === "kg" && !product.isRoll;
-    if (!product.hasVariants && !product.isRoll && !weighed && only) addVariant(product, only);
-    else setPicking(product);
+    if (product.variants.length === 1 && !product.isRoll && !weighed && only) {
+      addVariant(product, only);
+    } else setPicking(product);
   };
 
   const openPayment = useCallback(() => {
@@ -338,7 +371,7 @@ export function PosTerminal(props: PosTerminalProps) {
             <p className="py-10 text-center text-sm text-ink-muted">{t("noProducts")}</p>
           ) : (
             <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
-              {visible.map((product) => {
+              {visible.map(({ key, product, color }) => {
                 const prices = sellables(product).map((variant) => variant.price);
                 const low = Math.min(...prices);
                 const high = Math.max(...prices);
@@ -349,9 +382,8 @@ export function PosTerminal(props: PosTerminalProps) {
                   (sum, variant) => sum + variant.stockQty,
                   0,
                 );
-                const colors = product.variants.filter((variant) => variant.parentId === null);
                 return (
-                  <li key={product.id}>
+                  <li key={key}>
                     <button
                       type="button"
                       disabled={!selectable}
@@ -368,6 +400,18 @@ export function PosTerminal(props: PosTerminalProps) {
                           {productDetailsLine({ ...product, brandName: null, motif: null }, locale)}
                         </span>
                       ) : null}
+                      {color?.colorName ? (
+                        <span className="flex items-center gap-1.5 text-xs [overflow-wrap:anywhere] text-ink">
+                          <ColorSwatch
+                            color={{
+                              name: color.colorName,
+                              ...(color.hex ? { hex: color.hex } : {}),
+                            }}
+                            className="size-4"
+                          />
+                          {t("colorLabel", { color: color.colorName })}
+                        </span>
+                      ) : null}
                       {product.motif ? (
                         <span className="text-xs [overflow-wrap:anywhere] text-ink">
                           {t("motifLabel", { motif: product.motif })}
@@ -378,17 +422,15 @@ export function PosTerminal(props: PosTerminalProps) {
                         {product.unit === "kg" && !product.isRoll ? " / kg" : null}
                       </span>
                       <span className="mt-auto text-xs text-ink-muted">
-                        {product.hasVariants
-                          ? t("colorCount", { count: colors.length })
-                          : product.unit === "kg" && !product.isRoll
-                            ? t("weightLeft", { weight: formatKg(stock, locale) })
-                            : product.isRoll
-                              ? t("stockLeft", { count: stock })
-                              : product.trackStock
-                                ? stock > 0
-                                  ? t("stockLeft", { count: stock })
-                                  : t("outOfStock")
-                                : product.unit}
+                        {product.unit === "kg" && !product.isRoll
+                          ? t("weightLeft", { weight: formatKg(stock, locale) })
+                          : product.isRoll
+                            ? t("stockLeft", { count: stock })
+                            : product.trackStock
+                              ? stock > 0
+                                ? t("stockLeft", { count: stock })
+                                : t("outOfStock")
+                              : product.unit}
                       </span>
                     </button>
                   </li>

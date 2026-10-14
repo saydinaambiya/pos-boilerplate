@@ -936,7 +936,7 @@
     "searchPlaceholder": "Name, SKU or colour (press /)",
     "outOfStock": "Sold out",
     "stockLeft": "{count} left",
-    "colorCount": "{count} colours",
+    "colorLabel": "Colour: {color}",
     "noProducts": "No matching products.",
     "searching": "Searching…",
     "searchHint": "Type to search products.",
