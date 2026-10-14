@@ -936,7 +936,7 @@
     "searchPlaceholder": "Nama, SKU, atau warna (tekan /)",
     "outOfStock": "Habis",
     "stockLeft": "Sisa {count}",
-    "colorCount": "{count} warna",
+    "colorLabel": "Warna: {color}",
     "noProducts": "Tidak ada produk yang cocok.",
     "searching": "Mencari…",
     "searchHint": "Ketik untuk mencari produk.",
