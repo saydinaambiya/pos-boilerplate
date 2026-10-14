@@ -351,6 +351,7 @@ export default async function ConsignmentPage({
               bankAccounts={await getCheckoutBankAccounts(session)}
               qrisAccount={await getQrisAccount(session)}
               canKasbon={session.permissions.has("kasbon:create")}
+              canDiscount={session.permissions.has("pos:item-discount")}
               today={storeDate(new Date(), operations.timeZone)}
             />
           </ConsignmentMessages>

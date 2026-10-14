@@ -9,7 +9,7 @@ import {
   submitApproval,
 } from "@/features/approvals/engine";
 import { recordAudit } from "@/lib/audit/audit";
-import { assertPermission } from "@/lib/auth/authorize";
+import { assertAnyPermission, assertPermission } from "@/lib/auth/authorize";
 import type { Session } from "@/lib/auth/session";
 import { startOfNextZonedDay, startOfZonedDay } from "@/lib/format/zoned-time";
 import type { RequestContext } from "@/lib/http/request-context";
@@ -337,10 +337,17 @@ export async function resolveVoucher(
   };
 }
 
-/** Preview for the POS terminal; the checkout re-validates under lock. */
-export async function previewVoucher(session: Session, rawCode: string): Promise<VoucherCheck> {
-  assertPermission(session, "page:pos");
-  return db.transaction((tx) => resolveVoucher(tx, rawCode));
+/**
+ * Preview for the POS terminal and the Sales form (FR-CSG-04); the checkout
+ * re-validates under lock.
+ */
+export async function previewVoucher(
+  session: Session,
+  rawCode: string,
+  now = new Date(),
+): Promise<VoucherCheck> {
+  assertAnyPermission(session, ["page:pos", "consignment:sell"]);
+  return db.transaction((tx) => resolveVoucher(tx, rawCode, now));
 }
 
 /** Counts one use, inside the checkout transaction. */

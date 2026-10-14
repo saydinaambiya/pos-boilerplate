@@ -4,7 +4,8 @@ import { kasbonCheckoutInput, saleCustomerInput } from "@/features/kasbon/schema
 import { MAX_RUPIAH, rupiah } from "@/lib/validation/money";
 import { plainText } from "@/lib/validation/text";
 
-const itemDiscount = z.union([
+/** A discount on one line, in percent or rupiah (FR-POS-02). */
+export const itemDiscount = z.union([
   z.object({ type: z.literal("percent"), bps: z.int().min(1).max(10_000) }).strict(),
   z.object({ type: z.literal("amount"), value: rupiah.min(1) }).strict(),
 ]);

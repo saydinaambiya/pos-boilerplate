@@ -47,6 +47,7 @@ test.describe("field sales goods (FR-CSG-01..08, ADR-0024)", () => {
     });
     await grantEmployeePermission(page, "Halaman Sales (barang bawaan sales)");
     await grantEmployeePermission(page, "Sales: jual barang bawaan sendiri");
+    await grantEmployeePermission(page, "Diskon manual per item di kasir dan Sales");
     await page.goto("/id/settings/bank-accounts");
     await page.getByLabel("Nama bank").fill(`Sales ${run}`);
     await page.getByLabel("Nomor rekening").fill(Date.now().toString().slice(-10));
@@ -134,6 +135,13 @@ test.describe("field sales goods (FR-CSG-01..08, ADR-0024)", () => {
     await pickGoods(sell, withMotif);
     await expect(sell.getByLabel(`Dikembalikan, ${withMotif}`)).toHaveCount(0);
     await sell.getByLabel(`Terjual, ${withMotif}`).fill("4");
+    /** A line discount like at the cashier (FR-CSG-04, FR-POS-02). */
+    await sell.getByRole("button", { name: `Diskon untuk ${withMotif}` }).click();
+    const discount = sell.getByRole("group", { name: `Diskon untuk ${withMotif}` });
+    await discount.getByLabel("Nilai diskon").fill("10");
+    await discount.getByRole("button", { name: "Terapkan" }).click();
+    await expect(sell.getByText(/^Diskon −Rp/)).toBeVisible();
+    await expect(sell.getByText("Diskon item")).toBeVisible();
     await sell.getByLabel("Nama pelanggan").fill(`Warung ${run}`);
     /** Part cash, the rest by transfer (ADR-0033); the label names QRIS once a QRIS account exists. */
     await sell.getByLabel(/^Tunai \+/).check({ force: true });

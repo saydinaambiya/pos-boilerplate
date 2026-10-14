@@ -20,6 +20,7 @@ import { consignmentSaleQuery, listConsignmentSales } from "@/features/checkout/
 import { checkout, getSale } from "@/features/checkout/service";
 import { requestVoid } from "@/features/checkout/void-service";
 import { createBankAccount } from "@/features/settings/service";
+import { createVoucher } from "@/features/vouchers/service";
 import { openShift } from "@/features/shifts/service";
 import { receiveStock } from "@/features/stock/service";
 import { ForbiddenError } from "@/lib/auth/authorize";
@@ -725,5 +726,72 @@ describe("salespeople's transaction history (FR-CSG-10)", () => {
       consignmentSaleQuery.parse({ salesperson: user.id }),
     );
     expect(picked.sales).toMatchObject([{ id: theirs, salespersonName: user.name }]);
+  });
+});
+
+describe("discounts and vouchers on Sales (FR-CSG-04)", () => {
+  it("takes a line discount and a voucher like the cashier, without the cashier", async () => {
+    const [role] = await db.select().from(roles).where(eq(roles.name, DEFAULT_EMPLOYEE_ROLE.name));
+    await db
+      .delete(rolePermissions)
+      .where(
+        and(eq(rolePermissions.roleId, role?.id ?? ""), eq(rolePermissions.permission, "page:pos")),
+      );
+    await createVoucher(
+      await owner(),
+      {
+        code: "SALES10",
+        name: "Hemat 10%",
+        type: "PERCENT",
+        value: 10,
+        minPurchase: null,
+        maxDiscount: null,
+        startDate: null,
+        endDate: null,
+        quota: null,
+      },
+      testContext(),
+    );
+    const session = await salesperson();
+    await openShift(session, { openingCash: 0 }, testContext(), MONDAY);
+    const variantId = await product(10);
+    const id = consignmentId(await take(session, variantId, 5));
+    const discounted = (voucherCode?: string): SettleGoodsInput => ({
+      ...settlement([
+        { variantId, sold: 4, returned: 0, discount: { type: "amount", value: 2_000 } },
+      ]),
+      ...(voucherCode ? { voucherCode } : {}),
+    });
+
+    expect(await settleGoods(session, id, discounted(), testContext(), TUESDAY)).toEqual({
+      ok: false,
+      reason: "sale-failed",
+      sale: { ok: false, reason: "discount-forbidden" },
+    });
+    await grant("pos:item-discount");
+    expect(
+      await settleGoods(await salesperson(), id, discounted("NOPE"), testContext(), TUESDAY),
+    ).toEqual({ ok: false, reason: "sale-failed", sale: { ok: false, reason: "voucher-invalid" } });
+
+    const result = await settleGoods(
+      await salesperson(),
+      id,
+      discounted("sales10"),
+      testContext(),
+      TUESDAY,
+    );
+    if (!result.ok || !result.saleId) throw new Error("not sold");
+    const [sale] = await db.select().from(sales).where(eq(sales.id, result.saleId));
+    expect(sale).toMatchObject({
+      subtotal: 38_000,
+      itemDiscountTotal: 2_000,
+      voucherDiscount: 3_800,
+      grandTotal: 34_200,
+    });
+    expect(
+      (await db.select().from(payments).where(eq(payments.saleId, result.saleId))).map(
+        (payment) => [payment.method, payment.amount],
+      ),
+    ).toEqual([["CASH", 34_200]]);
   });
 });

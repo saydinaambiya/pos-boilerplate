@@ -6,11 +6,12 @@ import { variantSnapshotOf } from "@/features/catalog/schemas";
 import { type CheckoutFailure, checkout } from "@/features/checkout/service";
 import type { CheckoutInput } from "@/features/checkout/schemas";
 import { recordStockMovement } from "@/features/stock/service";
+import { previewVoucher } from "@/features/vouchers/service";
 import { recordAudit } from "@/lib/audit/audit";
 import { assertPermission } from "@/lib/auth/authorize";
 import type { Session } from "@/lib/auth/session";
 import type { RequestContext } from "@/lib/http/request-context";
-import { calculateSale } from "@/lib/money/calculate";
+import { calculateSale, type VoucherRule } from "@/lib/money/calculate";
 import { cutPrice } from "@/lib/money/cut";
 import { readSetting } from "@/lib/settings/store";
 import { storeClosedFor } from "@/lib/settings/store-hours-guard";
@@ -422,19 +423,38 @@ export async function settleGoods(
       (await consignmentBalances(db, consignmentId)).map((row) => [row.variantId, row]),
     );
     const tax = await readSetting("tax");
-    const lines = soldLines.map((line) =>
-      balances.get(line.variantId)?.isRoll
+    const lines: CheckoutInput["lines"] = soldLines.map((line) => ({
+      ...(balances.get(line.variantId)?.isRoll
         ? { variantId: line.variantId, qty: 1, lengthCm: line.sold }
-        : { variantId: line.variantId, qty: line.sold },
-    );
-    const grandTotal = calculateSale(
-      lines.map((line) => ({
-        unitPrice: cutPrice(balances.get(line.variantId)?.price ?? 0, line.lengthCm),
-        qty: line.qty,
-        discount: null,
-      })),
-      tax,
-    ).grandTotal;
+        : { variantId: line.variantId, qty: line.sold }),
+      ...(line.discount ? { discount: line.discount } : {}),
+    }));
+    const cart = lines.map((line) => ({
+      unitPrice: cutPrice(balances.get(line.variantId)?.price ?? 0, line.lengthCm),
+      qty: line.qty,
+      discount: line.discount ?? null,
+    }));
+    let voucherRule: VoucherRule | undefined;
+    if (input.voucherCode) {
+      const checked = await previewVoucher(session, input.voucherCode, now);
+      if (!checked.ok) {
+        return {
+          ok: false,
+          reason: "sale-failed",
+          sale: { ok: false, reason: `voucher-${checked.reason}` },
+        };
+      }
+      const { minPurchase } = checked.rule;
+      if (minPurchase != null && calculateSale(cart, tax).subtotal < minPurchase) {
+        return {
+          ok: false,
+          reason: "sale-failed",
+          sale: { ok: false, reason: "voucher-min-purchase" },
+        };
+      }
+      voucherRule = checked.rule;
+    }
+    const grandTotal = calculateSale(cart, tax, voucherRule).grandTotal;
     if (payment.method === "SPLIT" && payment.cash >= grandTotal) {
       return { ok: false, reason: "split-invalid" };
     }
@@ -442,6 +462,7 @@ export async function settleGoods(
       idempotencyKey: input.idempotencyKey,
       lines,
       customer,
+      ...(input.voucherCode ? { voucherCode: input.voucherCode } : {}),
       payments:
         payment.method === "KASBON" || grandTotal === 0
           ? []

@@ -1,6 +1,6 @@
 "use client";
 
-import { Trash2 } from "lucide-react";
+import { Tag, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useId, useRef, useState, useTransition } from "react";
 
@@ -21,6 +21,12 @@ import {
   type CustomerDraft,
 } from "@/features/checkout/components/customer-fields";
 import {
+  type AppliedVoucher,
+  DiscountEditor,
+  SaleTotalsList,
+  VoucherField,
+} from "@/features/checkout/components/cart-panel";
+import {
   emptySourceBank,
   SourceBankField,
   type SourceBankDraft,
@@ -30,9 +36,11 @@ import { useRouter } from "@/i18n/navigation";
 import { formatCurrency } from "@/lib/format/currency";
 import { formatMeters, parseMetersToCm } from "@/lib/format/length";
 import { parseRupiah } from "@/lib/format/rupiah-input";
-import { calculateSale, type TaxRules } from "@/lib/money/calculate";
+import { calculateSale, type ItemDiscount, type TaxRules } from "@/lib/money/calculate";
 import { cutPrice } from "@/lib/money/cut";
 import { cn } from "@/lib/utils/cn";
+
+import { checkVoucherAction } from "@/features/checkout/actions";
 
 import { reduceGoodsAction, settleGoodsAction } from "../actions";
 
@@ -62,6 +70,8 @@ interface SettleFormProps {
   /** The store's QRIS account; null hides QRIS (FR-PAY-07). */
   qrisAccount: { label: string } | null;
   canKasbon: boolean;
+  /** Line discounts need `pos:item-discount`, as at the cashier (FR-POS-02). */
+  canDiscount: boolean;
   /** Store-local date, the earliest due date. */
   today: string;
 }
@@ -102,7 +112,8 @@ const messagesOf = {
  * searches the goods still out, picks one and then enters its amount, in
  * meters for a roll. In `sell` mode the salesperson also enters the buyer
  * (FR-POS-11) and how it is paid, also part cash with the rest by transfer
- * or QRIS (ADR-0033); the total is a preview and the server prices the
+ * or QRIS (ADR-0033). Line discounts and one voucher work as at the cashier
+ * (FR-CSG-04, FR-POS-02/03); the total is a preview and the server prices the
  * sale, a roll per meter like a custom cut at the POS. In `return` mode the
  * shop floor enters how many came back, and in `reduce` mode pickup staff
  * enter how many were recorded by mistake.
@@ -117,6 +128,9 @@ export function SettleForm(props: SettleFormProps) {
   const showResult = useShowResult();
   const [picked, setPicked] = useState<readonly string[]>([]);
   const [quantities, setQuantities] = useState<Record<string, string>>({});
+  const [discounts, setDiscounts] = useState<Record<string, ItemDiscount | null>>({});
+  const [editing, setEditing] = useState<string | null>(null);
+  const [voucher, setVoucher] = useState<AppliedVoucher | null>(null);
   const [customer, setCustomer] = useState<CustomerDraft>(emptyCustomerDraft);
   const [method, setMethod] = useState<Method>("CASH");
   const [bankAccountId, setBankAccountId] = useState(props.bankAccounts[0]?.id ?? "");
@@ -138,14 +152,25 @@ export function SettleForm(props: SettleFormProps) {
     return item ? [{ item, qty: toQty(item, quantities[variantId] ?? "") }] : [];
   });
   const soldLines = mode === "sell" ? lines.filter((line) => line.qty > 0) : [];
-  const total = calculateSale(
+  const discountOf = (variantId: string) =>
+    props.canDiscount ? (discounts[variantId] ?? null) : null;
+  const totals = calculateSale(
     soldLines.map((line) =>
       line.item.isRoll
-        ? { unitPrice: cutPrice(line.item.price, line.qty), qty: 1, discount: null }
-        : { unitPrice: line.item.price, qty: line.qty, discount: null },
+        ? {
+            unitPrice: cutPrice(line.item.price, line.qty),
+            qty: 1,
+            discount: discountOf(line.item.variantId),
+          }
+        : { unitPrice: line.item.price, qty: line.qty, discount: discountOf(line.item.variantId) },
     ),
     props.tax,
-  ).grandTotal;
+    voucher?.rule,
+  );
+  const total = totals.grandTotal;
+  const lineDiscounts = new Map(
+    soldLines.map((line, index) => [line.item.variantId, totals.lines[index]?.discount ?? 0]),
+  );
   const hasSale = soldLines.length > 0;
   const cash = parseRupiah(cashPart) ?? 0;
   const splitError = method === "SPLIT" && (cash <= 0 || cash >= total);
@@ -234,13 +259,18 @@ export function SettleForm(props: SettleFormProps) {
               })
             : await settleGoodsAction(locale, props.consignmentId, {
                 idempotencyKey: idempotencyKey.current,
-                lines: lines.map((line) => ({
-                  variantId: line.item.variantId,
-                  sold: mode === "sell" ? line.qty : 0,
-                  returned: mode === "return" ? line.qty : 0,
-                })),
+                lines: lines.map((line) => {
+                  const discount = mode === "sell" ? discountOf(line.item.variantId) : null;
+                  return {
+                    variantId: line.item.variantId,
+                    sold: mode === "sell" ? line.qty : 0,
+                    returned: mode === "return" ? line.qty : 0,
+                    ...(discount ? { discount } : {}),
+                  };
+                }),
                 customer: hasSale ? { name: customer.name, phone: customer.phone } : null,
                 payment: hasSale ? payment : { method: "CASH" },
+                ...(hasSale && voucher ? { voucherCode: voucher.code } : {}),
                 note,
               });
         if (!result.ok) {
@@ -292,53 +322,90 @@ export function SettleForm(props: SettleFormProps) {
       {lines.length > 0 ? (
         <ul className="flex flex-col divide-y divide-border">
           {lines.map(({ item }) => (
-            <li key={item.variantId} className="flex items-end gap-3 py-3">
-              <span className="min-w-0 flex-1 text-sm [overflow-wrap:anywhere] text-ink">
-                {item.label}
-                <span className="block text-xs text-ink-muted tabular-nums">
-                  {[
-                    mode === "sell"
-                      ? item.isRoll
-                        ? t("perMeter", { price: money(item.price) })
-                        : money(item.price)
-                      : null,
-                    t("outstandingOf", { count: amount(item, item.outstanding) }),
-                  ]
-                    .filter(Boolean)
-                    .join(" · ")}
-                </span>
-              </span>
-              <div className="flex w-24 shrink-0 flex-col gap-1">
-                <label
-                  htmlFor={qtyId(item.variantId)}
-                  className="text-xs font-medium text-ink-muted"
-                >
-                  <span aria-hidden="true">
-                    {item.isRoll ? t("inMeters", { label: t(messages.label) }) : t(messages.label)}
+            <li key={item.variantId} className="flex flex-col py-3">
+              <div className="flex items-end gap-3">
+                <span className="min-w-0 flex-1 text-sm [overflow-wrap:anywhere] text-ink">
+                  {item.label}
+                  <span className="block text-xs text-ink-muted tabular-nums">
+                    {[
+                      mode === "sell"
+                        ? item.isRoll
+                          ? t("perMeter", { price: money(item.price) })
+                          : money(item.price)
+                        : null,
+                      t("outstandingOf", { count: amount(item, item.outstanding) }),
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
                   </span>
-                  <span className="sr-only">{t(messages.itemOf, { name: item.label })}</span>
-                </label>
-                <Input
-                  id={qtyId(item.variantId)}
-                  inputMode={item.isRoll ? "decimal" : "numeric"}
-                  value={quantities[item.variantId] ?? ""}
-                  onChange={(event) => {
-                    set(item, event.target.value);
+                  {(lineDiscounts.get(item.variantId) ?? 0) > 0 ? (
+                    <span className="block text-xs font-medium text-success-ink">
+                      {tPos("discountApplied", {
+                        amount: money(lineDiscounts.get(item.variantId) ?? 0),
+                      })}
+                    </span>
+                  ) : null}
+                </span>
+                <div className="flex w-24 shrink-0 flex-col gap-1">
+                  <label
+                    htmlFor={qtyId(item.variantId)}
+                    className="text-xs font-medium text-ink-muted"
+                  >
+                    <span aria-hidden="true">
+                      {item.isRoll
+                        ? t("inMeters", { label: t(messages.label) })
+                        : t(messages.label)}
+                    </span>
+                    <span className="sr-only">{t(messages.itemOf, { name: item.label })}</span>
+                  </label>
+                  <Input
+                    id={qtyId(item.variantId)}
+                    inputMode={item.isRoll ? "decimal" : "numeric"}
+                    value={quantities[item.variantId] ?? ""}
+                    onChange={(event) => {
+                      set(item, event.target.value);
+                    }}
+                    placeholder={item.isRoll ? "0,0" : "0"}
+                    className="text-center tabular-nums"
+                  />
+                </div>
+                {mode === "sell" && props.canDiscount ? (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    aria-label={tPos("discountFor", { name: item.label })}
+                    aria-expanded={editing === item.variantId}
+                    onClick={() => {
+                      setEditing(editing === item.variantId ? null : item.variantId);
+                    }}
+                  >
+                    <Tag aria-hidden="true" />
+                  </Button>
+                ) : null}
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  aria-label={t("removeItem", { name: item.label })}
+                  onClick={() => {
+                    setPicked((current) => current.filter((entry) => entry !== item.variantId));
+                    setDiscounts((current) => ({ ...current, [item.variantId]: null }));
                   }}
-                  placeholder={item.isRoll ? "0,0" : "0"}
-                  className="text-center tabular-nums"
-                />
+                >
+                  <Trash2 aria-hidden="true" />
+                </Button>
               </div>
-              <Button
-                size="icon"
-                variant="ghost"
-                aria-label={t("removeItem", { name: item.label })}
-                onClick={() => {
-                  setPicked((current) => current.filter((entry) => entry !== item.variantId));
-                }}
-              >
-                <Trash2 aria-hidden="true" />
-              </Button>
+              {mode === "sell" && editing === item.variantId ? (
+                <DiscountEditor
+                  name={item.label}
+                  discount={discountOf(item.variantId)}
+                  onApply={(discount) => {
+                    setDiscounts((current) => ({ ...current, [item.variantId]: discount }));
+                  }}
+                  onDone={() => {
+                    setEditing(null);
+                  }}
+                />
+              ) : null}
             </li>
           ))}
         </ul>
@@ -348,10 +415,21 @@ export function SettleForm(props: SettleFormProps) {
 
       {hasSale ? (
         <>
-          <div className="rounded-card bg-surface-muted p-4">
-            <p className="text-sm text-ink-muted">{t("saleTotal")}</p>
-            <p className="text-2xl font-semibold text-ink tabular-nums">{money(total)}</p>
-          </div>
+          <VoucherField
+            voucher={voucher}
+            onApplyVoucher={async (code) => {
+              const result = await checkVoucherAction(locale, code);
+              if (!result.ok) return result.message;
+              setVoucher({ code: result.code, name: result.name, rule: result.rule });
+              return null;
+            }}
+            onRemoveVoucher={() => {
+              setVoucher(null);
+            }}
+            subtotal={totals.subtotal}
+            locale={locale}
+          />
+          <SaleTotalsList totals={totals} tax={props.tax} voucher={voucher} locale={locale} />
           <CustomerFields
             locale={locale}
             draft={customer}

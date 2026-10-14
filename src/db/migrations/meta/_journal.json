@@ -274,6 +274,13 @@
       "when": 1791874662681,
       "tag": "0038_sale_item_brand",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1791949071789,
+      "tag": "0039_sales_item_discount",
+      "breakpoints": true
     }
   ]
 }
