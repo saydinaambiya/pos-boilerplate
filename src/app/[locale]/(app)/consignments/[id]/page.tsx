@@ -17,6 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { SaleDialog } from "@/features/checkout/components/sale-dialog";
 import { ConsignmentMessages } from "@/features/consignments/components/consignment-messages";
 import { SettleForm } from "@/features/consignments/components/settle-form";
 import { TakeForm } from "@/features/consignments/components/take-form";
@@ -61,7 +62,8 @@ function itemLabel(item: {
  * `?return=1` records goods brought back (shop
  * floor) and `?sell=1` lets the salesperson record what they sold; selling
  * takes money, so it needs the salesperson's own open shift, but not the
- * cashier (ADR-0024, ADR-0029).
+ * cashier (ADR-0024, ADR-0029). `?sale=` opens the full invoice of a sold
+ * batch, also for salespeople without the cashier (FR-CSG-10).
  */
 export default async function ConsignmentPage({
   params,
@@ -74,6 +76,7 @@ export default async function ConsignmentPage({
   const dialog = (["take", "reduce", "sell", "return"] as const).find(
     (name) => firstParam(query[name]) === "1",
   );
+  const viewingSale = firstParam(query.sale);
 
   const [t, tCommon, format, locale, consignment, salespeople, operations] = await Promise.all([
     getTranslations("Consignments"),
@@ -273,16 +276,13 @@ export default async function ConsignmentPage({
                           </ul>
                           {batch.invoiceNo && batch.saleId ? (
                             <p className="mt-2 text-sm">
-                              {session.permissions.has("page:pos") ? (
-                                <Link
-                                  href={`/pos/sales?view=${batch.saleId}`}
-                                  className="underline underline-offset-4"
-                                >
-                                  {t("invoice", { invoiceNo: batch.invoiceNo })}
-                                </Link>
-                              ) : (
-                                t("invoice", { invoiceNo: batch.invoiceNo })
-                              )}
+                              <Link
+                                href={`/consignments/${id}?sale=${batch.saleId}`}
+                                scroll={false}
+                                className="underline underline-offset-4"
+                              >
+                                {t("invoice", { invoiceNo: batch.invoiceNo })}
+                              </Link>
                             </p>
                           ) : null}
                           {batch.note ? (
@@ -298,6 +298,14 @@ export default async function ConsignmentPage({
         </Card>
       </div>
 
+      {viewingSale ? (
+        <SaleDialog
+          key={viewingSale}
+          session={session}
+          saleId={viewingSale}
+          closeHref={`/consignments/${id}`}
+        />
+      ) : null}
       {dialog === "take" && canTake ? (
         <RouteDialog
           closeHref={`/consignments/${id}`}

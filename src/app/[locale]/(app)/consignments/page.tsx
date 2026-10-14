@@ -35,7 +35,8 @@ export async function generateMetadata(): Promise<Metadata> {
 /**
  * Goods out with salespeople (FR-CSG-05): open consignments with what is
  * still out and its value, or settled ones; salespeople only see their
- * own. `?take=1` opens the pickup form over the list (ADR-0018).
+ * own. `?take=1` opens the pickup form over the list (ADR-0018). Their sales
+ * sit in a tab of their own (FR-CSG-10).
  */
 export default async function ConsignmentsPage({
   searchParams,
@@ -88,6 +89,7 @@ export default async function ConsignmentsPage({
         tabs={[
           { id: "OPEN", href: "/consignments", label: t("tabOpen") },
           { id: "CLOSED", href: "/consignments?status=closed", label: t("tabClosed") },
+          { id: "SALES", href: "/consignments/sales", label: t("tabSales") },
         ]}
       />
       <Card>

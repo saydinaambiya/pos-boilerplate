@@ -5,7 +5,7 @@ import { z } from "zod";
 
 import { env } from "@/config/env";
 import { routing } from "@/i18n/routing";
-import { requirePermission } from "@/lib/auth/guard";
+import { requireAnyPermission } from "@/lib/auth/guard";
 
 import { createInvoiceLink } from "./service";
 import { isInvoiceSize } from "./types";
@@ -24,7 +24,7 @@ export async function createInvoiceLinkAction(
     typeof localeValue === "string" && hasLocale(routing.locales, localeValue)
       ? localeValue
       : routing.defaultLocale;
-  const session = await requirePermission("page:pos", locale);
+  const session = await requireAnyPermission(["page:pos", "page:consignments"], locale);
   const id = z.uuid().safeParse(saleId);
   if (!id.success) return null;
   const link = await createInvoiceLink(session, id.data);

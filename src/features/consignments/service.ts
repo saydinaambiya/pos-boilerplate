@@ -15,6 +15,7 @@ import { cutPrice } from "@/lib/money/cut";
 import { readSetting } from "@/lib/settings/store";
 import { storeClosedFor } from "@/lib/settings/store-hours-guard";
 
+import { seesEveryConsignment } from "./access";
 import {
   closeConsignment,
   consignmentBalances,
@@ -93,13 +94,6 @@ function canSellFor(session: Session, salespersonId: string): boolean {
   return (
     session.role.isSystem ||
     (salespersonId === session.user.id && session.permissions.has("consignment:sell"))
-  );
-}
-
-/** Pickup and return staff see every salesperson; salespeople see their own (FR-CSG-05). */
-function seesEveryone(session: Session): boolean {
-  return (
-    session.permissions.has("consignment:pickup") || session.permissions.has("consignment:return")
   );
 }
 
@@ -572,7 +566,7 @@ export async function getConsignments(session: Session, status: "OPEN" | "CLOSED
   assertPermission(session, "page:consignments");
   return queryConsignments({
     status,
-    salespersonId: seesEveryone(session) ? null : session.user.id,
+    salespersonId: seesEveryConsignment(session) ? null : session.user.id,
     limit: status === "OPEN" ? 200 : 50,
   });
 }
@@ -582,7 +576,8 @@ export async function getConsignment(session: Session, id: string) {
   assertPermission(session, "page:consignments");
   const consignment = await findConsignment(id);
   if (!consignment) return undefined;
-  if (consignment.salespersonId !== session.user.id && !seesEveryone(session)) return undefined;
+  if (consignment.salespersonId !== session.user.id && !seesEveryConsignment(session))
+    return undefined;
   const [balances, batches] = await Promise.all([consignmentBalances(db, id), listBatches(id)]);
   return { ...consignment, balances, batches };
 }

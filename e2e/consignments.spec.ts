@@ -159,7 +159,25 @@ test.describe("field sales goods (FR-CSG-01..08, ADR-0024)", () => {
       "2",
     ]);
     await expect(historyLine("4 terjual")).toHaveCount(1);
-    await expect(page.getByRole("link", { name: /Transaksi INV-/ }).first()).toBeVisible();
+
+    /** The full invoice opens right over the goods (FR-CSG-10). */
+    const invoiceLink = page.getByRole("link", { name: /Transaksi INV-/ }).first();
+    const invoiceNo = ((await invoiceLink.textContent()) ?? "").replace("Transaksi ", "");
+    await invoiceLink.click();
+    const receipt = page.getByRole("dialog", { name: `Struk ${invoiceNo}` });
+    await expect(receipt.getByRole("table", { name: "Item transaksi" })).toContainText(product);
+    await expect(receipt.getByRole("link", { name: "Cetak / PDF" })).toBeVisible();
+    await receipt.getByRole("button", { name: "Tutup" }).first().click();
+
+    /** The salesperson's sales sit in their own tab, like the cashier's history (FR-CSG-10). */
+    await page.goto("/consignments/sales");
+    await expect(page.getByRole("link", { name: "Riwayat transaksi" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    await expect(page.getByLabel("Sales", { exact: true })).toHaveCount(0);
+    await page.getByRole("link", { name: `Buka transaksi ${invoiceNo}` }).click();
+    await expect(page.getByRole("dialog", { name: `Struk ${invoiceNo}` })).toBeVisible();
     await page.context().close();
   });
 

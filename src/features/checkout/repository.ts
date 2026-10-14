@@ -1,6 +1,7 @@
 import "server-only";
 
-import { and, asc, eq, gt, gte, inArray, isNull, lt, sql } from "drizzle-orm";
+import { and, asc, eq, gt, gte, inArray, isNotNull, isNull, lt, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 
 import type { ShiftKind } from "@/features/shifts/kind";
 import { openShiftScope } from "@/features/shifts/repository";
@@ -8,6 +9,7 @@ import { db, type Executor } from "@/db/client";
 import {
   bankAccounts,
   brands,
+  consignments,
   customers,
   idempotencyKeys,
   invoiceCounters,
@@ -179,6 +181,7 @@ export async function findSaleDetail(saleId: string) {
       customerName: sql<string | null>`coalesce(${sales.customerName}, ${customers.name})`,
       customerPhone: sql<string | null>`coalesce(${sales.customerPhone}, ${customers.phone})`,
       consignmentId: sales.consignmentId,
+      salespersonId: consignments.salespersonId,
       kasbonId: kasbons.id,
       kasbonTotal: kasbons.total,
       kasbonBalance: kasbons.balance,
@@ -188,6 +191,7 @@ export async function findSaleDetail(saleId: string) {
     .leftJoin(vouchers, eq(vouchers.id, sales.voucherId))
     .leftJoin(customers, eq(customers.id, sales.customerId))
     .leftJoin(kasbons, eq(kasbons.saleId, sales.id))
+    .leftJoin(consignments, eq(consignments.id, sales.consignmentId))
     .where(eq(sales.id, saleId))
     .limit(1);
   if (!sale) return undefined;
@@ -282,12 +286,25 @@ export interface SaleListQuery {
   method: "CASH" | "TRANSFER" | "QRIS" | "KASBON" | undefined;
   status: (typeof sales.$inferSelect)["status"] | undefined;
   includeArchived: boolean;
+  /**
+   * Restricts to sales of goods carried by salespeople (FR-CSG-10); a
+   * salesperson id narrows them to one salesperson, null keeps everyone.
+   */
+  consignment?: { salespersonId: string | null };
 }
 
 function saleListConditions(query: SaleListQuery) {
   const conditions = [gte(sales.createdAt, query.start), lt(sales.createdAt, query.end)];
   if (query.cashierId) conditions.push(eq(sales.cashierId, query.cashierId));
   if (!query.includeArchived) conditions.push(isNull(sales.archivedAt));
+  if (query.consignment) {
+    const { salespersonId } = query.consignment;
+    conditions.push(
+      salespersonId
+        ? sql`exists (select 1 from ${consignments} where ${consignments.id} = ${sales.consignmentId} and ${consignments.salespersonId} = ${salespersonId})`
+        : isNotNull(sales.consignmentId),
+    );
+  }
   if (query.status) conditions.push(eq(sales.status, query.status));
   if (query.invoice !== "") {
     const pattern = `%${query.invoice.toUpperCase().replace(/[\\%_]/g, "\\$&")}%`;
@@ -303,7 +320,10 @@ function saleListConditions(query: SaleListQuery) {
   return and(...conditions);
 }
 
-/** One page of sales, newest first, with cashier, methods, transfer banks and customer (FR-POS-13). */
+/** The salesperson a sale's goods were carried by, beside its cashier. */
+const salespeople = alias(users, "salespeople");
+
+/** One page of sales, newest first, with cashier, salesperson, methods, transfer banks and customer (FR-POS-13). */
 export async function querySales(query: SaleListQuery, page: number, pageSize: number) {
   return db
     .select({
@@ -313,6 +333,7 @@ export async function querySales(query: SaleListQuery, page: number, pageSize: n
       status: sales.status,
       grandTotal: sales.grandTotal,
       cashierName: users.name,
+      salespersonName: salespeople.name,
       customerName: sql<string | null>`coalesce(${sales.customerName}, ${customers.name})`,
       methods: sql<string[]>`array(
         select distinct ${payments.method}::text from ${payments} where ${payments.saleId} = ${sales.id}
@@ -328,6 +349,8 @@ export async function querySales(query: SaleListQuery, page: number, pageSize: n
     .from(sales)
     .innerJoin(users, eq(users.id, sales.cashierId))
     .leftJoin(customers, eq(customers.id, sales.customerId))
+    .leftJoin(consignments, eq(consignments.id, sales.consignmentId))
+    .leftJoin(salespeople, eq(salespeople.id, consignments.salespersonId))
     .where(saleListConditions(query))
     .orderBy(sql`${sales.createdAt} desc`, sql`${sales.id} desc`)
     .limit(pageSize + 1)

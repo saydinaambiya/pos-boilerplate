@@ -9,7 +9,7 @@ import { InvoiceToolbar } from "@/features/invoices/components/invoice-toolbar";
 import { getInvoiceDocument, INVOICE_LINK_DAYS, invoiceLabels } from "@/features/invoices/service";
 import { invoiceSizes, isInvoiceSize } from "@/features/invoices/types";
 import { routing } from "@/i18n/routing";
-import { requirePermission } from "@/lib/auth/guard";
+import { requireAnyPermission } from "@/lib/auth/guard";
 import { readSetting } from "@/lib/settings/store";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -23,13 +23,15 @@ const tenderedParam = z.coerce.number().int().min(0).max(999_999_999_999);
  * Print view (FR-INV-01..05). `size` picks the paper, `lang` the invoice
  * language independent of the UI, `print=1` opens the print dialog and
  * `tendered` shows cash received and change, which only the checkout knows.
+ * Salespeople without the cashier reach their own sales from the Sales page
+ * (FR-CSG-10).
  */
 export default async function PrintInvoicePage({
   params,
   searchParams,
 }: PageProps<"/[locale]/print/invoices/[id]">) {
   const { id } = await params;
-  const session = await requirePermission("page:pos");
+  const session = await requireAnyPermission(["page:pos", "page:consignments"]);
   if (!z.uuid().safeParse(id).success) notFound();
 
   const query = await searchParams;
@@ -74,7 +76,11 @@ export default async function PrintInvoicePage({
         lang={lang}
         size={size}
         pdfHref={`/api/v1/sales/${id}/invoice?${new URLSearchParams({ size, lang }).toString()}`}
-        backHref={`/pos/sales?view=${id}`}
+        backHref={
+          session.permissions.has("page:pos")
+            ? `/pos/sales?view=${id}`
+            : `/consignments/sales?view=${id}`
+        }
         autoPrint={first(query.print) === "1"}
         sizes={invoiceSizes.map((option) => ({
           label: t(`sizes.${option}`),

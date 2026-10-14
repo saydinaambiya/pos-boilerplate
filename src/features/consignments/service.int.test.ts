@@ -16,7 +16,8 @@ import {
   stockMovements,
 } from "@/db/schema";
 import { createBrand, createProduct } from "@/features/catalog/service";
-import { checkout } from "@/features/checkout/service";
+import { consignmentSaleQuery, listConsignmentSales } from "@/features/checkout/history";
+import { checkout, getSale } from "@/features/checkout/service";
 import { requestVoid } from "@/features/checkout/void-service";
 import { createBankAccount } from "@/features/settings/service";
 import { openShift } from "@/features/shifts/service";
@@ -658,5 +659,71 @@ describe("reducing goods entered by mistake (FR-CSG-07)", () => {
     expect(
       await reduceGoods(await other(), id, reduction(variantId, 1), testContext(), MONDAY),
     ).toEqual({ ok: true, closed: false });
+  });
+});
+
+describe("salespeople's transaction history (FR-CSG-10)", () => {
+  /** Takes the cashier away, as the Sales role has it (ADR-0029). */
+  async function withoutCashier() {
+    const [role] = await db.select().from(roles).where(eq(roles.name, DEFAULT_EMPLOYEE_ROLE.name));
+    await db
+      .delete(rolePermissions)
+      .where(
+        and(eq(rolePermissions.roleId, role?.id ?? ""), eq(rolePermissions.permission, "page:pos")),
+      );
+  }
+
+  /** `person` takes 3 and sells 1 on Tuesday from their own shift; returns the sale id. */
+  async function soldBy(person: Session) {
+    await openShift(person, { openingCash: 0 }, testContext(), MONDAY);
+    const variantId = await product(5);
+    const id = consignmentId(await take(person, variantId, 3));
+    const result = await settleGoods(
+      person,
+      id,
+      settlement([{ variantId, sold: 1, returned: 0 }]),
+      testContext(),
+      TUESDAY,
+    );
+    if (!result.ok || !result.saleId) throw new Error("not sold");
+    return result.saleId;
+  }
+
+  it("opens the full invoice to its salesperson without the cashier, not to other salespeople", async () => {
+    await withoutCashier();
+    const session = await salesperson();
+    const saleId = await soldBy(session);
+
+    expect(await getSale(session, saleId)).toMatchObject({
+      id: saleId,
+      salespersonId: session.user.id,
+    });
+    expect(await getSale(await other(), saleId)).toBeUndefined();
+    await grant("consignment:return");
+    expect(await getSale(await other(), saleId)).toBeDefined();
+  });
+
+  it("lists only the salesperson's own sales, and everyone's for pickup staff", async () => {
+    await withoutCashier();
+    const mine = await soldBy(await salesperson());
+    const theirs = await soldBy(await other());
+    /** Sales are stamped by the database clock, so they land on today. */
+    const query = consignmentSaleQuery.parse({});
+
+    const own = await listConsignmentSales(await salesperson(), query);
+    expect(own.seesAll).toBe(false);
+    expect(own.sales.map((sale) => sale.id)).toEqual([mine]);
+
+    const all = await listConsignmentSales(await owner(), query);
+    expect(all.seesAll).toBe(true);
+    expect(all.sales.map((sale) => sale.id).sort()).toEqual([mine, theirs].sort());
+    expect(all.summary).toMatchObject({ count: 2, total: 20_000 });
+
+    const { user } = await other();
+    const picked = await listConsignmentSales(
+      await owner(),
+      consignmentSaleQuery.parse({ salesperson: user.id }),
+    );
+    expect(picked.sales).toMatchObject([{ id: theirs, salespersonName: user.name }]);
   });
 });
