@@ -2,8 +2,8 @@
 
 | Atribut         | Nilai              |
 | --------------- | ------------------ |
-| Versi dokumen   | 0.32.0 (draft)     |
-| Tanggal         | 2026-10-14         |
+| Versi dokumen   | 0.33.0 (draft)     |
+| Tanggal         | 2026-10-16         |
 | Pemilik         | Owner              |
 | Status          | Menunggu review    |
 | Dokumen terkait | [PRD.md](./PRD.md) |
@@ -44,6 +44,7 @@
 | 0.30.0 | 2026-10-13 | Masukan v1.11: bank tujuan transfer dan status "Kas bon" di riwayat transaksi, sales menjual roll per meter, merk di rekap produk (Q-52)                                     |
 | 0.31.0 | 2026-10-13 | Masukan v1.12: merk di samping nama produk, no. HP opsional juga untuk kas bon (Q-53)                                                                                        |
 | 0.32.0 | 2026-10-14 | Masukan v1.13: riwayat transaksi sales dipisah seperti riwayat admin, sales bisa melihat invoice lengkap (Q-54); diskon dan voucher di Sales, motif di riwayat potong (Q-55) |
+| 0.33.0 | 2026-10-16 | Masukan v1.14: cari dan saring barang bawaan sales, barang yang sudah habis disembunyikan (Q-56)                                                                             |
 
 ---
 
@@ -311,3 +312,4 @@ Owner pilih rentang (data ≥ 3 bulan) ─▶ Unduh CSV langsung ─▶ Data dit
 | Q-53 | Apakah no. HP pembeli wajib diisi?                                             | Tidak, juga untuk kas bon. Pelanggan kas bon dengan no. HP bisa dipilih ulang; tanpa no. HP dicatat baru tiap kas bon. Merk ditampilkan di samping nama produk di semua tempat produk dimuat.                                                                                     | Diputuskan |
 | Q-54 | Di mana sales melihat riwayat transaksi dan invoice-nya?                       | Di tab "Riwayat transaksi" halaman Sales, seperti riwayat transaksi kasir. Sales hanya melihat transaksinya sendiri dan bisa membuka invoice lengkap; catatan terjual tetap ada di riwayat barang dengan link ke invoice.                                                         | Diputuskan |
 | Q-55 | Apakah sales bisa memberi diskon saat mencatat barang terjual?                 | Ya, sama seperti kasir: diskon per item (persen atau rupiah) bagi pemegang izin diskon manual, dan satu voucher per transaksi. Riwayat potong juga menampilkan motif.                                                                                                             | Diputuskan |
+| Q-56 | Bagaimana halaman barang bawaan sales tetap ringkas saat datanya banyak?       | Ada kolom cari untuk apa saja (merk, barang, motif, warna, no. invoice) dan centang "Hanya barang yang masih dibawa" yang aktif dari awal, jadi barang yang sisa dibawanya 0 tidak muncul.                                                                                        | Diputuskan |
