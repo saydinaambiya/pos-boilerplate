@@ -3,9 +3,12 @@ import { getFormatter, getLocale, getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { z } from "zod";
 
+import { FilterForm } from "@/components/form/filter-form";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Chip } from "@/components/ui/chip";
+import { Field } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
 import { RouteDialog } from "@/components/ui/route-dialog";
 import {
@@ -21,6 +24,7 @@ import { SaleDialog } from "@/features/checkout/components/sale-dialog";
 import { ConsignmentMessages } from "@/features/consignments/components/consignment-messages";
 import { SettleForm } from "@/features/consignments/components/settle-form";
 import { TakeForm } from "@/features/consignments/components/take-form";
+import { matchesGoods, searchBatches } from "@/features/consignments/goods-filter";
 import { getConsignment, getSalespeopleFor } from "@/features/consignments/service";
 import { getCheckoutBankAccounts, getQrisAccount } from "@/features/settings/service";
 import { getOpenShift } from "@/features/shifts/service";
@@ -31,7 +35,7 @@ import { formatMeters } from "@/lib/format/length";
 import { goodsName, variantLabel } from "@/lib/format/variant-label";
 import { storeDate } from "@/lib/format/zoned-time";
 import { readSetting } from "@/lib/settings/store";
-import { firstParam } from "@/lib/utils/search-params";
+import { firstParam, keptQuery } from "@/lib/utils/search-params";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Consignments");
@@ -63,7 +67,10 @@ function itemLabel(item: {
  * floor) and `?sell=1` lets the salesperson record what they sold; selling
  * takes money, so it needs the salesperson's own open shift, but not the
  * cashier (ADR-0024, ADR-0029). `?sale=` opens the full invoice of a sold
- * batch, also for salespeople without the cashier (FR-CSG-10).
+ * batch, also for salespeople without the cashier (FR-CSG-10). `?q=` searches
+ * both the summary and the history, and the summary starts with only goods
+ * still carried; unticking that sends `carried=0`, so the hidden field keeps
+ * the choice in the URL (FR-CSG-11). Dialogs keep the filters.
  */
 export default async function ConsignmentPage({
   params,
@@ -77,6 +84,14 @@ export default async function ConsignmentPage({
     (name) => firstParam(query[name]) === "1",
   );
   const viewingSale = firstParam(query.sale);
+  const search = (firstParam(query.q) ?? "").trim().slice(0, 60);
+  const carriedChoice = [query.carried ?? []].flat();
+  const carriedOnly = carriedChoice.length === 0 || carriedChoice.includes("1");
+  const filters = keptQuery(query, ["take", "reduce", "sell", "return", "sale"]);
+  const here = (extra: Record<string, string> = {}) => ({
+    pathname: `/consignments/${id}`,
+    query: { ...filters, ...extra },
+  });
 
   const [t, tCommon, format, locale, consignment, salespeople, operations] = await Promise.all([
     getTranslations("Consignments"),
@@ -107,7 +122,12 @@ export default async function ConsignmentPage({
   };
   const amount = (item: { isRoll: boolean }, qty: number) =>
     item.isRoll ? formatMeters(qty, locale) : String(qty);
-  const days = [...new Set(consignment.batches.map((batch) => dayOf(batch.createdAt)))];
+  const shownBalances = consignment.balances.filter(
+    (balance) => (!carriedOnly || balance.outstanding > 0) && matchesGoods(balance, search),
+  );
+  const batches = searchBatches(consignment.batches, search);
+  const days = [...new Set(batches.map((batch) => dayOf(batch.createdAt)))];
+  const filtered = search !== "" || !carriedOnly;
   const goodsDetails = (item: { motif: string | null; colorName: string | null }) =>
     [
       item.motif ? `${t("colMotif")}: ${item.motif}` : null,
@@ -128,28 +148,28 @@ export default async function ConsignmentPage({
             </Button>
             {canTake ? (
               <Button asChild variant="secondary">
-                <Link href={`/consignments/${id}?take=1`} scroll={false}>
+                <Link href={here({ take: "1" })} scroll={false}>
                   {t("takeMore")}
                 </Link>
               </Button>
             ) : null}
             {canReduce ? (
               <Button asChild variant="secondary">
-                <Link href={`/consignments/${id}?reduce=1`} scroll={false}>
+                <Link href={here({ reduce: "1" })} scroll={false}>
                   {t("recordReduce")}
                 </Link>
               </Button>
             ) : null}
             {canReturn ? (
               <Button asChild variant="secondary">
-                <Link href={`/consignments/${id}?return=1`} scroll={false}>
+                <Link href={here({ return: "1" })} scroll={false}>
                   {t("recordReturn")}
                 </Link>
               </Button>
             ) : null}
             {canSell ? (
               <Button asChild>
-                <Link href={`/consignments/${id}?sell=1`} scroll={false}>
+                <Link href={here({ sell: "1" })} scroll={false}>
                   {t("recordSold")}
                 </Link>
               </Button>
@@ -167,54 +187,104 @@ export default async function ConsignmentPage({
         ) : null}
       </div>
 
+      <Card className="mb-6">
+        <FilterForm
+          applyLabel={t("filterApply")}
+          className="grid gap-4 sm:grid-cols-[2fr_1fr_auto] sm:items-end"
+        >
+          <Field label={t("searchGoods")}>
+            {(control) => (
+              <Input
+                {...control}
+                type="search"
+                name="q"
+                defaultValue={search}
+                placeholder={t("searchGoodsPlaceholder")}
+                maxLength={60}
+              />
+            )}
+          </Field>
+          <label className="flex min-h-11 items-center gap-3 text-sm text-ink">
+            <input
+              type="checkbox"
+              name="carried"
+              value="1"
+              defaultChecked={carriedOnly}
+              className="size-5 accent-primary"
+            />
+            <input type="hidden" name="carried" value="0" />
+            {t("carriedOnly")}
+          </label>
+          {filtered ? (
+            <Button asChild variant="ghost" className="justify-self-start">
+              <Link href={`/consignments/${id}`}>{t("resetFilters")}</Link>
+            </Button>
+          ) : null}
+        </FilterForm>
+      </Card>
+
       <div className="grid gap-6 xl:grid-cols-[3fr_2fr]">
         <Card>
           <CardHeader>
             <CardTitle>{t("balanceTitle")}</CardTitle>
+            <CardDescription>
+              {t("balanceCount", {
+                shown: shownBalances.length,
+                total: consignment.balances.length,
+              })}
+            </CardDescription>
           </CardHeader>
-          <Table>
-            <TableCaption>{t("balanceCaption")}</TableCaption>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("colBrand")}</TableHead>
-                <TableHead>{t("colItem")}</TableHead>
-                <TableHead>{t("colMotif")}</TableHead>
-                <TableHead>{t("colColor")}</TableHead>
-                <TableHead className="text-right">{t("colTaken")}</TableHead>
-                <TableHead className="text-right">{t("colSold")}</TableHead>
-                <TableHead className="text-right">{t("colReturned")}</TableHead>
-                <TableHead className="text-right">{t("colOutstanding")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {consignment.balances.map((balance) => (
-                <TableRow key={balance.variantId}>
-                  <TableCell className="[overflow-wrap:anywhere]">
-                    {balance.brandName ?? "—"}
-                  </TableCell>
-                  <TableCell className="[overflow-wrap:anywhere]">
-                    {nameOf({ ...balance, brandName: null })}
-                  </TableCell>
-                  <TableCell className="[overflow-wrap:anywhere]">{balance.motif ?? "—"}</TableCell>
-                  <TableCell className="[overflow-wrap:anywhere]">
-                    {balance.colorName ?? "—"}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {amount(balance, balance.taken)}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {amount(balance, balance.sold)}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {amount(balance, balance.returned)}
-                  </TableCell>
-                  <TableCell className="text-right font-semibold tabular-nums">
-                    {amount(balance, balance.outstanding)}
-                  </TableCell>
+          {shownBalances.length === 0 ? (
+            <p className="text-sm text-ink-muted">
+              {consignment.balances.length === 0 ? t("historyEmpty") : t("balanceNoResults")}
+            </p>
+          ) : (
+            <Table>
+              <TableCaption>{t("balanceCaption")}</TableCaption>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t("colBrand")}</TableHead>
+                  <TableHead>{t("colItem")}</TableHead>
+                  <TableHead>{t("colMotif")}</TableHead>
+                  <TableHead>{t("colColor")}</TableHead>
+                  <TableHead className="text-right">{t("colTaken")}</TableHead>
+                  <TableHead className="text-right">{t("colSold")}</TableHead>
+                  <TableHead className="text-right">{t("colReturned")}</TableHead>
+                  <TableHead className="text-right">{t("colOutstanding")}</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {shownBalances.map((balance) => (
+                  <TableRow key={balance.variantId}>
+                    <TableCell className="[overflow-wrap:anywhere]">
+                      {balance.brandName ?? "—"}
+                    </TableCell>
+                    <TableCell className="[overflow-wrap:anywhere]">
+                      {nameOf({ ...balance, brandName: null })}
+                    </TableCell>
+                    <TableCell className="[overflow-wrap:anywhere]">
+                      {balance.motif ?? "—"}
+                    </TableCell>
+                    <TableCell className="[overflow-wrap:anywhere]">
+                      {balance.colorName ?? "—"}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {amount(balance, balance.taken)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {amount(balance, balance.sold)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {amount(balance, balance.returned)}
+                    </TableCell>
+                    <TableCell className="text-right font-semibold tabular-nums">
+                      {amount(balance, balance.outstanding)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </Card>
 
         <Card>
@@ -222,7 +292,9 @@ export default async function ConsignmentPage({
             <CardTitle>{t("historyTitle")}</CardTitle>
           </CardHeader>
           {days.length === 0 ? (
-            <p className="text-sm text-ink-muted">{t("historyEmpty")}</p>
+            <p className="text-sm text-ink-muted">
+              {consignment.batches.length === 0 ? t("historyEmpty") : t("historyNoResults")}
+            </p>
           ) : (
             <ol className="flex flex-col gap-5">
               {days.map((day) => (
@@ -234,7 +306,7 @@ export default async function ConsignmentPage({
                     })}
                   </h3>
                   <ol className="flex flex-col gap-2">
-                    {consignment.batches
+                    {batches
                       .filter((batch) => dayOf(batch.createdAt) === day)
                       .map((batch) => (
                         <li key={batch.id} className="rounded-card border border-border p-3">
@@ -277,7 +349,7 @@ export default async function ConsignmentPage({
                           {batch.invoiceNo && batch.saleId ? (
                             <p className="mt-2 text-sm">
                               <Link
-                                href={`/consignments/${id}?sale=${batch.saleId}`}
+                                href={here({ sale: batch.saleId })}
                                 scroll={false}
                                 className="underline underline-offset-4"
                               >
@@ -299,16 +371,11 @@ export default async function ConsignmentPage({
       </div>
 
       {viewingSale ? (
-        <SaleDialog
-          key={viewingSale}
-          session={session}
-          saleId={viewingSale}
-          closeHref={`/consignments/${id}`}
-        />
+        <SaleDialog key={viewingSale} session={session} saleId={viewingSale} closeHref={here()} />
       ) : null}
       {dialog === "take" && canTake ? (
         <RouteDialog
-          closeHref={`/consignments/${id}`}
+          closeHref={here()}
           closeLabel={tCommon("close")}
           size="lg"
           title={t("takeTitle")}
@@ -327,7 +394,7 @@ export default async function ConsignmentPage({
       (dialog === "return" && canReturn) ||
       (dialog === "reduce" && canReduce) ? (
         <RouteDialog
-          closeHref={`/consignments/${id}`}
+          closeHref={here()}
           closeLabel={tCommon("close")}
           size="lg"
           title={t(`${dialog}Title`)}

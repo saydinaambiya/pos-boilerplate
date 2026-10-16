@@ -198,9 +198,11 @@ test.describe("field sales goods (FR-CSG-01..08, ADR-0024)", () => {
     await back.getByLabel(`Dikembalikan, ${withMotif}`).fill("2");
     await back.getByRole("button", { name: "Simpan barang dikembalikan" }).click();
     await expectResult(page, "Barang yang dikembalikan sudah dicatat.");
-    const row = page
-      .getByRole("table", { name: "Ringkasan per barang" })
-      .getByRole("row", { name: new RegExp(goods) });
+    const summary = page.getByRole("table", { name: "Ringkasan per barang" });
+    const row = summary.getByRole("row", { name: new RegExp(goods) });
+    await expect(row).toHaveCount(0);
+    await page.getByLabel("Hanya barang yang masih dibawa").uncheck();
+    await expect(page).toHaveURL(/carried=0/);
     await expect(row.getByRole("cell")).toHaveText([
       E2E_BRAND,
       goods,
@@ -211,6 +213,15 @@ test.describe("field sales goods (FR-CSG-01..08, ADR-0024)", () => {
       "2",
       "0",
     ]);
+    const search = page.getByRole("searchbox", { name: "Cari" });
+    await search.fill(`nappa ${product.toLowerCase()}`);
+    await expect(page).toHaveURL(/q=nappa/);
+    await expect(row).toBeVisible();
+    await search.fill(`tidak ada ${run}`);
+    await expect(page.getByText("Tidak ada barang yang cocok.", { exact: false })).toBeVisible();
+    await expect(page.getByText("Tidak ada catatan yang cocok.")).toBeVisible();
+    await page.getByRole("link", { name: "Reset" }).click();
+    await expect(row).toHaveCount(0);
 
     await page.goto(`/id/stock?q=${sku}`);
     await expect(page.getByRole("row", { name: new RegExp(item) })).toContainText("16");
