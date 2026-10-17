@@ -29,6 +29,7 @@ import { transitionNeeds } from "@/features/online-orders/transitions";
 import { Link } from "@/i18n/navigation";
 import { requirePermission } from "@/lib/auth/guard";
 import { formatCurrency } from "@/lib/format/currency";
+import { formatThickness } from "@/lib/format/length";
 import { goodsName, variantLabel } from "@/lib/format/variant-label";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -37,7 +38,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * One online order (FR-ONL-03/05/06): lines with their brand, motif and colour,
+ * One online order (FR-ONL-03/05/06): lines with their brand, motif, thickness and colour,
  * complaint and resolution, status history, and a confirm dialog for each
  * allowed next status.
  */
@@ -97,6 +98,7 @@ export default async function OnlineOrderPage({
                   <TableHead>{t("item")}</TableHead>
                   <TableHead>{t("brand")}</TableHead>
                   <TableHead>{t("motif")}</TableHead>
+                  <TableHead>{t("thickness")}</TableHead>
                   <TableHead>{t("color")}</TableHead>
                   <TableHead className="text-right">{t("qty")}</TableHead>
                   <TableHead className="text-right">{t("lineTotal")}</TableHead>
@@ -128,6 +130,9 @@ export default async function OnlineOrderPage({
                       {item.brandName ?? "—"}
                     </TableCell>
                     <TableCell className="[overflow-wrap:anywhere]">{item.motif ?? "—"}</TableCell>
+                    <TableCell className="tabular-nums">
+                      {item.thickness ? formatThickness(item.thickness, locale) : "—"}
+                    </TableCell>
                     <TableCell className="[overflow-wrap:anywhere]">
                       {item.colorName ?? "—"}
                     </TableCell>
@@ -225,7 +230,13 @@ export default async function OnlineOrderPage({
                           label={t("conditionFor", {
                             name: variantLabel(
                               item.nameSnapshot,
-                              item.variantSnapshot,
+                              [
+                                item.motif,
+                                item.thickness ? formatThickness(item.thickness, locale) : null,
+                                item.variantSnapshot,
+                              ]
+                                .filter(Boolean)
+                                .join(" · ") || null,
                               item.brandName,
                             ),
                             qty: item.qty,

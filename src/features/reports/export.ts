@@ -63,7 +63,13 @@ export function reportCsv(report: SalesReport, section: ReportSection, locale: L
     },
     products: {
       rows: report.products,
-      columns: [col(t("brand"), "brand"), col(t("product"), "name"), ...lineColumns],
+      columns: [
+        col(t("brand"), "brand"),
+        col(t("product"), "name"),
+        col(t("motif"), "motif"),
+        col(t("thicknessMm"), "thickness"),
+        ...lineColumns,
+      ],
     },
     variants: {
       rows: report.variants,
@@ -71,6 +77,8 @@ export function reportCsv(report: SalesReport, section: ReportSection, locale: L
         col(t("sku"), "sku"),
         col(t("brand"), "brand"),
         col(t("product"), "name"),
+        col(t("motif"), "motif"),
+        col(t("thicknessMm"), "thickness"),
         col(t("color"), "color"),
         ...lineColumns,
       ],

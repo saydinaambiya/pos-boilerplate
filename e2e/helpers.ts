@@ -69,6 +69,17 @@ export async function receiveRoll(page: Page, sku: string, name: string, meters:
   await expectResult(page, "Stok diperbarui");
 }
 
+/**
+ * The cut dialog of a product's red roll; its title also carries the motif
+ * (FR-PRD-09).
+ */
+export function cutDialog(page: Page, name: string) {
+  const escaped = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return page.getByRole("dialog", {
+    name: new RegExp(`^Potong ${escaped(E2E_BRAND)} · ${escaped(name)} · .+ · Red$`),
+  });
+}
+
 /** Cuts `meters` off a product's roll into `count` pieces of one size (FR-ROL-03). */
 export async function cutPieces(
   page: Page,
@@ -79,7 +90,7 @@ export async function cutPieces(
 ) {
   await page.goto(`/id/cutting?q=${encodeURIComponent(name)}`);
   await page.getByRole("link", { name: `Potong ${name} · Red`, exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: `Potong ${E2E_BRAND} · ${name} · Red` });
+  const dialog = cutDialog(page, name);
   await dialog.getByLabel("Panjang dipotong (m)").fill(meters);
   await dialog.getByLabel(new RegExp(`^${size}`)).fill(count);
   await dialog.getByRole("button", { name: "Simpan potongan" }).click();

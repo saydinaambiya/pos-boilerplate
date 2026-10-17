@@ -1,6 +1,6 @@
 import { E2E_BRAND } from "./accounts";
 import { expect, test } from "./fixtures";
-import { choose, cutPieces, expectResult, fillProductDetails } from "./helpers";
+import { choose, cutDialog, cutPieces, expectResult, fillProductDetails } from "./helpers";
 
 /** Unique names per run: the E2E database is not truncated between runs. */
 const run = Date.now().toString(36);
@@ -123,7 +123,7 @@ test.describe("stock ledger (FR-STK)", () => {
   test("books a defect cut apart and filters defect stock (FR-ROL-05)", async ({ page }) => {
     await page.goto(`/id/cutting?q=${encodeURIComponent(product)}`);
     await page.getByRole("link", { name: `Potong ${product} · Red`, exact: true }).click();
-    const dialog = page.getByRole("dialog", { name: `Potong ${E2E_BRAND} · ${product} · Red` });
+    const dialog = cutDialog(page, product);
     await dialog.getByLabel("Panjang dipotong (m)").fill("0,5");
     await dialog.getByLabel("Barang cacat").check();
     await expect(dialog).toContainText("Hasil potongan cacat");
@@ -144,7 +144,7 @@ test.describe("stock ledger (FR-STK)", () => {
   test("refuses a cut longer than the roll", async ({ page }) => {
     await page.goto(`/id/cutting?q=${encodeURIComponent(product)}`);
     await page.getByRole("link", { name: `Potong ${product} · Red`, exact: true }).click();
-    const dialog = page.getByRole("dialog", { name: `Potong ${E2E_BRAND} · ${product} · Red` });
+    const dialog = cutDialog(page, product);
     await dialog.getByLabel("Panjang dipotong (m)").fill("4");
     await dialog.getByLabel(/^100cm x 140cm/).fill("5");
     await expect(dialog).toContainText("-1,5m");

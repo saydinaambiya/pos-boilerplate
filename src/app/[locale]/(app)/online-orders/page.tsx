@@ -16,6 +16,7 @@ import {
   OrderStatusChip,
   statusChips,
 } from "@/features/online-orders/components/order-status-chip";
+import { defectWord } from "@/features/catalog/sizes";
 import { NewOrderDialog } from "@/features/online-orders/components/new-order-dialog";
 import { onlineOrderListQuery } from "@/features/online-orders/schemas";
 import { listOnlineOrders } from "@/features/online-orders/service";
@@ -23,7 +24,8 @@ import type { OnlineOrderStatus } from "@/features/online-orders/transitions";
 import { Link } from "@/i18n/navigation";
 import { requirePermission } from "@/lib/auth/guard";
 import { formatCurrency } from "@/lib/format/currency";
-import { brandedName } from "@/lib/format/variant-label";
+import { formatThickness } from "@/lib/format/length";
+import { goodsName } from "@/lib/format/variant-label";
 import { cn } from "@/lib/utils/cn";
 import { firstParam as first, keptQuery } from "@/lib/utils/search-params";
 
@@ -35,7 +37,7 @@ export async function generateMetadata(): Promise<Metadata> {
 /**
  * Online order board (FR-ONL-04, FR-ONL-07): a chip per status with its
  * count, order cards for the chosen status, code search and held markers.
- * A card shows the brand, motif and colour of its first item (FR-ONL-09).
+ * A card shows the brand, motif, thickness and colour of its first item (FR-ONL-09).
  * `?new=1` opens the manual entry dialog (FR-ONL-01, ADR-0018).
  */
 export default async function OnlineOrdersPage({
@@ -175,15 +177,26 @@ export default async function OnlineOrdersPage({
                 <p className="text-sm [overflow-wrap:anywhere] text-ink">
                   {t("itemSummary", {
                     first: order.firstItem
-                      ? brandedName(order.firstItem, order.firstItemBrand)
+                      ? goodsName(
+                          {
+                            name: order.firstItem,
+                            brandName: order.firstItemBrand,
+                            size: order.firstItemSize,
+                            isDefect: order.firstItemDefect,
+                          },
+                          defectWord(locale),
+                        )
                       : "",
                     count: order.itemCount,
                   })}
                 </p>
-                {order.firstItemMotif || order.firstItemColor ? (
+                {order.firstItemMotif || order.firstItemThickness || order.firstItemColor ? (
                   <p className="text-xs [overflow-wrap:anywhere] text-ink-muted">
                     {[
                       order.firstItemMotif ? `${t("motif")}: ${order.firstItemMotif}` : null,
+                      order.firstItemThickness
+                        ? `${t("thickness")}: ${formatThickness(order.firstItemThickness, locale)}`
+                        : null,
                       order.firstItemColor ? `${t("color")}: ${order.firstItemColor}` : null,
                     ]
                       .filter(Boolean)
