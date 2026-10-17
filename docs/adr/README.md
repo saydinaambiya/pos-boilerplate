@@ -56,3 +56,4 @@ Records are immutable once accepted; a new record supersedes an old one.
 | [0048](./0048-sales-transaction-history-and-invoices.md)            | A transaction history for salespeople, with full invoices         | Accepted                    |
 | [0049](./0049-discounts-and-vouchers-on-sales.md)                   | Discounts and vouchers on Sales, motif in the cut history         | Accepted                    |
 | [0050](./0050-search-and-carried-filter-on-sales-goods.md)          | Search and a carried-only filter on a salesperson's goods         | Accepted                    |
+| [0051](./0051-full-product-details-everywhere.md)                   | Full product details wherever goods are listed                    | Accepted                    |
