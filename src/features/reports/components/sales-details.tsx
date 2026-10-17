@@ -13,11 +13,15 @@ import {
 import type { ReportSection } from "@/features/reports/schemas";
 import type { SalesReport } from "@/features/reports/service";
 import { formatCurrency } from "@/lib/format/currency";
+import { traitsLine } from "@/lib/format/variant-label";
 import { basisPointsToPercent } from "@/lib/settings/rates";
 
 import { ReportCard } from "./report-card";
 
-type LineRow = Omit<SalesReport["products"][number], "id" | "name" | "brand"> & {
+type LineRow = Omit<
+  SalesReport["products"][number],
+  "id" | "name" | "brand" | "motif" | "thickness"
+> & {
   id: string | null;
   brand?: string | null;
 };
@@ -38,6 +42,8 @@ export async function SalesDetails({ report }: { report: SalesReport }) {
     getLocale(),
   ]);
   const money = (amount: number) => formatCurrency(amount, locale);
+  const traits = (row: { motif: string | null; thickness: number | null }) =>
+    traitsLine(row, { motif: t("motif"), thickness: t("thickness") }, locale);
   const { from, to } = report.range;
   const csv = (section: ReportSection) =>
     `/api/v1/reports/${section}?from=${from}&to=${to}&lang=${locale}`;
@@ -181,7 +187,17 @@ export async function SalesDetails({ report }: { report: SalesReport }) {
 
         {card(
           "products",
-          lineTable(t("productsCaption"), report.products, (row) => row.name, true),
+          lineTable(
+            t("productsCaption"),
+            report.products,
+            (row) => (
+              <>
+                {row.name}
+                <span className="block text-xs text-ink-muted">{traits(row)}</span>
+              </>
+            ),
+            true,
+          ),
         )}
         {card(
           "variants",
@@ -191,7 +207,9 @@ export async function SalesDetails({ report }: { report: SalesReport }) {
             (row) => (
               <>
                 {row.color ? `${row.name} — ${row.color}` : row.name}
-                <span className="block text-xs text-ink-muted">{row.sku}</span>
+                <span className="block text-xs text-ink-muted">
+                  {[traits(row), row.sku].filter(Boolean).join(" · ")}
+                </span>
               </>
             ),
             true,

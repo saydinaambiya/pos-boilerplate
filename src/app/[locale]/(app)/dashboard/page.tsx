@@ -23,7 +23,7 @@ import { Link } from "@/i18n/navigation";
 import { requirePermission } from "@/lib/auth/guard";
 import { formatCurrency } from "@/lib/format/currency";
 import { formatStock, stockMeasure } from "@/lib/format/quantity";
-import { stockItemLabel } from "@/lib/format/variant-label";
+import { stockItemLabel, traitsLine } from "@/lib/format/variant-label";
 import { readSetting } from "@/lib/settings/store";
 import { cn } from "@/lib/utils/cn";
 
@@ -194,12 +194,21 @@ export default async function DashboardPage() {
             <ul aria-label={t("lowStockCaption")} className="flex flex-col divide-y divide-border">
               {lowStock.map((item) => (
                 <li key={item.variantId} className="flex items-center justify-between gap-3 py-2">
-                  <Link
-                    href={`/stock/${item.variantId}`}
-                    className="min-w-0 truncate text-sm font-medium text-ink underline-offset-4 hover:underline"
-                  >
-                    {stockItemLabel(item, tStock("defect"))}
-                  </Link>
+                  <span className="min-w-0">
+                    <Link
+                      href={`/stock/${item.variantId}`}
+                      className="block truncate text-sm font-medium text-ink underline-offset-4 hover:underline"
+                    >
+                      {stockItemLabel(item, tStock("defect"))}
+                    </Link>
+                    <span className="block truncate text-xs text-ink-muted">
+                      {traitsLine(
+                        item,
+                        { motif: tStock("motif"), thickness: tStock("thickness") },
+                        locale,
+                      )}
+                    </span>
+                  </span>
                   <StockCell
                     trackStock
                     stockQty={item.stockQty}

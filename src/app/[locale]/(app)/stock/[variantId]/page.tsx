@@ -107,7 +107,9 @@ export default async function VariantStockPage({
     <>
       <PageHeader
         title={title}
-        description={[variant.sku, variant.brandName].filter(Boolean).join(" · ")}
+        description={[variant.sku, variant.motif ? `${t("motif")}: ${variant.motif}` : null]
+          .filter(Boolean)
+          .join(" · ")}
         actions={
           <>
             <Button asChild variant="secondary">

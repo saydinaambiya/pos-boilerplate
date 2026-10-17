@@ -158,6 +158,10 @@ export function PosTerminal(props: PosTerminalProps) {
         return {
           ...item,
           motif: known.product.motif,
+          thickness: productDetailsLine(
+            { brandName: null, motif: null, thickness: known.product.thickness },
+            locale,
+          ),
           brandName: known.product.brandName,
           unitPrice:
             item.weightG === undefined
@@ -165,7 +169,7 @@ export function PosTerminal(props: PosTerminalProps) {
               : weighPrice(known.variant.price, item.weightG),
         };
       }),
-    [cart.items, variantIndex],
+    [cart.items, variantIndex, locale],
   );
   const totals = useMemo(
     () =>

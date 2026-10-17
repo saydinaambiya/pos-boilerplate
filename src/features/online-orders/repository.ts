@@ -168,6 +168,25 @@ const boardColumns = {
     where ${onlineOrderItems.orderId} = ${onlineOrders.id}
     order by ${onlineOrderItems.sortOrder} limit 1
   )`,
+  firstItemThickness: sql<number | null>`(
+    select ${products.thickness} from ${onlineOrderItems}
+    join ${productVariants} on ${productVariants.id} = ${onlineOrderItems.variantId}
+    join ${products} on ${products.id} = ${productVariants.productId}
+    where ${onlineOrderItems.orderId} = ${onlineOrders.id}
+    order by ${onlineOrderItems.sortOrder} limit 1
+  )`.mapWith((value: string | null) => (value === null ? null : Number(value))),
+  firstItemSize: sql<string | null>`(
+    select ${productVariants.size} from ${onlineOrderItems}
+    join ${productVariants} on ${productVariants.id} = ${onlineOrderItems.variantId}
+    where ${onlineOrderItems.orderId} = ${onlineOrders.id}
+    order by ${onlineOrderItems.sortOrder} limit 1
+  )`,
+  firstItemDefect: sql<boolean>`coalesce((
+    select ${productVariants.isDefect} from ${onlineOrderItems}
+    join ${productVariants} on ${productVariants.id} = ${onlineOrderItems.variantId}
+    where ${onlineOrderItems.orderId} = ${onlineOrders.id}
+    order by ${onlineOrderItems.sortOrder} limit 1
+  ), false)`,
   firstItemColor: sql<string | null>`(
     select ${productVariants.attributes} -> 'color' ->> 'name' from ${onlineOrderItems}
     join ${productVariants} on ${productVariants.id} = ${onlineOrderItems.variantId}
@@ -246,6 +265,7 @@ export async function findOrderDetail(orderId: string) {
         variantSnapshot: onlineOrderItems.variantSnapshot,
         brandName: brands.name,
         motif: products.motif,
+        thickness: products.thickness,
         colorName: sql<string | null>`${productVariants.attributes} -> 'color' ->> 'name'`,
         size: productVariants.size,
         isDefect: productVariants.isDefect,

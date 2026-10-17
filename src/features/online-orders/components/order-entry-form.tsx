@@ -51,11 +51,16 @@ function variantName(variant: PosVariant, locale: string): string | null {
   );
 }
 
-/** Brand and product name, then the variant (FR-PRD-08). */
+/** Brand and product name, then motif, thickness and the variant, like the products page (FR-PRD-08, FR-ONL-09). */
 function variantLabel(product: PosProduct, variant: PosVariant, locale: string) {
-  const name = variantName(variant, locale);
+  const details = [
+    productDetailsLine({ ...product, brandName: null }, locale),
+    variantName(variant, locale),
+  ]
+    .filter(Boolean)
+    .join(" · ");
   const title = brandedName(product.name, product.brandName);
-  return name ? `${title} — ${name}` : title;
+  return details ? `${title} — ${details}` : title;
 }
 
 /**

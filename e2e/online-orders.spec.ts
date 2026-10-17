@@ -38,10 +38,14 @@ test.describe("online orders from entry to return (FR-ONL)", () => {
     await entry.getByLabel("Kode order").fill(code.toLowerCase());
     await page.getByRole("searchbox", { name: "Cari produk" }).fill(product);
     await page
-      .getByRole("button", { name: `Tambah ${E2E_BRAND} · ${product} — Red · 93cm x 47cm` })
+      .getByRole("button", {
+        name: `Tambah ${E2E_BRAND} · ${product} — Nappa · 2mm · Red · 93cm x 47cm`,
+      })
       .click();
     await page
-      .getByRole("button", { name: `Tambah ${E2E_BRAND} · ${product} — Red · 93cm x 47cm` })
+      .getByRole("button", {
+        name: `Tambah ${E2E_BRAND} · ${product} — Nappa · 2mm · Red · 93cm x 47cm`,
+      })
       .click();
     await expect(
       page.getByRole("textbox", { name: `Jumlah ${E2E_BRAND} · ${product}` }),
@@ -60,6 +64,7 @@ test.describe("online orders from entry to return (FR-ONL)", () => {
     await expect(items).toContainText("Rp 90.000");
     await expect(items.getByRole("cell", { name: E2E_BRAND, exact: true })).toBeVisible();
     await expect(items.getByRole("cell", { name: "Nappa", exact: true })).toBeVisible();
+    await expect(items.getByRole("cell", { name: "2mm", exact: true })).toBeVisible();
     await expect(items.getByRole("cell", { name: "Red", exact: true })).toBeVisible();
     await page.context().close();
   });
@@ -74,7 +79,7 @@ test.describe("online orders from entry to return (FR-ONL)", () => {
     ).toContainText(`${E2E_BRAND} · ${product}`);
     await expect(
       page.getByRole("list", { name: "Daftar pesanan" }).getByRole("listitem"),
-    ).toContainText("Motif: Nappa · Warna: Red");
+    ).toContainText("Motif: Nappa · Ketebalan: 2mm · Warna: Red");
     await page.getByRole("link", { name: `Buka pesanan ${code}` }).click();
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(code);
 
@@ -91,7 +96,7 @@ test.describe("online orders from entry to return (FR-ONL)", () => {
     const dialog = page.getByRole("dialog", { name: "Ubah status ke Retur diterima?" });
     await choose(
       dialog,
-      `Kondisi ${E2E_BRAND} · ${product} · Red · 93cm x 47cm (2 pcs)`,
+      `Kondisi ${E2E_BRAND} · ${product} · Nappa · 2mm · Red · 93cm x 47cm (2 pcs)`,
       "Rusak — write-off",
     );
     await dialog.getByRole("button", { name: "Terima retur" }).click();

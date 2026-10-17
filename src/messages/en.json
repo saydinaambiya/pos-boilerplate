@@ -1532,6 +1532,7 @@
     "priceVsStore": "{price} (store price {store})",
     "brand": "Brand",
     "motif": "Motif",
+    "thickness": "Thickness",
     "color": "Colour"
   },
   "Reports": {
@@ -1687,7 +1688,10 @@
     "floatAdded": "Float added",
     "floatAddedHint": "Entered by cashiers when opening a shift",
     "countVariance": "Count variance",
-    "countVarianceHint": "Counted cash − expected cash at shift close"
+    "countVarianceHint": "Counted cash − expected cash at shift close",
+    "motif": "Motif",
+    "thickness": "Thickness",
+    "thicknessMm": "Thickness (mm)"
   },
   "Housekeeping": {
     "title": "Housekeeping",

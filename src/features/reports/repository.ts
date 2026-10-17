@@ -213,10 +213,17 @@ const lineColumns = {
   cogs: num(cogs),
 };
 
-/** Lines per product with its current brand, best sellers first. */
+/** Lines per product with its current brand, motif and thickness, best sellers first. */
 export async function salesByProduct(window: ReportWindow) {
   return db
-    .select({ id: products.id, name: products.name, brand: brands.name, ...lineColumns })
+    .select({
+      id: products.id,
+      name: products.name,
+      brand: brands.name,
+      motif: products.motif,
+      thickness: products.thickness,
+      ...lineColumns,
+    })
     .from(saleItems)
     .innerJoin(sales, eq(sales.id, saleItems.saleId))
     .innerJoin(productVariants, eq(productVariants.id, saleItems.variantId))
@@ -227,7 +234,10 @@ export async function salesByProduct(window: ReportWindow) {
     .orderBy(desc(sql`sum(${saleItems.lineTotal})`), asc(products.name));
 }
 
-/** Lines per variant with the colour as sold and the product's current brand. */
+/**
+ * Lines per variant with the colour and size as sold and the product's
+ * current brand, motif and thickness (FR-PRD-08).
+ */
 export async function salesByVariant(window: ReportWindow) {
   return db
     .select({
@@ -236,6 +246,8 @@ export async function salesByVariant(window: ReportWindow) {
       name: sql<string>`max(${saleItems.nameSnapshot})`,
       brand: brands.name,
       color: sql<string | null>`max(${saleItems.variantSnapshot})`,
+      motif: products.motif,
+      thickness: products.thickness,
       ...lineColumns,
     })
     .from(saleItems)
@@ -244,7 +256,7 @@ export async function salesByVariant(window: ReportWindow) {
     .innerJoin(products, eq(products.id, productVariants.productId))
     .leftJoin(brands, eq(brands.id, products.brandId))
     .where(counted(window))
-    .groupBy(saleItems.variantId, productVariants.sku, brands.name)
+    .groupBy(saleItems.variantId, productVariants.sku, brands.name, products.id)
     .orderBy(desc(sql`sum(${saleItems.lineTotal})`), asc(productVariants.sku));
 }
 

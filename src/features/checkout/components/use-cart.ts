@@ -19,6 +19,8 @@ export interface CartItem {
   weightG?: number;
   /** The product's motif, read from the catalogue when shown, never stored (FR-POS-12). */
   motif?: string | null;
+  /** The product's thickness as shown, e.g. "8mm", read like the motif (FR-PRD-08). */
+  thickness?: string | null;
   discount: ItemDiscount | null;
 }
 

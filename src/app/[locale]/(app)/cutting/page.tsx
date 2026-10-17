@@ -336,7 +336,11 @@ export default async function CuttingPage({ searchParams }: PageProps<"/[locale]
           closeLabel={tCommon("close")}
           size="lg"
           title={t("cutTitle", {
-            name: variantLabel(selected.productName, selected.colorName, selected.brandName),
+            name: variantLabel(
+              selected.productName,
+              [selected.motif, selected.colorName].filter(Boolean).join(" · ") || null,
+              selected.brandName,
+            ),
           })}
           description={t("cutDescription")}
         >

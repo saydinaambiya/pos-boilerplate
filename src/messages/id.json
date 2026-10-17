@@ -1532,6 +1532,7 @@
     "priceVsStore": "{price} (harga toko {store})",
     "brand": "Merk",
     "motif": "Motif",
+    "thickness": "Ketebalan",
     "color": "Warna"
   },
   "Reports": {
@@ -1687,7 +1688,10 @@
     "floatAdded": "Modal ditambahkan",
     "floatAddedHint": "Diisi kasir saat buka shift",
     "countVariance": "Selisih hitung",
-    "countVarianceHint": "Kas fisik − kas seharusnya saat tutup shift"
+    "countVarianceHint": "Kas fisik − kas seharusnya saat tutup shift",
+    "motif": "Motif",
+    "thickness": "Ketebalan",
+    "thicknessMm": "Ketebalan (mm)"
   },
   "Housekeeping": {
     "title": "Housekeeping",

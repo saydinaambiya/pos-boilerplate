@@ -1,3 +1,5 @@
+import { formatThickness } from "./length";
+
 /** Product name with its brand beside it, e.g. "Fox · Karpet Mihrab" (FR-PRD-08). */
 export function brandedName(productName: string, brandName?: string | null): string {
   return brandName ? `${brandName} · ${productName}` : productName;
@@ -65,6 +67,24 @@ export function goodsName(
     brandedName(item.name, item.brandName),
     item.size ? formatSizeLabel(item.size) : null,
     item.isDefect ? defectLabel : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+/**
+ * Motif and thickness as labelled parts, e.g. "Motif: Mihrab · Ketebalan: 8mm",
+ * for rows whose name already carries the brand, colour and size, so every
+ * list shows the same details as the products page (FR-PRD-08).
+ */
+export function traitsLine(
+  item: { motif?: string | null; thickness?: number | null },
+  labels: { motif: string; thickness: string },
+  locale: string,
+): string {
+  return [
+    item.motif ? `${labels.motif}: ${item.motif}` : null,
+    item.thickness ? `${labels.thickness}: ${formatThickness(item.thickness, locale)}` : null,
   ]
     .filter(Boolean)
     .join(" · ");

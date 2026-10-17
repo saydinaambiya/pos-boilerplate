@@ -5,6 +5,7 @@ import {
   detailsWithoutBrand,
   goodsName,
   stockItemLabel,
+  traitsLine,
   variantLabel,
 } from "./variant-label";
 
@@ -39,5 +40,18 @@ describe("brand beside the product name (FR-PRD-08)", () => {
     expect(detailsWithoutBrand("Foxy · Mihrab", "Fox")).toBe("Foxy · Mihrab");
     expect(detailsWithoutBrand(null, "Fox")).toBeNull();
     expect(detailsWithoutBrand("Fox · Mihrab", null)).toBe("Fox · Mihrab");
+  });
+});
+
+describe("motif and thickness beside goods (FR-PRD-08)", () => {
+  const labels = { motif: "Motif", thickness: "Ketebalan" };
+
+  it("labels each detail and skips the missing ones", () => {
+    expect(traitsLine({ motif: "Mihrab", thickness: 8 }, labels, "id")).toBe(
+      "Motif: Mihrab · Ketebalan: 8mm",
+    );
+    expect(traitsLine({ motif: null, thickness: 2.5 }, labels, "id")).toBe("Ketebalan: 2,5mm");
+    expect(traitsLine({ motif: "Bunga" }, labels, "id")).toBe("Motif: Bunga");
+    expect(traitsLine({}, labels, "id")).toBe("");
   });
 });
