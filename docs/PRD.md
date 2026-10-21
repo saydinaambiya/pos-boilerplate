@@ -2,8 +2,8 @@
 
 | Atribut         | Nilai              |
 | --------------- | ------------------ |
-| Versi dokumen   | 0.40.0 (draft)     |
-| Tanggal         | 2026-10-17         |
+| Versi dokumen   | 0.41.0 (draft)     |
+| Tanggal         | 2026-10-21         |
 | Pemilik         | Owner              |
 | Status          | Menunggu review    |
 | Dokumen terkait | [BRD.md](./BRD.md) |
@@ -52,6 +52,7 @@
 | 0.38.0 | 2026-10-14 | Tab "Riwayat transaksi" di halaman Sales seperti riwayat transaksi kasir; sales bisa membuka invoice lengkap transaksinya sendiri tanpa akses kasir (FR-CSG-10) ([ADR-0048](./adr/0048-sales-transaction-history-and-invoices.md)); diskon per item dan voucher saat sales mencatat barang terjual, sama seperti kasir (FR-CSG-04); motif di riwayat potong (FR-ROL-03) ([ADR-0049](./adr/0049-discounts-and-vouchers-on-sales.md)); kasir menampilkan satu kartu per warna (FR-POS-14) |
 | 0.39.0 | 2026-10-16 | Halaman barang bawaan sales punya pencarian (merk, barang, motif, warna, no. invoice) dan centang "Hanya barang yang masih dibawa" yang aktif dari awal (FR-CSG-11) ([ADR-0050](./adr/0050-search-and-carried-filter-on-sales-goods.md))                                                                                                                                                                                                                                                |
 | 0.40.0 | 2026-10-17 | Motif tampil di semua daftar barang; detail lengkap (merk, nama, motif, ketebalan, warna, ukuran) di pesanan online, stok menipis, keranjang kasir, dan rekap penjualan (FR-PRD-09) ([ADR-0051](./adr/0051-full-product-details-everywhere.md))                                                                                                                                                                                                                                         |
+| 0.41.0 | 2026-10-21 | Pesanan online bisa menjual roll per meter seperti kasir: panjang dan harga per meter (FR-ONL-10); kas bon lama dapat ditambah manual tanpa transaksi, dengan izin baru `kasbon:record-old` (FR-KSB-08) ([ADR-0052](./adr/0052-online-orders-by-the-meter-and-old-store-credit.md))                                                                                                                                                                                                     |
 
 Konvensi: **MUST** = wajib v1, **SHOULD** = diusahakan v1, **MAY** = opsional. ID requirement dirujuk dari issue, commit, dan test.
 
@@ -242,6 +243,7 @@ Barang masuk dalam bentuk **roll** (satuan meter, lebar selalu 140 cm) lalu dipo
 | FR-ONL-07 | Penanda order "tertahan" jika berada di status yang sama lebih lama dari ambang (default 3 hari).                                                                                                                                                                                               | SHOULD    |
 | FR-ONL-08 | Harga barang pesanan online diisi manual per barang (wajib), karena berbeda dengan harga toko; barang tetap dipilih dari stok. Harga toko tampil sebagai pembanding dan disimpan; peringatan bila di bawah harga modal (bagi yang boleh melihat modal); harga tercatat di audit log (ADR-0025). | MUST      |
 | FR-ONL-09 | Kartu pesanan online menampilkan merk, motif, dan warna barang pertama; detail pesanan menampilkan kolom Merk, Motif, dan Warna untuk setiap barang. Semuanya dibaca dari data produk saat ini.                                                                                                 | MUST      |
+| FR-ONL-10 | Roll dapat dijual per meter di pesanan online seperti di kasir: isi panjang (m) dan harga marketplace per meter; harga toko per meter tampil sebagai pembanding. Panjangnya keluar dari stok roll dan kembali saat batal atau retur.                                                            | MUST      |
 
 ### 3.8 Kas Bon
 
@@ -254,6 +256,7 @@ Barang masuk dalam bentuk **roll** (satuan meter, lebar selalu 140 cm) lalu dipo
 | FR-KSB-05 | Nominal cicilan tidak boleh melebihi saldo dikurangi cicilan pending lainnya.                                                                                                                                                                                                                                                                                                                                                                    | MUST      |
 | FR-KSB-06 | Daftar kas bon dengan aging (0–30, 31–60, > 60 hari) dan penanda jatuh tempo.                                                                                                                                                                                                                                                                                                                                                                    | MUST      |
 | FR-KSB-07 | Cetak/unduh riwayat kas bon per pelanggan.                                                                                                                                                                                                                                                                                                                                                                                                       | SHOULD    |
+| FR-KSB-08 | Kas bon lama (mis. dari buku catatan) dapat ditambah manual tanpa transaksi oleh pemegang `kasbon:record-old`: nama pelanggan, no. HP opsional, tanggal kas bon (tidak boleh setelah hari ini), sisa kas bon, no. nota lama dan keterangan opsional, jatuh tempo opsional. Umur piutang dihitung dari tanggal kas bon; cicilan sama seperti kas bon lain. Tidak dihitung sebagai penjualan.                                                      | MUST      |
 
 ### 3.9 Voucher
 

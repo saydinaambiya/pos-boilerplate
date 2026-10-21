@@ -80,9 +80,9 @@ export default async function KasbonDetailPage({ params }: PageProps<"/[locale]/
           kasbon.customerPhone
             ? t("detailSubtitle", {
                 phone: formatIndonesianPhone(kasbon.customerPhone),
-                invoiceNo: kasbon.invoiceNo,
+                invoiceNo: kasbon.invoiceNo ?? t("manualEntry"),
               })
-            : kasbon.invoiceNo
+            : (kasbon.invoiceNo ?? t("manualEntry"))
         }
         actions={
           <Button asChild variant="secondary">
@@ -98,20 +98,37 @@ export default async function KasbonDetailPage({ params }: PageProps<"/[locale]/
               <KasbonStatusChip status={kasbon.status} />
             </CardHeader>
             <dl className="text-sm">
-              {row(
-                t("invoice"),
-                <Link
-                  href={`/pos/sales?view=${kasbon.saleId}`}
-                  className="underline-offset-4 hover:underline"
-                >
-                  {kasbon.invoiceNo}
-                </Link>,
+              {kasbon.saleId === null ? (
+                <>
+                  {row(t("invoice"), kasbon.invoiceNo ?? t("manualEntry"))}
+                  {row(
+                    t("manualOpenedOn"),
+                    format.dateTime(new Date(`${kasbon.openedOn ?? ""}T00:00:00Z`), {
+                      dateStyle: "medium",
+                      timeZone: "UTC",
+                    }),
+                  )}
+                  {kasbon.description ? row(t("manualDescriptionField"), kasbon.description) : null}
+                  {row(t("recordedBy"), kasbon.cashierName ?? "—")}
+                </>
+              ) : (
+                <>
+                  {row(
+                    t("invoice"),
+                    <Link
+                      href={`/pos/sales?view=${kasbon.saleId}`}
+                      className="underline-offset-4 hover:underline"
+                    >
+                      {kasbon.invoiceNo}
+                    </Link>,
+                  )}
+                  {row(
+                    t("createdAt"),
+                    format.dateTime(kasbon.createdAt, { dateStyle: "medium", timeStyle: "short" }),
+                  )}
+                  {row(t("cashier"), kasbon.cashierName ?? "—")}
+                </>
               )}
-              {row(
-                t("createdAt"),
-                format.dateTime(kasbon.createdAt, { dateStyle: "medium", timeStyle: "short" }),
-              )}
-              {row(t("cashier"), kasbon.cashierName)}
               {row(t("total"), money(kasbon.total))}
               {row(t("paid"), money(kasbon.paidTotal))}
               {row(

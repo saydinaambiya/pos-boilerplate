@@ -39,7 +39,11 @@ export async function listActiveMarketplaces() {
     .orderBy(asc(marketplaces.name));
 }
 
-/** Variants on the order with price and names for snapshots. */
+/**
+ * Variants on the order with price and names for snapshots. On a roll row
+ * price and cost are per meter (FR-ONL-10); goods sold by the kg are
+ * weighed at the POS (ADR-0045).
+ */
 export async function findOrderableVariants(executor: Executor, variantIds: readonly string[]) {
   return executor
     .select({
@@ -49,9 +53,10 @@ export async function findOrderableVariants(executor: Executor, variantIds: read
       attributes: productVariants.attributes,
       size: productVariants.size,
       isDefect: productVariants.isDefect,
+      isRoll: isRollRowSql,
       price: variantPriceSql,
       cost: variantCostSql,
-      sellable: sql<boolean>`${products.isActive} AND ${productVariants.isActive} AND NOT ${isRollRowSql} AND NOT ${soldByWeightSql}`,
+      sellable: sql<boolean>`${products.isActive} AND ${productVariants.isActive} AND NOT ${soldByWeightSql}`,
     })
     .from(productVariants)
     .innerJoin(products, eq(products.id, productVariants.productId))
@@ -100,6 +105,7 @@ export async function findOrderItems(executor: Executor, orderId: string) {
       id: onlineOrderItems.id,
       variantId: onlineOrderItems.variantId,
       qty: onlineOrderItems.qty,
+      lengthCm: onlineOrderItems.lengthCm,
       trackStock: products.trackStock,
     })
     .from(onlineOrderItems)
@@ -270,6 +276,7 @@ export async function findOrderDetail(orderId: string) {
         size: productVariants.size,
         isDefect: productVariants.isDefect,
         qty: onlineOrderItems.qty,
+        lengthCm: onlineOrderItems.lengthCm,
         unitPrice: onlineOrderItems.unitPrice,
         storePrice: onlineOrderItems.storePrice,
         lineTotal: onlineOrderItems.lineTotal,

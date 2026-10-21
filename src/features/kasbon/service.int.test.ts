@@ -25,7 +25,13 @@ import { fixtures, resetDatabase } from "@/test/database";
 import { signIn, testContext } from "@/test/sessions";
 
 import type { KasbonCheckoutInput } from "./schemas";
-import { getKasbon, getKasbonSummary, listKasbons, recordKasbonPayment } from "./service";
+import {
+  getKasbon,
+  getKasbonSummary,
+  listKasbons,
+  recordKasbonPayment,
+  recordManualKasbon,
+} from "./service";
 
 const owner = () => signIn(fixtures.owner.username, fixtures.owner.password);
 const cashier = () => signIn("kasir", "123456");
@@ -107,8 +113,11 @@ function sellOnCredit(
   );
 }
 
-async function kasbonOf(saleId: string) {
-  const [row] = await db.select().from(kasbons).where(eq(kasbons.saleId, saleId));
+async function kasbonOf(saleId: string | null) {
+  const [row] = await db
+    .select()
+    .from(kasbons)
+    .where(eq(kasbons.saleId, saleId ?? ""));
   if (!row) throw new Error("kasbon expected");
   return row;
 }
@@ -602,5 +611,87 @@ describe("store credit list and aging (FR-KSB-06, FR-DSH-01)", () => {
     expect(shift?.expectedCash).toBe(45_000);
     const closed = await closeShift(session, { countedCash: 45_000, note: "" }, testContext());
     expect(closed.ok).toBe(true);
+  });
+});
+
+describe("old store credit entered by hand (FR-KSB-08, ADR-0052)", () => {
+  const old = {
+    name: "Pak Budi",
+    phone: "",
+    openedOn: "2026-06-15",
+    amount: 350_000,
+    reference: "NB-017",
+    description: "Karpet 2 lembar",
+    dueDate: null,
+  };
+
+  it("needs kasbon:record-old and refuses a future date or a due date before it", async () => {
+    await grant("page:kasbon", "kasbon:create");
+    await expect(
+      recordManualKasbon(await cashier(), { ...old, phone: null }, testContext(), NOW),
+    ).rejects.toThrow();
+
+    const session = await owner();
+    expect(
+      await recordManualKasbon(
+        session,
+        { ...old, phone: null, openedOn: "2026-09-27" },
+        testContext(),
+        NOW,
+      ),
+    ).toEqual({ ok: false, reason: "future-date" });
+    expect(
+      await recordManualKasbon(
+        session,
+        { ...old, phone: null, dueDate: "2026-06-01" },
+        testContext(),
+        NOW,
+      ),
+    ).toEqual({ ok: false, reason: "due-before-opened" });
+  });
+
+  it("ages from its own date, is found by note number and can be paid off", async () => {
+    const session = await owner();
+    const created = await recordManualKasbon(
+      session,
+      { ...old, phone: "+6281234567890" },
+      testContext(),
+      NOW,
+    );
+    if (!created.ok) throw new Error(created.reason);
+
+    const list = await listKasbons(session, { filter: "open", search: "nb-017", page: 1 }, NOW);
+    expect(list.kasbons).toHaveLength(1);
+    expect(list.kasbons[0]).toMatchObject({
+      saleId: null,
+      invoiceNo: "NB-017",
+      aging: "over60",
+      ageDays: 103,
+    });
+    expect(list.aging.over60).toBe(350_000);
+
+    const detail = await getKasbon(session, created.id, NOW);
+    expect(detail).toMatchObject({
+      customerName: "Pak Budi",
+      customerPhone: "+6281234567890",
+      description: "Karpet 2 lembar",
+      openedOn: "2026-06-15",
+    });
+    expect(detail?.cashierName).toBeTruthy();
+
+    await openShift(session, { openingCash: 0 }, testContext());
+    expect(
+      await recordKasbonPayment(
+        session,
+        created.id,
+        { cash: 350_000, transfer: null },
+        testContext(),
+        NOW,
+      ),
+    ).toEqual({ ok: true, status: "APPROVED" });
+    expect((await getKasbon(session, created.id, NOW))?.status).toBe("SETTLED");
+    const shift = await getOpenShift(session);
+    expect(shift?.totals.kasbonIssued).toBe(0);
+    expect(shift?.totals.kasbonCollected.CASH).toBe(350_000);
   });
 });

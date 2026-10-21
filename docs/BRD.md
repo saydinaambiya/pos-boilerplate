@@ -2,8 +2,8 @@
 
 | Atribut         | Nilai              |
 | --------------- | ------------------ |
-| Versi dokumen   | 0.34.0 (draft)     |
-| Tanggal         | 2026-10-17         |
+| Versi dokumen   | 0.35.0 (draft)     |
+| Tanggal         | 2026-10-21         |
 | Pemilik         | Owner              |
 | Status          | Menunggu review    |
 | Dokumen terkait | [PRD.md](./PRD.md) |
@@ -46,6 +46,7 @@
 | 0.32.0 | 2026-10-14 | Masukan v1.13: riwayat transaksi sales dipisah seperti riwayat admin, sales bisa melihat invoice lengkap (Q-54); diskon dan voucher di Sales, motif di riwayat potong (Q-55) |
 | 0.33.0 | 2026-10-16 | Masukan v1.14: cari dan saring barang bawaan sales, barang yang sudah habis disembunyikan (Q-56)                                                                             |
 | 0.34.0 | 2026-10-17 | Masukan v1.15: motif di semua daftar barang, detail lengkap termasuk ketebalan di pesanan online, stok menipis, keranjang, dan rekap (Q-57)                                  |
+| 0.35.0 | 2026-10-21 | Masukan v1.17: roll per meter di pesanan online (Q-58), kas bon lama ditambah manual (Q-59)                                                                                  |
 
 ---
 
@@ -315,3 +316,5 @@ Owner pilih rentang (data ≥ 3 bulan) ─▶ Unduh CSV langsung ─▶ Data dit
 | Q-55 | Apakah sales bisa memberi diskon saat mencatat barang terjual?                 | Ya, sama seperti kasir: diskon per item (persen atau rupiah) bagi pemegang izin diskon manual, dan satu voucher per transaksi. Riwayat potong juga menampilkan motif.                                                                                                                                    | Diputuskan |
 | Q-56 | Bagaimana halaman barang bawaan sales tetap ringkas saat datanya banyak?       | Ada kolom cari untuk apa saja (merk, barang, motif, warna, no. invoice) dan centang "Hanya barang yang masih dibawa" yang aktif dari awal, jadi barang yang sisa dibawanya 0 tidak muncul.                                                                                                               | Diputuskan |
 | Q-57 | Detail apa yang tampil untuk sebuah barang di luar halaman produk?             | Motif tampil di semua daftar barang. Pesanan online, stok menipis, keranjang kasir, dan rekap penjualan menampilkan detail lengkap seperti halaman produk (merk, nama, motif, ketebalan, warna, ukuran). Stok, riwayat perubahan stok, potong roll, dan barang bawaan sales tidak menampilkan ketebalan. | Diputuskan |
+| Q-58 | Bisakah pesanan online menjual roll per meter seperti kasir toko?              | Ya. Isi panjang dan harga marketplace per meter; panjangnya keluar dari roll.                                                                                                                                                                                                                            | Diputuskan |
+| Q-59 | Bagaimana mencatat kas bon lama dari sebelum memakai aplikasi?                 | Ditambah manual di menu Kas bon dengan tanggal kas bon dan sisa yang belum dibayar, oleh pemegang izin baru "Catat kas bon lama" (bawaan hanya Owner). Tidak dihitung sebagai penjualan.                                                                                                                 | Diputuskan |

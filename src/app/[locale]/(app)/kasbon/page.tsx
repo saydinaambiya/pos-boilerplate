@@ -1,4 +1,4 @@
-import { NotebookPen } from "lucide-react";
+import { NotebookPen, Plus } from "lucide-react";
 import type { Metadata } from "next";
 import { getLocale, getTranslations } from "next-intl/server";
 
@@ -22,22 +22,29 @@ import {
 import { ShowArchivedField } from "@/features/housekeeping/components/show-archived-field";
 import { agingBuckets } from "@/features/kasbon/aging";
 import { DueMarker, KasbonStatusChip } from "@/features/kasbon/components/kasbon-chips";
+import { ManualKasbonDialog } from "@/features/kasbon/components/manual-kasbon-dialog";
 import { kasbonFilters, kasbonListQuery } from "@/features/kasbon/schemas";
-import { listKasbons } from "@/features/kasbon/service";
+import { listKasbons, storeToday } from "@/features/kasbon/service";
 import { Link } from "@/i18n/navigation";
 import { requirePermission } from "@/lib/auth/guard";
 import { formatCurrency } from "@/lib/format/currency";
 import { formatIndonesianPhone } from "@/lib/format/phone";
+import { firstParam } from "@/lib/utils/search-params";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Kasbon");
   return { title: t("title") };
 }
 
-/** Store credit list with aging buckets and due markers (FR-KSB-06, PRD §3.8). */
+/**
+ * Store credit list with aging buckets and due markers (FR-KSB-06, PRD §3.8);
+ * `?new=1` opens the dialog to enter an older credit by hand (FR-KSB-08).
+ */
 export default async function KasbonPage({ searchParams }: PageProps<"/[locale]/kasbon">) {
   const session = await requirePermission("page:kasbon");
   const raw = await searchParams;
+  const canRecordOld = session.permissions.has("kasbon:record-old");
+  const creating = canRecordOld && firstParam(raw.new) === "1";
   const first = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value);
   const query = kasbonListQuery.parse({
     filter: first(raw.filter),
@@ -45,9 +52,10 @@ export default async function KasbonPage({ searchParams }: PageProps<"/[locale]/
     page: first(raw.page),
     archived: first(raw.archived),
   });
-  const [t, locale, result] = await Promise.all([
+  const [t, locale, today, result] = await Promise.all([
     getTranslations("Kasbon"),
     getLocale(),
+    creating ? storeToday() : "",
     listKasbons(session, {
       filter: query.filter,
       search: query.q,
@@ -66,7 +74,23 @@ export default async function KasbonPage({ searchParams }: PageProps<"/[locale]/
 
   return (
     <>
-      <PageHeader title={t("title")} description={t("subtitle")} />
+      <PageHeader
+        title={t("title")}
+        description={t("subtitle")}
+        actions={
+          canRecordOld ? (
+            <Button asChild>
+              <Link
+                href={{ pathname: "/kasbon", query: { ...pageQuery(query.page), new: "1" } }}
+                scroll={false}
+              >
+                <Plus aria-hidden="true" />
+                {t("addOld")}
+              </Link>
+            </Button>
+          ) : undefined
+        }
+      />
 
       <section aria-labelledby="kasbon-aging" className="mb-6">
         <h2 id="kasbon-aging" className="sr-only">
@@ -164,7 +188,7 @@ export default async function KasbonPage({ searchParams }: PageProps<"/[locale]/
                       href={`/kasbon/${kasbon.id}`}
                       aria-label={t("open", {
                         name: kasbon.customerName,
-                        invoiceNo: kasbon.invoiceNo,
+                        invoiceNo: kasbon.invoiceNo ?? t("manualEntry"),
                       })}
                       className="underline-offset-4 hover:underline"
                     >
@@ -176,7 +200,16 @@ export default async function KasbonPage({ searchParams }: PageProps<"/[locale]/
                       </span>
                     ) : null}
                   </TableCell>
-                  <TableCell className="tabular-nums">{kasbon.invoiceNo}</TableCell>
+                  <TableCell className="tabular-nums">
+                    {kasbon.saleId === null ? (
+                      <>
+                        {kasbon.invoiceNo ?? null}
+                        <span className="block text-xs text-ink-muted">{t("manualEntry")}</span>
+                      </>
+                    ) : (
+                      kasbon.invoiceNo
+                    )}
+                  </TableCell>
                   <TableCell className="text-right tabular-nums">{money(kasbon.total)}</TableCell>
                   <TableCell className="text-right tabular-nums">
                     {money(kasbon.balance)}
@@ -230,6 +263,12 @@ export default async function KasbonPage({ searchParams }: PageProps<"/[locale]/
           </nav>
         ) : null}
       </Card>
+      {creating ? (
+        <ManualKasbonDialog
+          closeHref={{ pathname: "/kasbon", query: pageQuery(query.page) }}
+          today={today}
+        />
+      ) : null}
     </>
   );
 }

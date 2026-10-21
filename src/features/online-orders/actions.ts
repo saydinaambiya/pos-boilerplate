@@ -11,6 +11,7 @@ import { searchOrderCatalog } from "@/features/catalog/pos-catalog";
 import { localeFromForm } from "@/i18n/form-locale";
 import { routing } from "@/i18n/routing";
 import { requirePermission } from "@/lib/auth/guard";
+import { formatMeters } from "@/lib/format/length";
 import { formText } from "@/lib/http/form-data";
 import { currentRequestContext } from "@/lib/http/request-context";
 import type { FormState } from "@/lib/validation/form-state";
@@ -53,7 +54,9 @@ export async function createOnlineOrderAction(
     case "insufficient-stock":
       return {
         ok: false,
-        message: t("errorInsufficientStock", { available: result.available }),
+        message: t("errorInsufficientStock", {
+          available: result.isRoll ? formatMeters(result.available, locale) : result.available,
+        }),
         field: "lines",
       };
     case "invalid-marketplace":

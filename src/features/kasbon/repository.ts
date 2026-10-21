@@ -49,9 +49,21 @@ export async function upsertCustomer(executor: Executor, input: CustomerInput): 
   return row.id;
 }
 
+/**
+ * Inserts a store credit: from a sale, or entered by hand with the date it
+ * was given and who entered it (FR-KSB-08).
+ */
 export async function insertKasbon(
   executor: Executor,
-  values: { saleId: string; customerId: string; total: number; dueDate: string | null },
+  values: { customerId: string; total: number; dueDate: string | null } & (
+    | { saleId: string }
+    | {
+        openedOn: string;
+        reference: string | null;
+        description: string | null;
+        createdBy: string;
+      }
+  ),
 ): Promise<string> {
   const [row] = await executor
     .insert(kasbons)
@@ -105,13 +117,19 @@ export async function lockKasbon(executor: Executor, kasbonId: string) {
   return row;
 }
 
-/** Customer name and invoice number of a store credit, for approval snapshots. */
+/**
+ * Customer name and invoice number of a store credit, for approval
+ * snapshots; one entered by hand shows its note number (FR-KSB-08).
+ */
 export async function findKasbonLabels(executor: Executor, kasbonId: string) {
   const [row] = await executor
-    .select({ customerName: customers.name, invoiceNo: sales.invoiceNo })
+    .select({
+      customerName: customers.name,
+      invoiceNo: sql<string>`coalesce(${sales.invoiceNo}, ${kasbons.reference}, '—')`,
+    })
     .from(kasbons)
     .innerJoin(customers, eq(customers.id, kasbons.customerId))
-    .innerJoin(sales, eq(sales.id, kasbons.saleId))
+    .leftJoin(sales, eq(sales.id, kasbons.saleId))
     .where(eq(kasbons.id, kasbonId))
     .limit(1);
   return row;
@@ -216,10 +234,17 @@ export async function isActiveBankAccount(executor: Executor, id: string): Promi
   return row !== undefined;
 }
 
+/** Store date a credit was given: its own on one entered by hand (FR-KSB-08). */
+const openedOnSql = (timeZone: string) =>
+  sql`coalesce(${kasbons.openedOn}, (${kasbons.createdAt} at time zone ${timeZone})::date)`;
+
 const listColumns = {
   id: kasbons.id,
   saleId: kasbons.saleId,
-  invoiceNo: sales.invoiceNo,
+  /** The sale's invoice, or the old note number of one entered by hand (FR-KSB-08). */
+  invoiceNo: sql<string | null>`coalesce(${sales.invoiceNo}, ${kasbons.reference})`,
+  openedOn: kasbons.openedOn,
+  description: kasbons.description,
   customerName: customers.name,
   customerPhone: customers.phone,
   total: kasbons.total,
@@ -236,7 +261,13 @@ const listColumns = {
 
 /** Store credit list, oldest outstanding first (FR-KSB-06). */
 export async function queryKasbons(
-  filters: { filter: KasbonFilter; search: string; today: string; includeArchived: boolean },
+  filters: {
+    filter: KasbonFilter;
+    search: string;
+    today: string;
+    timeZone: string;
+    includeArchived: boolean;
+  },
   page: number,
   pageSize: number,
 ) {
@@ -250,7 +281,11 @@ export async function queryKasbons(
   if (filters.search !== "") {
     const pattern = `%${filters.search.replace(/[\\%_]/g, "\\$&")}%`;
     const digits = filters.search.replace(/\D/g, "").replace(/^0/, "");
-    const matches = [ilike(customers.name, pattern), ilike(sales.invoiceNo, pattern)];
+    const matches = [
+      ilike(customers.name, pattern),
+      ilike(sales.invoiceNo, pattern),
+      ilike(kasbons.reference, pattern),
+    ];
     if (digits.length >= 3) matches.push(ilike(customers.phone, `%${digits}%`));
     const search = or(...matches);
     if (search) conditions.push(search);
@@ -259,9 +294,13 @@ export async function queryKasbons(
     .select(listColumns)
     .from(kasbons)
     .innerJoin(customers, eq(customers.id, kasbons.customerId))
-    .innerJoin(sales, eq(sales.id, kasbons.saleId))
+    .leftJoin(sales, eq(sales.id, kasbons.saleId))
     .where(and(...conditions))
-    .orderBy(sql`${kasbons.status} = 'SETTLED'`, asc(kasbons.createdAt))
+    .orderBy(
+      sql`${kasbons.status} = 'SETTLED'`,
+      asc(openedOnSql(filters.timeZone)),
+      asc(kasbons.createdAt),
+    )
     .limit(pageSize + 1)
     .offset((page - 1) * pageSize);
 }
@@ -271,7 +310,7 @@ export async function queryKasbons(
  * `today` is the store's calendar date.
  */
 export async function outstandingByAge(timeZone: string, today: string) {
-  const age = sql`(${today}::date - (${kasbons.createdAt} at time zone ${timeZone})::date)`;
+  const age = sql`(${today}::date - ${openedOnSql(timeZone)})`;
   const [row] = await db
     .select({
       current:
@@ -299,20 +338,23 @@ export async function outstandingByAge(timeZone: string, today: string) {
   };
 }
 
-/** One store credit with its customer, sale and payment history (FR-KSB-02..04). */
+/**
+ * One store credit with its customer, sale and payment history
+ * (FR-KSB-02..04). `cashierName` is who entered it on one entered by hand
+ * (FR-KSB-08).
+ */
 export async function findKasbonDetail(kasbonId: string) {
   const [kasbon] = await db
     .select({
       ...listColumns,
       customerId: customers.id,
       customerNote: customers.note,
-      cashierId: sales.cashierId,
       cashierName: users.name,
     })
     .from(kasbons)
     .innerJoin(customers, eq(customers.id, kasbons.customerId))
-    .innerJoin(sales, eq(sales.id, kasbons.saleId))
-    .innerJoin(users, eq(users.id, sales.cashierId))
+    .leftJoin(sales, eq(sales.id, kasbons.saleId))
+    .leftJoin(users, sql`${users.id} = coalesce(${sales.cashierId}, ${kasbons.createdBy})`)
     .where(eq(kasbons.id, kasbonId))
     .limit(1);
   if (!kasbon) return undefined;

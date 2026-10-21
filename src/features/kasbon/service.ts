@@ -44,6 +44,7 @@ import {
   type KasbonFilter,
   type KasbonPaymentInput,
   kasbonPaymentPayload,
+  type ManualKasbonInput,
 } from "./schemas";
 
 export const KASBON_PAGE_SIZE = 30;
@@ -100,6 +101,66 @@ export async function openKasbon(
     context,
   );
   return kasbonId;
+}
+
+export type ManualKasbonResult =
+  { ok: true; id: string } | { ok: false; reason: "future-date" | "due-before-opened" };
+
+/**
+ * Enters an older store credit by hand, e.g. from the paper book, so it can
+ * be paid off like any other (FR-KSB-08, ADR-0052). It has no sale, so it
+ * adds nothing to sales, shift or report figures; its age counts from
+ * `openedOn`, which cannot be in the future.
+ */
+export async function recordManualKasbon(
+  session: Session,
+  input: ManualKasbonInput,
+  context: RequestContext,
+  now = new Date(),
+): Promise<ManualKasbonResult> {
+  assertPermission(session, "kasbon:record-old");
+  const { timeZone } = await readSetting("operations");
+  if (input.openedOn > storeDate(now, timeZone)) return { ok: false, reason: "future-date" };
+  if (input.dueDate !== null && input.dueDate < input.openedOn) {
+    return { ok: false, reason: "due-before-opened" };
+  }
+  return db.transaction(async (tx) => {
+    const customerId = await upsertCustomer(tx, {
+      name: input.name,
+      phone: input.phone,
+      note: "",
+    });
+    const reference = input.reference === "" ? null : input.reference;
+    const description = input.description === "" ? null : input.description;
+    const kasbonId = await insertKasbon(tx, {
+      customerId,
+      total: input.amount,
+      dueDate: input.dueDate,
+      openedOn: input.openedOn,
+      reference,
+      description,
+      createdBy: session.user.id,
+    });
+    await recordAudit(
+      tx,
+      {
+        actorId: session.user.id,
+        action: "kasbon.recorded",
+        entity: "kasbon",
+        entityId: kasbonId,
+        diff: {
+          customer: input.name,
+          total: input.amount,
+          openedOn: input.openedOn,
+          dueDate: input.dueDate,
+          reference,
+          description,
+        },
+      },
+      context,
+    );
+    return { ok: true, id: kasbonId } as const;
+  });
 }
 
 /** Store-local today, for due-date checks (FR-UI-11). */
@@ -298,6 +359,7 @@ export async function listKasbons(
         filter: options.filter,
         search: options.search.trim(),
         today,
+        timeZone,
         includeArchived: options.includeArchived ?? false,
       },
       options.page,
@@ -307,7 +369,7 @@ export async function listKasbons(
   ]);
   return {
     kasbons: rows.slice(0, KASBON_PAGE_SIZE).map((row) => {
-      const ageDays = daysBetween(storeDate(row.createdAt, timeZone), today);
+      const ageDays = daysBetween(row.openedOn ?? storeDate(row.createdAt, timeZone), today);
       return {
         ...row,
         ageDays,
@@ -382,7 +444,7 @@ export async function getKasbon(session: Session, kasbonId: string, now = new Da
   if (!kasbon) return undefined;
   const { timeZone } = await readSetting("operations");
   const today = storeDate(now, timeZone);
-  const ageDays = daysBetween(storeDate(kasbon.createdAt, timeZone), today);
+  const ageDays = daysBetween(kasbon.openedOn ?? storeDate(kasbon.createdAt, timeZone), today);
   return {
     ...kasbon,
     ageDays,

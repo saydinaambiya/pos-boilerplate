@@ -105,4 +105,34 @@ test.describe("online orders from entry to return (FR-ONL)", () => {
     );
     await page.context().close();
   });
+
+  test("a roll is ordered by the meter and its length leaves the roll (FR-ONL-10)", async ({
+    browser,
+  }) => {
+    const page = await cashierAtPos(browser);
+    await page.goto("/id/online-orders?new=1");
+    const entry = page.getByRole("dialog", { name: "Pesanan online baru" });
+    await choose(entry, "Marketplace", market);
+    await entry.getByLabel("Kode order").fill(`${code}-M`);
+    await page.getByRole("searchbox", { name: "Cari produk" }).fill(product);
+    const roll = `${E2E_BRAND} · ${product} — Nappa · 2mm · Red · Meteran`;
+    await expect(page.getByRole("button", { name: `Tambah ${roll}` })).toContainText("sisa 10m");
+    await page.getByRole("button", { name: `Tambah ${roll}` }).click();
+    await page.getByLabel(`Harga marketplace per meter ${roll}`).fill("40.000");
+    await page.getByRole("button", { name: "Simpan pesanan" }).click();
+    await expect(page.getByText(`Isi panjang (meter) untuk ${roll}.`)).toBeVisible();
+    await page.getByLabel(`Panjang ${roll} (m)`).fill("2,5");
+    await expect(page.getByRole("list", { name: "Item pesanan" })).toContainText("Rp 100.000");
+    await page.getByRole("button", { name: "Simpan pesanan" }).click();
+
+    await expect(page).toHaveURL(/\/id\/online-orders\/[0-9a-f-]+$/);
+    const items = page.getByRole("table", { name: "Item pesanan" });
+    await expect(items.getByRole("cell", { name: "2,5m", exact: true })).toBeVisible();
+    await expect(items).toContainText("Rp 100.000");
+
+    await page.goto("/id/online-orders?new=1");
+    await page.getByRole("searchbox", { name: "Cari produk" }).fill(product);
+    await expect(page.getByRole("button", { name: `Tambah ${roll}` })).toContainText("sisa 7,5m");
+    await page.context().close();
+  });
 });

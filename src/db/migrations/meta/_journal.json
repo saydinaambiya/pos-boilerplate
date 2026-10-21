@@ -281,6 +281,13 @@
       "when": 1791949071789,
       "tag": "0039_sales_item_discount",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1792555852152,
+      "tag": "0040_online_meters_manual_kasbon",
+      "breakpoints": true
     }
   ]
 }

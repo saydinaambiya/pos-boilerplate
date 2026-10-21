@@ -11,7 +11,8 @@ import { plainText } from "@/lib/validation/text";
 /**
  * A manually entered marketplace order (FR-ONL-01). Items come from stock,
  * but each line carries the marketplace price typed by staff, since it
- * differs from the store price (FR-ONL-08).
+ * differs from the store price (FR-ONL-08). A roll is cut to `lengthCm`
+ * and its price is per meter, like a custom cut at the POS (FR-ONL-10).
  */
 export const createOnlineOrderInput = z
   .object({
@@ -26,7 +27,12 @@ export const createOnlineOrderInput = z
     lines: z
       .array(
         z
-          .object({ variantId: z.uuid(), qty: z.int().min(1).max(9999), unitPrice: rupiah })
+          .object({
+            variantId: z.uuid(),
+            qty: z.int().min(1).max(9999),
+            unitPrice: rupiah,
+            lengthCm: z.int().min(1).max(100_000).optional(),
+          })
           .strict(),
       )
       .min(1)

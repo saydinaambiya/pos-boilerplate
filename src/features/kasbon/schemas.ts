@@ -43,6 +43,24 @@ export const kasbonCheckoutInput = z
   .strict();
 export type KasbonCheckoutInput = z.infer<typeof kasbonCheckoutInput>;
 
+/**
+ * An older store credit entered by hand, e.g. from the paper book
+ * (FR-KSB-08, ADR-0052). `amount` is what is still owed; `openedOn` is the
+ * store date it was given and drives its age.
+ */
+export const manualKasbonInput = z
+  .object({
+    name: plainText(80),
+    phone: optionalIndonesianPhone,
+    openedOn: isoDate,
+    amount: z.int().min(1).max(MAX_RUPIAH),
+    reference: plainText(40, 0),
+    description: plainText(200, 0),
+    dueDate: isoDate.nullable(),
+  })
+  .strict();
+export type ManualKasbonInput = z.infer<typeof manualKasbonInput>;
+
 export const kasbonPaymentMethods = ["CASH", "TRANSFER"] as const;
 
 /**
