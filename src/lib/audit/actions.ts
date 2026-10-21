@@ -65,6 +65,7 @@ export const auditActions = [
   "voucher.activated",
   "voucher.deactivated",
   "kasbon.opened",
+  "kasbon.recorded",
   "kasbon.payment-recorded",
   "kasbon.payment-approved",
   "online-order.created",

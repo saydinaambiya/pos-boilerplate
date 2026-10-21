@@ -104,3 +104,36 @@ test.describe("store credit with installments at the cashier (FR-PAY-05, FR-KSB,
     await expect(page.getByRole("listitem").filter({ hasText: customer })).toHaveCount(0);
   });
 });
+
+test.describe("old store credit entered by hand (FR-KSB-08)", () => {
+  test.skip(({ isMobile }) => isMobile, "stateful store credit flows run once, on desktop");
+
+  test("the owner enters an old credit and it ages from its own date", async ({ page }) => {
+    const name = `Pelanggan lama ${run}`;
+    const note = `NB-${run}`;
+    await page.goto("/id/kasbon");
+    await page.getByRole("link", { name: "Tambah kas bon lama" }).click();
+    const dialog = page.getByRole("dialog", { name: "Tambah kas bon lama" });
+    await dialog.getByLabel("Nama pelanggan").fill(name);
+    await dialog.getByLabel("Sisa kas bon").fill("250.000");
+    await dialog.getByLabel("No. nota lama").fill(note);
+    await dialog.getByRole("button", { name: "Simpan kas bon" }).click();
+    await page.getByRole("dialog", { name: "Gagal" }).getByRole("button", { name: "Oke" }).click();
+    await expect(dialog.getByText("Wajib diisi.")).toBeVisible();
+
+    const opened = new Date(Date.now() - 45 * 86_400_000).toISOString().slice(0, 10);
+    await dialog.locator('input[name="openedOn"]').evaluate((input, value) => {
+      (input as HTMLInputElement).value = value;
+    }, opened);
+    await dialog.getByRole("button", { name: "Simpan kas bon" }).click();
+
+    await expect(page).toHaveURL(/\/id\/kasbon\/[0-9a-f-]+$/);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(name);
+    await expect(page.getByText("31–60 hari")).toBeVisible();
+    await expect(page.getByText(note).first()).toBeVisible();
+
+    await page.goto(`/id/kasbon?q=${note}`);
+    await expect(page.getByRole("table")).toContainText("Kas bon lama");
+    await expect(page.getByRole("table")).toContainText("Rp 250.000");
+  });
+});

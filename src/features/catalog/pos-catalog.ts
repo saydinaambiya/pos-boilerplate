@@ -49,19 +49,12 @@ function groupProducts(rows: Awaited<ReturnType<typeof queryPosCatalog>>): PosPr
 }
 
 /**
- * Only whole pieces leave the store with marketplace orders; rolls are cut
- * and goods sold by the kg are weighed at the POS (FR-ROL-04, ADR-0023,
- * ADR-0045).
+ * Goods that can leave the store without the POS: pieces, and rolls by the
+ * meter (FR-CSG-09, FR-ONL-10). Goods sold by the kg are weighed at the POS
+ * (ADR-0045).
  */
-function withoutRolls(products: PosProduct[]): PosProduct[] {
-  return products
-    .filter((product) => product.isRoll || product.unit !== "kg")
-    .map((product) =>
-      product.isRoll
-        ? { ...product, variants: product.variants.filter((variant) => variant.parentId !== null) }
-        : product,
-    )
-    .filter((product) => product.variants.length > 0);
+function withoutWeighed(products: PosProduct[]): PosProduct[] {
+  return products.filter((product) => product.isRoll || product.unit !== "kg");
 }
 
 /** Terminal preload; `truncated` tells the client to search on the server instead. */
@@ -90,26 +83,22 @@ export async function getPosBrands(session: Session) {
 
 /**
  * Product search for entering marketplace orders (FR-ONL-01); needs no POS
- * access.
+ * access. Rolls are offered by the meter like at the POS (FR-ONL-10).
  */
 export async function searchOrderCatalog(session: Session, term: string) {
   assertPermission(session, "page:online-orders");
   const search = term.trim().slice(0, 60);
   if (search === "") return [];
-  const rows = await queryPosCatalog({ limit: SEARCH_ROWS, search });
-  return withoutRolls(groupProducts(rows));
+  return withoutWeighed(groupProducts(await queryPosCatalog({ limit: SEARCH_ROWS, search })));
 }
 
 /**
  * Product search for goods a salesperson takes out (FR-CSG-02); needs no
- * POS access. Rolls are offered by the meter like at the POS (FR-CSG-09);
- * goods sold by the kg stay in the store (ADR-0045).
+ * POS access. Rolls are offered by the meter like at the POS (FR-CSG-09).
  */
 export async function searchConsignmentCatalog(session: Session, term: string) {
   assertPermission(session, "page:consignments");
   const search = term.trim().slice(0, 60);
   if (search === "") return [];
-  return groupProducts(await queryPosCatalog({ limit: SEARCH_ROWS, search })).filter(
-    (product) => product.isRoll || product.unit !== "kg",
-  );
+  return withoutWeighed(groupProducts(await queryPosCatalog({ limit: SEARCH_ROWS, search })));
 }

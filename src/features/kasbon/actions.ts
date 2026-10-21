@@ -7,13 +7,18 @@ import { z } from "zod";
 
 import type { ActionLink } from "@/components/feedback/result-dialog";
 import { storeClosedRejection } from "@/features/shifts/store-closed";
+import { localeFromForm } from "@/i18n/form-locale";
+import { redirect } from "@/i18n/navigation";
 import { routing } from "@/i18n/routing";
 import { requirePermission } from "@/lib/auth/guard";
 import { formatCurrency } from "@/lib/format/currency";
+import { formText } from "@/lib/http/form-data";
 import { currentRequestContext } from "@/lib/http/request-context";
+import { fieldErrors, type FormState, submittedValues } from "@/lib/validation/form-state";
+import { parseRupiah } from "@/lib/validation/money";
 
-import { kasbonPaymentInput } from "./schemas";
-import { recordKasbonPayment } from "./service";
+import { kasbonPaymentInput, manualKasbonInput } from "./schemas";
+import { recordKasbonPayment, recordManualKasbon } from "./service";
 
 const kasbonId = z.uuid();
 
@@ -76,4 +81,49 @@ export async function recordKasbonPaymentAction(
     case "not-found":
       return { ok: false, message: t("errorNotFound") };
   }
+}
+
+const MANUAL_FIELDS = [
+  "name",
+  "phone",
+  "openedOn",
+  "amount",
+  "reference",
+  "description",
+  "dueDate",
+] as const;
+
+/** Enters an older store credit by hand and opens it (FR-KSB-08, ADR-0052). */
+export async function recordManualKasbonAction(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const locale = localeFromForm(formData);
+  const session = await requirePermission("kasbon:record-old", locale);
+  const values = submittedValues(formData, MANUAL_FIELDS);
+  const dueDate = formText(formData, "dueDate").trim();
+  const parsed = manualKasbonInput.safeParse({
+    name: formText(formData, "name"),
+    phone: formText(formData, "phone"),
+    openedOn: formText(formData, "openedOn"),
+    amount: parseRupiah(formText(formData, "amount")) ?? Number.NaN,
+    reference: formText(formData, "reference"),
+    description: formText(formData, "description"),
+    dueDate: dueDate === "" ? null : dueDate,
+  });
+  if (!parsed.success) {
+    const tv = await getTranslations({ locale, namespace: "Validation" });
+    const errors = fieldErrors(parsed.error, tv);
+    if (formText(formData, "openedOn").trim() === "") errors.openedOn = tv("required");
+    return { status: "error", errors, values };
+  }
+  const result = await recordManualKasbon(session, parsed.data, await currentRequestContext());
+  if (!result.ok) {
+    const t = await getTranslations({ locale, namespace: "Kasbon" });
+    return result.reason === "future-date"
+      ? { status: "error", errors: { openedOn: t("errorOpenedOnFuture") }, values }
+      : { status: "error", errors: { dueDate: t("errorDueBeforeOpened") }, values };
+  }
+  revalidatePath("/", "layout");
+  return redirect({ href: `/kasbon/${result.id}`, locale });
 }

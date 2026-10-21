@@ -29,7 +29,7 @@ import { transitionNeeds } from "@/features/online-orders/transitions";
 import { Link } from "@/i18n/navigation";
 import { requirePermission } from "@/lib/auth/guard";
 import { formatCurrency } from "@/lib/format/currency";
-import { formatThickness } from "@/lib/format/length";
+import { formatMeters, formatThickness } from "@/lib/format/length";
 import { goodsName, variantLabel } from "@/lib/format/variant-label";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -136,7 +136,11 @@ export default async function OnlineOrderPage({
                     <TableCell className="[overflow-wrap:anywhere]">
                       {item.colorName ?? "—"}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">{item.qty}</TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {item.lengthCm === null
+                        ? item.qty
+                        : formatMeters(item.qty * item.lengthCm, locale)}
+                    </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {money(item.lineTotal)}
                     </TableCell>
@@ -239,7 +243,10 @@ export default async function OnlineOrderPage({
                                 .join(" · ") || null,
                               item.brandName,
                             ),
-                            qty: item.qty,
+                            amount:
+                              item.lengthCm === null
+                                ? t("pieces", { qty: item.qty })
+                                : formatMeters(item.qty * item.lengthCm, locale),
                           })}
                           options={[
                             { value: "GOOD", label: t("conditions.GOOD") },

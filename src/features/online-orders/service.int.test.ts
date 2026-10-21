@@ -163,6 +163,7 @@ describe("entering marketplace orders (FR-ONL-01/02, BR-05)", () => {
     expect(await order(session, tokped, variantId, 5, "X-2")).toEqual({
       ok: false,
       reason: "insufficient-stock",
+      isRoll: false,
       variantId,
       available: 1,
     });
@@ -356,5 +357,89 @@ describe("brand, motif and colour on orders (FR-ONL-09)", () => {
       ["Turkiye", "Mihrab", "Red"],
       [null, null, null],
     ]);
+  });
+});
+
+describe("rolls by the meter on orders (FR-ONL-10, ADR-0052)", () => {
+  /** A roll priced 100.000 per meter, with 5 m on the roll. */
+  async function roll() {
+    const session = await owner();
+    const created = await createProduct(
+      session,
+      {
+        name: "Karpet Roll",
+        price: 100_000,
+        unit: "pcs",
+        trackStock: true,
+        sku: "ROLL-1",
+        minStock: 0,
+        sizePrices: { "93x47": 50_000, "100x70": 60_000, "50x140": 55_000, "100x140": 110_000 },
+      },
+      testContext(),
+    );
+    if (!created.ok) throw new Error(created.reason);
+    const rows = await db
+      .select()
+      .from(productVariants)
+      .where(eq(productVariants.productId, created.id));
+    const rollId = rows.find((row) => row.parentId === null)?.id ?? "";
+    await receiveStock(session, rollId, { qty: 500, note: "" }, testContext());
+    return rollId;
+  }
+
+  function cut(session: Session, marketplaceId: string, rollId: string, lengthCm?: number) {
+    return createOnlineOrder(
+      session,
+      {
+        marketplaceId,
+        orderCode: "CUT-1",
+        lines: [
+          { variantId: rollId, qty: 1, unitPrice: 90_000, ...(lengthCm ? { lengthCm } : {}) },
+        ],
+        shippingFee: 0,
+        note: "",
+      },
+      testContext(),
+    );
+  }
+
+  it("prices the cut per meter, takes its length off the roll and puts it back on cancel", async () => {
+    const shopee = await marketplace();
+    const rollId = await roll();
+    const session = await cashier();
+    const created = await cut(session, shopee, rollId, 250);
+    if (!created.ok) throw new Error(created.reason);
+
+    const [item] = await db
+      .select()
+      .from(onlineOrderItems)
+      .where(eq(onlineOrderItems.orderId, created.id));
+    expect(item).toMatchObject({
+      qty: 1,
+      lengthCm: 250,
+      unitPrice: 225_000,
+      storePrice: 250_000,
+      lineTotal: 225_000,
+    });
+    expect(await stockOf(rollId)).toBe(250);
+
+    await grant("order.online:update-status");
+    expect(await move(await cashier(), created.id, "PROCESSING", "CANCELLED")).toEqual({
+      ok: true,
+    });
+    expect(await stockOf(rollId)).toBe(500);
+  });
+
+  it("refuses a roll without a length and a cut longer than the roll", async () => {
+    const shopee = await marketplace();
+    const rollId = await roll();
+    const session = await cashier();
+    expect(await cut(session, shopee, rollId)).toEqual({ ok: false, reason: "invalid-items" });
+    expect(await cut(session, shopee, rollId, 501)).toMatchObject({
+      ok: false,
+      reason: "insufficient-stock",
+      available: 500,
+      isRoll: true,
+    });
   });
 });

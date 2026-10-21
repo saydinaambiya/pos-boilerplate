@@ -16,35 +16,55 @@ import type { PosProduct, PosVariant } from "@/features/catalog/pos-types";
 import { defectWord, formatSize, productDetailsLine } from "@/features/catalog/sizes";
 import { useRouter } from "@/i18n/navigation";
 import { formatCurrency } from "@/lib/format/currency";
+import { formatMeters, parseMetersToCm } from "@/lib/format/length";
 import { parseRupiah } from "@/lib/format/rupiah-input";
 import { brandedName } from "@/lib/format/variant-label";
+import { cutPrice } from "@/lib/money/cut";
 
 import { createOnlineOrderAction, searchOrderCatalogAction } from "../actions";
 
 interface Line {
   variantId: string;
   label: string;
-  /** Store price, shown for comparison (FR-ONL-08). */
+  /** A cut off a roll, priced per meter (FR-ONL-10). */
+  isRoll: boolean;
+  /** Store price, per meter on a roll, shown for comparison (FR-ONL-08). */
   storePrice: number;
-  /** Marketplace price as typed. */
+  /** Marketplace price as typed, per meter on a roll. */
   priceText: string;
+  /** Meters as typed, on a roll. */
+  lengthText: string;
   qty: number;
 }
 
 const priceOf = (line: Line) => parseRupiah(line.priceText);
+const lengthOf = (line: Line) => {
+  const cm = parseMetersToCm(line.lengthText);
+  return cm !== null && cm > 0 ? cm : null;
+};
+const lineTotalOf = (line: Line) => {
+  const price = priceOf(line) ?? 0;
+  return line.isRoll ? cutPrice(price, lengthOf(line) ?? 0) : price * line.qty;
+};
+const isRollRow = (product: PosProduct, variant: PosVariant) =>
+  product.isRoll && variant.parentId === null;
 
 interface OrderEntryFormProps {
   locale: Locale;
   marketplaces: readonly { id: string; name: string }[];
 }
 
-/** Colour and, for a piece cut from a roll, its size and defect flag (ADR-0023, FR-ROL-05). */
-function variantName(variant: PosVariant, locale: string): string | null {
+/**
+ * Colour and, for a piece cut from a roll, its size and defect flag
+ * (ADR-0023, FR-ROL-05); a roll itself is sold by the meter (FR-ONL-10).
+ */
+function variantName(variant: PosVariant, locale: string, byMeter: string | null): string | null {
   return (
     [
       variant.colorName,
       variant.size ? formatSize(variant.size) : null,
       variant.isDefect ? defectWord(locale) : null,
+      byMeter,
     ]
       .filter(Boolean)
       .join(" · ") || null
@@ -52,10 +72,15 @@ function variantName(variant: PosVariant, locale: string): string | null {
 }
 
 /** Brand and product name, then motif, thickness and the variant, like the products page (FR-PRD-08, FR-ONL-09). */
-function variantLabel(product: PosProduct, variant: PosVariant, locale: string) {
+function variantLabel(
+  product: PosProduct,
+  variant: PosVariant,
+  locale: string,
+  byMeter: string | null,
+) {
   const details = [
     productDetailsLine({ ...product, brandName: null }, locale),
-    variantName(variant, locale),
+    variantName(variant, locale, byMeter),
   ]
     .filter(Boolean)
     .join(" · ");
@@ -67,7 +92,8 @@ function variantLabel(product: PosProduct, variant: PosVariant, locale: string) 
  * Entry form for a marketplace order (FR-ONL-01): marketplace, order code,
  * items picked per variant from a server-side search with the marketplace
  * price typed per line (FR-ONL-08), shipping fee and note. The store price
- * shows beside each price for comparison.
+ * shows beside each price for comparison. A roll is added by the meter: the
+ * line takes a length and a price per meter (FR-ONL-10).
  */
 export function OrderEntryForm({ locale, marketplaces }: OrderEntryFormProps) {
   const t = useTranslations("OnlineOrders");
@@ -100,24 +126,31 @@ export function OrderEntryForm({ locale, marketplaces }: OrderEntryFormProps) {
 
   const money = (amount: number) => formatCurrency(amount, locale);
   const shippingFee = shippingText.trim() === "" ? 0 : parseRupiah(shippingText);
-  const itemsTotal = lines.reduce((sum, line) => sum + (priceOf(line) ?? 0) * line.qty, 0);
+  const itemsTotal = lines.reduce((sum, line) => sum + lineTotalOf(line), 0);
   const visible = term.trim().length >= 2 ? results : [];
+  const byMeterOf = (product: PosProduct, variant: PosVariant) =>
+    isRollRow(product, variant) ? t("byMeter") : null;
 
   const add = (product: PosProduct, variant: PosVariant) => {
+    const isRoll = isRollRow(product, variant);
     setLines((current) => {
       const existing = current.find((line) => line.variantId === variant.id);
       if (existing) {
-        return current.map((line) =>
-          line.variantId === variant.id ? { ...line, qty: Math.min(line.qty + 1, 9999) } : line,
-        );
+        return isRoll
+          ? current
+          : current.map((line) =>
+              line.variantId === variant.id ? { ...line, qty: Math.min(line.qty + 1, 9999) } : line,
+            );
       }
       return [
         ...current,
         {
           variantId: variant.id,
-          label: variantLabel(product, variant, locale),
+          label: variantLabel(product, variant, locale, byMeterOf(product, variant)),
+          isRoll,
           storePrice: variant.price,
           priceText: "",
+          lengthText: "",
           qty: 1,
         },
       ];
@@ -137,6 +170,12 @@ export function OrderEntryForm({ locale, marketplaces }: OrderEntryFormProps) {
     );
   };
 
+  const setLength = (variantId: string, lengthText: string) => {
+    setLines((current) =>
+      current.map((line) => (line.variantId === variantId ? { ...line, lengthText } : line)),
+    );
+  };
+
   const submit = () => {
     if (pending) return;
     if (orderCode.trim() === "") {
@@ -145,6 +184,11 @@ export function OrderEntryForm({ locale, marketplaces }: OrderEntryFormProps) {
     }
     if (lines.length === 0) {
       setError({ message: t("errorNoItems"), field: "lines" });
+      return;
+    }
+    const unmeasured = lines.find((line) => line.isRoll && lengthOf(line) === null);
+    if (unmeasured) {
+      setError({ message: t("errorLengthRequired", { name: unmeasured.label }), field: "lines" });
       return;
     }
     const unpriced = lines.find((line) => priceOf(line) === null);
@@ -166,6 +210,7 @@ export function OrderEntryForm({ locale, marketplaces }: OrderEntryFormProps) {
             variantId: line.variantId,
             qty: line.qty,
             unitPrice: priceOf(line) ?? 0,
+            ...(line.isRoll ? { lengthCm: lengthOf(line) ?? 0 } : {}),
           })),
           shippingFee,
           note,
@@ -275,7 +320,9 @@ export function OrderEntryForm({ locale, marketplaces }: OrderEntryFormProps) {
                       key={variant.id}
                       size="sm"
                       variant="secondary"
-                      aria-label={t("addItem", { name: variantLabel(product, variant, locale) })}
+                      aria-label={t("addItem", {
+                        name: variantLabel(product, variant, locale, byMeterOf(product, variant)),
+                      })}
                       onClick={() => {
                         add(product, variant);
                       }}
@@ -289,8 +336,12 @@ export function OrderEntryForm({ locale, marketplaces }: OrderEntryFormProps) {
                           className="size-4"
                         />
                       ) : null}
-                      {variantName(variant, locale) ?? t("addPlain")}
-                      <span className="text-ink-muted tabular-nums">{money(variant.price)}</span>
+                      {variantName(variant, locale, byMeterOf(product, variant)) ?? t("addPlain")}
+                      <span className="text-ink-muted tabular-nums">
+                        {isRollRow(product, variant)
+                          ? `${t("perMeter", { price: money(variant.price) })} · ${t("rollLeft", { length: formatMeters(variant.stockQty, locale) })}`
+                          : money(variant.price)}
+                      </span>
                     </Button>
                   ))}
                 </div>
@@ -306,53 +357,69 @@ export function OrderEntryForm({ locale, marketplaces }: OrderEntryFormProps) {
                 <span className="min-w-0 flex-1 text-sm [overflow-wrap:anywhere] text-ink">
                   {line.label}
                   <span className="block text-xs text-ink-muted tabular-nums">
-                    {t("storePrice", { price: money(line.storePrice) })}
+                    {t(line.isRoll ? "storePricePerMeter" : "storePrice", {
+                      price: money(line.storePrice),
+                    })}
                   </span>
                 </span>
                 <MoneyInput
-                  aria-label={t("priceOf", { name: line.label })}
+                  aria-label={t(line.isRoll ? "pricePerMeterOf" : "priceOf", { name: line.label })}
                   value={line.priceText}
                   onValueChange={(value) => {
                     setPrice(line.variantId, value);
                   }}
-                  placeholder={t("pricePlaceholder")}
+                  placeholder={t(line.isRoll ? "pricePerMeterPlaceholder" : "pricePlaceholder")}
                   maxLength={20}
                   className="w-32 tabular-nums"
                 />
-                <span className="flex items-center gap-1">
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    aria-label={t("decrease", { name: line.label })}
-                    onClick={() => {
-                      setQty(line.variantId, line.qty - 1);
-                    }}
-                  >
-                    <Minus aria-hidden="true" />
-                  </Button>
+                {line.isRoll ? (
                   <Input
-                    aria-label={t("quantityOf", { name: line.label })}
-                    value={String(line.qty)}
+                    aria-label={t("lengthOf", { name: line.label })}
+                    value={line.lengthText}
                     onChange={(event) => {
-                      const qty = Number.parseInt(event.target.value, 10);
-                      if (Number.isFinite(qty)) setQty(line.variantId, qty);
+                      setLength(line.variantId, event.target.value);
                     }}
-                    inputMode="numeric"
-                    className="w-16 text-center tabular-nums"
+                    inputMode="decimal"
+                    placeholder="0,0"
+                    maxLength={9}
+                    className="w-24 text-center tabular-nums"
                   />
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    aria-label={t("increase", { name: line.label })}
-                    onClick={() => {
-                      setQty(line.variantId, line.qty + 1);
-                    }}
-                  >
-                    <Plus aria-hidden="true" />
-                  </Button>
-                </span>
+                ) : (
+                  <span className="flex items-center gap-1">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      aria-label={t("decrease", { name: line.label })}
+                      onClick={() => {
+                        setQty(line.variantId, line.qty - 1);
+                      }}
+                    >
+                      <Minus aria-hidden="true" />
+                    </Button>
+                    <Input
+                      aria-label={t("quantityOf", { name: line.label })}
+                      value={String(line.qty)}
+                      onChange={(event) => {
+                        const qty = Number.parseInt(event.target.value, 10);
+                        if (Number.isFinite(qty)) setQty(line.variantId, qty);
+                      }}
+                      inputMode="numeric"
+                      className="w-16 text-center tabular-nums"
+                    />
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      aria-label={t("increase", { name: line.label })}
+                      onClick={() => {
+                        setQty(line.variantId, line.qty + 1);
+                      }}
+                    >
+                      <Plus aria-hidden="true" />
+                    </Button>
+                  </span>
+                )}
                 <span className="w-28 text-right text-sm font-medium tabular-nums">
-                  {money((priceOf(line) ?? 0) * line.qty)}
+                  {money(lineTotalOf(line))}
                 </span>
                 <Button
                   size="icon"

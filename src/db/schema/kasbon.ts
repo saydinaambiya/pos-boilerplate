@@ -11,6 +11,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
+import { users } from "./access";
 import { id, timestamps, timestamptz } from "./columns";
 import { sales } from "./sales";
 
@@ -40,7 +41,8 @@ export const kasbonStatuses = ["OPEN", "PARTIALLY_PAID", "SETTLED"] as const;
 export const kasbonStatus = pgEnum("kasbon_status", kasbonStatuses);
 
 /**
- * Store credit from a sale's unpaid remainder (PRD §3.8, §4.3). `paid_total`
+ * Store credit from a sale's unpaid remainder (PRD §3.8, §4.3), or an older
+ * one entered by hand without a sale (FR-KSB-08, ADR-0052). `paid_total`
  * only counts approved payments; `balance = total − paid_total`
  * (FR-KSB-02).
  */
@@ -48,9 +50,7 @@ export const kasbons = pgTable(
   "kasbons",
   {
     id: id(),
-    saleId: uuid()
-      .notNull()
-      .references(() => sales.id, { onDelete: "restrict" }),
+    saleId: uuid().references(() => sales.id, { onDelete: "restrict" }),
     customerId: uuid()
       .notNull()
       .references(() => customers.id, { onDelete: "restrict" }),
@@ -59,6 +59,14 @@ export const kasbons = pgTable(
     balance: money().notNull(),
     dueDate: date({ mode: "string" }),
     status: kasbonStatus().notNull().default("OPEN"),
+    /** Store date the credit was given, on one entered by hand (FR-KSB-08). */
+    openedOn: date({ mode: "string" }),
+    /** Number on the old paper note, on one entered by hand (FR-KSB-08). */
+    reference: text(),
+    /** What was taken on credit, on one entered by hand (FR-KSB-08). */
+    description: text(),
+    /** Who entered it by hand (FR-KSB-08). */
+    createdBy: uuid().references(() => users.id, { onDelete: "restrict" }),
     archivedAt: timestamptz(),
     archiveBatchId: uuid(),
     ...timestamps,
@@ -70,6 +78,10 @@ export const kasbons = pgTable(
     check(
       "kasbons_amounts_consistent",
       sql`${table.balance} = ${table.total} - ${table.paidTotal} AND ${table.balance} >= 0`,
+    ),
+    check(
+      "kasbons_sale_or_manual",
+      sql`${table.saleId} IS NOT NULL OR (${table.openedOn} IS NOT NULL AND ${table.createdBy} IS NOT NULL)`,
     ),
   ],
 );

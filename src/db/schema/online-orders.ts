@@ -90,9 +90,11 @@ export const onlineOrderItems = pgTable(
     nameSnapshot: text().notNull(),
     variantSnapshot: text(),
     qty: integer().notNull(),
-    /** Marketplace price typed by staff (FR-ONL-08). */
+    /** Length cut off a roll, per unit of `qty` (FR-ONL-10, ADR-0052). */
+    lengthCm: integer(),
+    /** Marketplace price typed by staff (FR-ONL-08); for a cut, the price of its length. */
     unitPrice: money().notNull(),
-    /** Store price at entry, kept for comparison (FR-ONL-08). */
+    /** Store price at entry, kept for comparison (FR-ONL-08); for a cut, of its length. */
     storePrice: money(),
     unitCost: money().notNull().default(0),
     lineTotal: money().notNull(),
@@ -106,6 +108,10 @@ export const onlineOrderItems = pgTable(
     index("online_order_items_order_id_idx").on(table.orderId, table.sortOrder),
     index("online_order_items_variant_id_idx").on(table.variantId),
     check("online_order_items_qty_positive", sql`${table.qty} > 0`),
+    check(
+      "online_order_items_length_positive",
+      sql`${table.lengthCm} IS NULL OR ${table.lengthCm} > 0`,
+    ),
   ],
 );
 

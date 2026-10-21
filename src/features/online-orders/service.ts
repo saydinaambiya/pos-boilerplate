@@ -6,6 +6,7 @@ import { onlineOrderStatuses } from "@/db/schema/online-orders";
 import { variantSnapshotOf } from "@/features/catalog/schemas";
 import { recordStockMovement } from "@/features/stock/service";
 import { recordAudit } from "@/lib/audit/audit";
+import { cutPrice } from "@/lib/money/cut";
 import { assertPermission } from "@/lib/auth/authorize";
 import type { Session } from "@/lib/auth/session";
 import type { RequestContext } from "@/lib/http/request-context";
@@ -40,7 +41,14 @@ export const ONLINE_ORDER_PAGE_SIZE = 30;
 export type CreateOrderResult =
   | { ok: true; id: string }
   | { ok: false; reason: "invalid-marketplace" | "invalid-items" | "code-taken" }
-  | { ok: false; reason: "insufficient-stock"; variantId: string; available: number };
+  | {
+      ok: false;
+      reason: "insufficient-stock";
+      variantId: string;
+      /** Pieces, or on a roll centimetres. */
+      available: number;
+      isRoll: boolean;
+    };
 
 export type ChangeStatusResult =
   | { ok: true }
@@ -65,8 +73,11 @@ class OrderAbort extends Error {
  * Saves a marketplace order and takes its stock at once (FR-ONL-01/02,
  * BR-05). Each line's price is the marketplace price typed by staff; the
  * store price at entry is kept beside it and audited, so odd
- * prices can be traced (FR-ONL-08, ADR-0025). Variants are locked in id
- * order. A duplicate code for the same marketplace is refused.
+ * prices can be traced (FR-ONL-08, ADR-0025). A roll line is a cut of
+ * `lengthCm`: its typed price and the store price are per meter and are
+ * priced for the length like at the POS, and the length leaves the roll
+ * (FR-ONL-10, ADR-0052). Variants are locked in id order. A duplicate code
+ * for the same marketplace is refused.
  */
 export async function createOnlineOrder(
   session: Session,
@@ -85,12 +96,18 @@ export async function createOnlineOrder(
       const variants = new Map(
         (await findOrderableVariants(tx, variantIds)).map((row) => [row.id, row]),
       );
-      if (variantIds.some((id) => !variants.get(id)?.sellable)) {
+      if (
+        variantIds.some((id) => !variants.get(id)?.sellable) ||
+        input.lines.some(
+          (line) =>
+            (variants.get(line.variantId)?.isRoll ?? false) !== (line.lengthCm !== undefined),
+        )
+      ) {
         throw new OrderAbort({ ok: false, reason: "invalid-items" });
       }
       const lines = input.lines.map((line, index) => {
         const variant = variants.get(line.variantId);
-        const { unitPrice } = line;
+        const unitPrice = cutPrice(line.unitPrice, line.lengthCm);
         return {
           variantId: line.variantId,
           nameSnapshot: variant?.productName ?? "",
@@ -100,9 +117,10 @@ export async function createOnlineOrder(
             variant?.isDefect,
           ),
           qty: line.qty,
+          lengthCm: line.lengthCm ?? null,
           unitPrice,
-          storePrice: variant?.price ?? null,
-          unitCost: variant?.cost ?? 0,
+          storePrice: variant ? cutPrice(variant.price, line.lengthCm) : null,
+          unitCost: cutPrice(variant?.cost ?? 0, line.lengthCm),
           lineTotal: unitPrice * line.qty,
           sortOrder: index,
         };
@@ -130,7 +148,8 @@ export async function createOnlineOrder(
 
       const quantities = new Map<string, number>();
       for (const line of input.lines) {
-        quantities.set(line.variantId, (quantities.get(line.variantId) ?? 0) + line.qty);
+        const units = line.qty * (line.lengthCm ?? 1);
+        quantities.set(line.variantId, (quantities.get(line.variantId) ?? 0) + units);
       }
       for (const variantId of [...quantities.keys()].sort()) {
         if (!variants.get(variantId)?.trackStock) continue;
@@ -148,7 +167,13 @@ export async function createOnlineOrder(
         if (!moved.ok) {
           throw new OrderAbort(
             moved.reason === "insufficient-stock"
-              ? { ok: false, reason: "insufficient-stock", variantId, available: moved.available }
+              ? {
+                  ok: false,
+                  reason: "insufficient-stock",
+                  variantId,
+                  available: moved.available,
+                  isRoll: variants.get(variantId)?.isRoll ?? false,
+                }
               : { ok: false, reason: "invalid-items" },
           );
         }
@@ -169,6 +194,7 @@ export async function createOnlineOrder(
             items: lines.map((line) => ({
               variantId: line.variantId,
               qty: line.qty,
+              ...(line.lengthCm === null ? {} : { lengthCm: line.lengthCm }),
               unitPrice: line.unitPrice,
               storePrice: line.storePrice,
             })),
@@ -187,21 +213,25 @@ export async function createOnlineOrder(
   }
 }
 
-/** Puts stock back: `GOOD` returns it, `DAMAGED` returns and writes it off (BR-19). */
+/**
+ * Puts stock back: `GOOD` returns it, `DAMAGED` returns and writes it off
+ * (BR-19). A cut goes back onto its roll (FR-ONL-10).
+ */
 async function restock(
   tx: Executor,
   actorId: string,
   orderId: string,
-  item: { variantId: string; qty: number },
+  item: { variantId: string; qty: number; lengthCm: number | null },
   condition: "GOOD" | "DAMAGED" | "CANCELLED",
 ) {
   const reference = { type: "online-order", id: orderId };
+  const units = item.qty * (item.lengthCm ?? 1);
   await recordStockMovement(
     tx,
     {
       variantId: item.variantId,
       type: "RETURN",
-      qtyDelta: item.qty,
+      qtyDelta: units,
       actorId,
       reason: condition === "CANCELLED" ? "cancelled" : "returned",
       reference,
@@ -214,7 +244,7 @@ async function restock(
       {
         variantId: item.variantId,
         type: "WRITE_OFF",
-        qtyDelta: -item.qty,
+        qtyDelta: -units,
         actorId,
         reason: "damaged return",
         reference,
