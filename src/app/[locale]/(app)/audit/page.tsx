@@ -250,6 +250,7 @@ const ENTITIES = new Set<string>([
   "approval",
   "voucher",
   "kasbon",
+  "purchase",
   "online-order",
   "archive-batch",
   "audit-purge",

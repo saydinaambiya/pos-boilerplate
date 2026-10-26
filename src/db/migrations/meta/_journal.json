@@ -288,6 +288,13 @@
       "when": 1792555852152,
       "tag": "0040_online_meters_manual_kasbon",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1792997089741,
+      "tag": "0041_purchases",
+      "breakpoints": true
     }
   ]
 }

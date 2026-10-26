@@ -58,3 +58,4 @@ Records are immutable once accepted; a new record supersedes an old one.
 | [0050](./0050-search-and-carried-filter-on-sales-goods.md)          | Search and a carried-only filter on a salesperson's goods         | Accepted                    |
 | [0051](./0051-full-product-details-everywhere.md)                   | Full product details wherever goods are listed                    | Accepted                    |
 | [0052](./0052-online-orders-by-the-meter-and-old-store-credit.md)   | Online orders by the meter, old store credit entered by hand      | Accepted                    |
+| [0053](./0053-supplier-purchases.md)                                | Supplier purchases recorded by the owner                          | Accepted                    |

@@ -127,6 +127,7 @@ describe("housekeeping (FR-HK-01..07)", () => {
       "online-order-items.csv",
       "online-orders.csv",
       "payments.csv",
+      "purchases.csv",
       "stock-movements.csv",
       "transactions.csv",
     ]);

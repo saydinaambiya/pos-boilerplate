@@ -26,6 +26,7 @@ import {
   onlineOrderItems,
   onlineOrders,
   payments,
+  purchases,
   saleItems,
   sales,
   stockMovements,
@@ -151,6 +152,18 @@ export const archiveEntities: readonly ArchiveEntity[] = [
     id: onlineOrderEvents.id,
     archivedAt: onlineOrderEvents.archivedAt,
     where: (window) => inArray(onlineOrderEvents.orderId, eligibleOrders(window)),
+  },
+  {
+    file: "purchases.csv",
+    table: purchases,
+    id: purchases.id,
+    archivedAt: purchases.archivedAt,
+    where: (window) =>
+      and(
+        gte(purchases.createdAt, window.start),
+        lt(purchases.createdAt, window.end),
+        eq(purchases.status, "SETTLED"),
+      ),
   },
 ];
 

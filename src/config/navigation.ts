@@ -9,6 +9,7 @@ import {
   NotebookPen,
   Package,
   Palette,
+  Receipt,
   Scissors,
   ScrollText,
   Settings,
@@ -70,6 +71,12 @@ export const navigation: readonly NavigationItem[] = [
   },
   { href: "/approvals", label: "approvals", icon: BadgeCheck, permission: "page:approvals" },
   { href: "/kasbon", label: "kasbon", icon: NotebookPen, permission: "page:kasbon" },
+  {
+    href: "/purchases",
+    label: "purchases",
+    icon: Receipt,
+    permission: "page:purchases",
+  },
   { href: "/reports", label: "reports", icon: ChartColumn, permission: "page:reports" },
   {
     href: "/dashboard",
