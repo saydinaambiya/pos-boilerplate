@@ -3,7 +3,7 @@ import { defineConfig, devices } from "@playwright/test";
 import { OWNER_STATE } from "./e2e/accounts";
 
 const PORT = 3100;
-const DATABASE_URL = process.env.DATABASE_URL ?? "postgres://pos:pos@localhost:5433/pos_e2e";
+const DATABASE_URL = process.env.DATABASE_URL ?? "postgres://pos:pos@localhost:5432/pos_e2e";
 process.env.DATABASE_URL = DATABASE_URL;
 process.env.APP_URL = `http://localhost:${PORT}`;
 const INVOICE_LINK_SECRET = "e2e-invoice-link-secret-0123456789abcdef";
