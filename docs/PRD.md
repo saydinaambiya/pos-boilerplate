@@ -53,6 +53,7 @@
 | 0.39.0 | 2026-10-16 | Halaman barang bawaan sales punya pencarian (merk, barang, motif, warna, no. invoice) dan centang "Hanya barang yang masih dibawa" yang aktif dari awal (FR-CSG-11) ([ADR-0050](./adr/0050-search-and-carried-filter-on-sales-goods.md))                                                                                                                                                                                                                                                |
 | 0.40.0 | 2026-10-17 | Motif tampil di semua daftar barang; detail lengkap (merk, nama, motif, ketebalan, warna, ukuran) di pesanan online, stok menipis, keranjang kasir, dan rekap penjualan (FR-PRD-09) ([ADR-0051](./adr/0051-full-product-details-everywhere.md))                                                                                                                                                                                                                                         |
 | 0.41.0 | 2026-10-21 | Pesanan online bisa menjual roll per meter seperti kasir: panjang dan harga per meter (FR-ONL-10); kas bon lama dapat ditambah manual tanpa transaksi, dengan izin baru `kasbon:record-old` (FR-KSB-08) ([ADR-0052](./adr/0052-online-orders-by-the-meter-and-old-store-credit.md))                                                                                                                                                                                                     |
+| 0.42.0 | 2026-10-21 | Menu Pembelian: catat nota pembelian supplier (nama perusahaan, no. nota, total, tanggal PO, jatuh tempo), lunas atau cicil, dan cicilannya; khusus Owner, tanpa rincian stok dan tidak menyentuh kas laci/rekap (FR-PRB-01..07) ([ADR-0053](./adr/0053-supplier-purchases.md))                                                                                                                                                                                                         |
 
 Konvensi: **MUST** = wajib v1, **SHOULD** = diusahakan v1, **MAY** = opsional. ID requirement dirujuk dari issue, commit, dan test.
 
@@ -113,6 +114,7 @@ POS web single-tenant berbasis Next.js (monolith) untuk toko retail/F&B, dengan 
 - Barang bawaan sales (§3.16, ADR-0024): `page:consignments` (menu), `consignment:pickup` (catat barang yang diambil sales, mis. Admin), `consignment:return` (catat barang yang dikembalikan, mis. Pramuniaga), `consignment:sell` (sales: jual barang bawaan sendiri). Role `Admin`, `Pramuniaga`, dan `Sales` disediakan (seed) dan dapat diubah owner.
 - Kasir di luar jam toko: `pos:after-hours` (FR-SET-09); diberikan ke role Sales secara bawaan.
 - Potong roll: `page:cutting` (menu Potong Roll, FR-ROL-03).
+- Pembelian supplier (§3.18, ADR-0053): `page:purchases` (menu) dan `purchase:manage` (catat, ubah, hapus nota dan cicilannya). Default hanya Owner; tidak menyentuh stok, kas laci, shift, atau rekap.
 
 | ID         | Requirement                                                                                          | Prioritas |
 | ---------- | ---------------------------------------------------------------------------------------------------- | --------- |
@@ -372,6 +374,20 @@ Uang yang diambil dari kas laci untuk karyawan atau keperluan lain, misalnya uan
 | FR-EXP-02 | Halaman **Pengeluaran** (`page:expenses`) menampilkan pengeluaran per tanggal beserta totalnya. Rekap mengurangkan pengeluaran dari kas tunai (FR-RPT-07) dan merincinya per jenis. Menu Pengeluaran ada tepat di bawah Kasir.                                      | MUST      |
 | FR-EXP-03 | Pengeluaran mengurangi kas seharusnya pada shift tempat dicatat.                                                                                                                                                                                                    | MUST      |
 
+### 3.18 Pembelian
+
+Nota pembelian barang toko dari supplier, dicatat sendiri oleh Owner sebagai buku utang usaha ([ADR-0053](./adr/0053-supplier-purchases.md)). Tanpa rincian barang, tidak mengubah stok, dan tidak menyentuh kas laci maupun rekap (BRD BR-31, Q-60).
+
+| ID        | Requirement                                                                                                                                                                                                                                                                                        | Prioritas |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
+| FR-PRB-01 | CRUD pembelian: **nama perusahaan** (teks bebas), **nota faktur**, **total tagihan**, **tanggal PO**, **tanggal jatuh tempo**, **lunas/cicil**, dan catatan. Tanpa rincian barang; tidak mengubah stok.                                                                                            | MUST      |
+| FR-PRB-02 | Pembelian dicatat **lunas** (dibayar penuh saat dicatat) atau **cicil**; yang cicil menyimpan sisa tagihan dan tanggal jatuh tempo.                                                                                                                                                                | MUST      |
+| FR-PRB-03 | Catat cicilan/pelunasan (nominal, tanggal, metode, catatan); sisa = total − terbayar; status lunas saat sisa 0. Cicilan tidak boleh melebihi sisa.                                                                                                                                                 | MUST      |
+| FR-PRB-04 | Daftar pembelian: total sisa tagihan, jumlah, jumlah yang jatuh tempo, cari (nama perusahaan, no. nota), filter (semua/cicil/lunas/jatuh tempo), paginasi; kolom Lunas/Cicil, sisa, dan penanda jatuh tempo; tambah/ubah/hapus/catat cicilan lewat modal di halaman ini tanpa meninggalkan daftar. | MUST      |
+| FR-PRB-05 | Tanggal PO dan tanggal jatuh tempo tidak dibatasi (bisa backdate); jatuh tempo tidak boleh sebelum tanggal PO.                                                                                                                                                                                     | MUST      |
+| FR-PRB-06 | Akses hanya pemegang `purchase:manage` (default Owner); pembelian dan cicilannya tidak menyentuh stok, kas laci, shift, maupun rekap.                                                                                                                                                              | MUST      |
+| FR-PRB-07 | Perubahan dan penghapusan tercatat di audit log; nota unik per perusahaan (tanpa beda huruf besar/kecil); ikut housekeeping bulanan, dan yang belum lunas tidak diarsipkan.                                                                                                                        | MUST      |
+
 ---
 
 ## 4. State Machine
@@ -509,13 +525,13 @@ Referensi: gaya dashboard "Kitchen" (kartu lembut, sudut membulat, chip status b
 
 ### 7.2 Tema & bahasa
 
-| ID       | Requirement                                                                                                                                                                                                                     | Prioritas |
-| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
-| FR-UI-09 | Tema: `light` / `dark` / `system`, disimpan di cookie + preferensi user; dirender dari server tanpa kedipan (FOUC).                                                                                                             | MUST      |
-| FR-UI-10 | Bahasa `id` / `en` via `next-intl`; locale di segmen URL (`/id/...`, `/en/...`); tidak ada teks hard-coded di komponen (dijaga lint).                                                                                           | MUST      |
-| FR-UI-11 | Format angka, mata uang, dan tanggal memakai `Intl` sesuai locale; zona waktu mengikuti pengaturan toko.                                                                                                                        | MUST      |
-| FR-UI-12 | Satuan ditulis tanpa spasi: `12cm`, `38,5m`, `2mm`; ukuran `93cm x 47cm` (ADR-0025).                                                                                                                                            | MUST      |
-| FR-UI-13 | Menu sidebar diurutkan dari yang paling sering dipakai: Beranda, Kasir, Pengeluaran, Pesanan Online, Sales, Stok, Potong Roll, Produk, Persetujuan, Kas Bon, Rekap, Dasbor, Voucher, Karyawan, Pengaturan, Housekeeping, Audit. | SHOULD    |
+| ID       | Requirement                                                                                                                                                                                                                                | Prioritas |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------- |
+| FR-UI-09 | Tema: `light` / `dark` / `system`, disimpan di cookie + preferensi user; dirender dari server tanpa kedipan (FOUC).                                                                                                                        | MUST      |
+| FR-UI-10 | Bahasa `id` / `en` via `next-intl`; locale di segmen URL (`/id/...`, `/en/...`); tidak ada teks hard-coded di komponen (dijaga lint).                                                                                                      | MUST      |
+| FR-UI-11 | Format angka, mata uang, dan tanggal memakai `Intl` sesuai locale; zona waktu mengikuti pengaturan toko.                                                                                                                                   | MUST      |
+| FR-UI-12 | Satuan ditulis tanpa spasi: `12cm`, `38,5m`, `2mm`; ukuran `93cm x 47cm` (ADR-0025).                                                                                                                                                       | MUST      |
+| FR-UI-13 | Menu sidebar diurutkan dari yang paling sering dipakai: Beranda, Kasir, Pengeluaran, Pesanan Online, Sales, Stok, Potong Roll, Produk, Persetujuan, Kas Bon, Pembelian, Rekap, Dasbor, Voucher, Karyawan, Pengaturan, Housekeeping, Audit. | SHOULD    |
 
 ### 7.3 Responsif & UX
 
@@ -648,7 +664,7 @@ src/
 │   ├── [locale]/
 │   │   ├── (auth)/login/
 │   │   └── (app)/                 # dashboard, pos, orders, consignments, products,
-│   │                              # stock, employees, vouchers, kasbon, approvals,
+│   │                              # stock, employees, vouchers, kasbon, purchases, approvals,
 │   │                              # reports, housekeeping, audit, settings, devices
 │   └── api/v1/                    # REST route handlers (tipis, delegasi ke service)
 ├── features/<module>/
@@ -765,6 +781,8 @@ Semua tabel memiliki `id` (UUIDv7), `created_at`, `updated_at`; tabel transaksio
 | `payments`            | sale_id / kasbon_id, method, amount, bank_account_id, reference, status, provider_payload                                                                                                                                                                                           |
 | `customers`           | name, phone, note                                                                                                                                                                                                                                                                   |
 | `kasbons`             | sale_id, customer_id, total, paid_total, balance, due_date, status                                                                                                                                                                                                                  |
+| `purchases`           | company_name, invoice_no, total, paid_total, balance, status, order_date, due_date, note, created_by                                                                                                                                                                                |
+| `purchase_payments`   | purchase_id, amount, paid_on, method, note, created_by                                                                                                                                                                                                                              |
 | `online_orders`       | marketplace_id, order_code, status, shipping_fee, note, status_changed_at                                                                                                                                                                                                           |
 | `online_order_items`  | order_id, variant_id, qty, unit_price, return_condition                                                                                                                                                                                                                             |
 | `online_order_events` | order_id, from_status, to_status, note, actor_id                                                                                                                                                                                                                                    |

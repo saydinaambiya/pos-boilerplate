@@ -80,6 +80,11 @@ export const auditActions = [
   "deposit.recorded",
   "deposit.edited",
   "deposit.cancelled",
+  "purchase.recorded",
+  "purchase.updated",
+  "purchase.deleted",
+  "purchase.payment-recorded",
+  "purchase.payment-deleted",
 ] as const;
 
 export type AuditAction = (typeof auditActions)[number];
