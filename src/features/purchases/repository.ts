@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, desc, eq, ilike, isNull, ne, or, sql, type SQL } from "drizzle-orm";
+import { and, desc, eq, gte, ilike, isNull, lte, ne, or, sql, type SQL } from "drizzle-orm";
 
 import { db, type Executor } from "@/db/client";
 import { purchasePayments, purchases, users } from "@/db/schema";
@@ -137,12 +137,16 @@ const listColumns = {
   createdAt: purchases.createdAt,
 };
 
-/** Supplier bill list, unsettled first and newest order date first (FR-PRB-04). */
-export async function queryPurchases(
-  filters: { filter: PurchaseFilter; search: string; today: string; includeArchived: boolean },
-  page: number,
-  pageSize: number,
-) {
+export interface PurchaseListFilter {
+  filter: PurchaseFilter;
+  search: string;
+  from?: string | undefined;
+  to?: string | undefined;
+  today: string;
+  includeArchived: boolean;
+}
+
+function purchaseListConditions(filters: PurchaseListFilter): SQL[] {
   const conditions: SQL[] = [];
   if (!filters.includeArchived) conditions.push(isNull(purchases.archivedAt));
   if (filters.filter === "credit") conditions.push(ne(purchases.status, "SETTLED"));
@@ -150,11 +154,19 @@ export async function queryPurchases(
   if (filters.filter === "overdue") {
     conditions.push(ne(purchases.status, "SETTLED"), sql`${purchases.dueDate} < ${filters.today}`);
   }
+  if (filters.from) conditions.push(gte(purchases.orderDate, filters.from));
+  if (filters.to) conditions.push(lte(purchases.orderDate, filters.to));
   if (filters.search !== "") {
     const pattern = `%${filters.search.replace(/[\\%_]/g, "\\$&")}%`;
     const search = or(ilike(purchases.companyName, pattern), ilike(purchases.invoiceNo, pattern));
     if (search) conditions.push(search);
   }
+  return conditions;
+}
+
+/** Supplier bill list, unsettled first and newest order date first (FR-PRB-04). */
+export async function queryPurchases(filters: PurchaseListFilter, page: number, pageSize: number) {
+  const conditions = purchaseListConditions(filters);
   return db
     .select(listColumns)
     .from(purchases)
@@ -166,6 +178,45 @@ export async function queryPurchases(
     )
     .limit(pageSize + 1)
     .offset((page - 1) * pageSize);
+}
+
+/** All supplier bills matching the filter for export, unsettled first (FR-PRB-04). */
+export async function queryAllPurchases(filters: PurchaseListFilter) {
+  const conditions = purchaseListConditions(filters);
+  return db
+    .select(listColumns)
+    .from(purchases)
+    .where(and(...conditions))
+    .orderBy(
+      sql`${purchases.status} = 'SETTLED'`,
+      desc(purchases.orderDate),
+      desc(purchases.createdAt),
+    );
+}
+
+/** Total, outstanding payable, bill count, unpaid count and overdue count (FR-PRB-04). */
+export async function summarizePurchases(filters: PurchaseListFilter) {
+  const conditions = purchaseListConditions(filters);
+  const [row] = await db
+    .select({
+      total: sql<number>`coalesce(sum(${purchases.total}), 0)`.mapWith(Number),
+      outstanding: sql<number>`coalesce(sum(${purchases.balance}), 0)`.mapWith(Number),
+      count: sql<number>`count(*)`.mapWith(Number),
+      unpaidCount: sql<number>`count(*) filter (where ${purchases.balance} > 0)`.mapWith(Number),
+      overdue:
+        sql<number>`count(*) filter (where ${purchases.balance} > 0 and ${purchases.dueDate} < ${filters.today})`.mapWith(
+          Number,
+        ),
+    })
+    .from(purchases)
+    .where(and(...conditions));
+  return {
+    total: row?.total ?? 0,
+    outstanding: row?.outstanding ?? 0,
+    count: row?.count ?? 0,
+    unpaidCount: row?.unpaidCount ?? 0,
+    overdue: row?.overdue ?? 0,
+  };
 }
 
 /** Outstanding payable, its count and how many are past due (FR-PRB-04). */

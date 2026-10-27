@@ -1,4 +1,4 @@
-import { Receipt } from "lucide-react";
+import { Download, Receipt } from "lucide-react";
 import type { Metadata } from "next";
 import { getFormatter, getLocale, getTranslations } from "next-intl/server";
 import { z } from "zod";
@@ -6,6 +6,7 @@ import { z } from "zod";
 import { FilterForm } from "@/components/form/filter-form";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { DatePicker } from "@/components/ui/date-picker";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -59,6 +60,8 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/[local
   const query = purchaseListQuery.parse({
     filter: first(raw.filter),
     q: first(raw.q),
+    from: first(raw.from),
+    to: first(raw.to),
     page: first(raw.page),
     archived: first(raw.archived),
   });
@@ -69,6 +72,8 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/[local
     listPurchases(session, {
       filter: query.filter,
       search: query.q,
+      from: query.from,
+      to: query.to,
       page: query.page,
       includeArchived: query.archived === "1",
     }),
@@ -76,10 +81,17 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/[local
   const money = (amount: number) => formatCurrency(amount, locale);
   const date = (value: string) =>
     format.dateTime(new Date(`${value}T00:00:00Z`), { dateStyle: "medium", timeZone: "UTC" });
-  const filtered = query.q !== "" || query.filter !== "all" || query.archived === "1";
+  const filtered =
+    query.q !== "" ||
+    query.filter !== "all" ||
+    Boolean(query.from) ||
+    Boolean(query.to) ||
+    query.archived === "1";
   const pageQuery = (page: number) => ({
     ...(query.q ? { q: query.q } : {}),
     ...(query.filter === "all" ? {} : { filter: query.filter }),
+    ...(query.from ? { from: query.from } : {}),
+    ...(query.to ? { to: query.to } : {}),
     ...(query.archived ? { archived: "1" } : {}),
     ...(page > 1 ? { page: String(page) } : {}),
   });
@@ -92,23 +104,40 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/[local
   const editing = result.purchases.find((purchase) => purchase.id === first(raw.edit));
   const deleting = result.purchases.find((purchase) => purchase.id === deleteId);
 
+  const exportParams = new URLSearchParams();
+  if (query.q) exportParams.set("q", query.q);
+  if (query.filter !== "all") exportParams.set("filter", query.filter);
+  if (query.from) exportParams.set("from", query.from);
+  if (query.to) exportParams.set("to", query.to);
+  if (query.archived === "1") exportParams.set("archived", "1");
+  exportParams.set("lang", locale);
+  const exportHref = `/api/v1/purchases/export?${exportParams.toString()}`;
+
   return (
     <>
       <PageHeader
         title={t("title")}
         description={t("subtitle")}
         actions={
-          canManage ? (
-            <Button asChild>
-              <Link
-                href={{ pathname: "/purchases", query: { ...pageQuery(query.page), new: "1" } }}
-                scroll={false}
-              >
-                <Receipt aria-hidden="true" />
-                {t("add")}
-              </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button asChild variant="secondary">
+              <a href={exportHref} download>
+                <Download aria-hidden="true" />
+                {t("exportCsv")}
+              </a>
             </Button>
-          ) : undefined
+            {canManage ? (
+              <Button asChild>
+                <Link
+                  href={{ pathname: "/purchases", query: { ...pageQuery(query.page), new: "1" } }}
+                  scroll={false}
+                >
+                  <Receipt aria-hidden="true" />
+                  {t("add")}
+                </Link>
+              </Button>
+            ) : null}
+          </div>
         }
       />
 
@@ -116,14 +145,20 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/[local
         <h2 id="purchases-summary" className="sr-only">
           {t("summaryTitle")}
         </h2>
-        <dl className="grid gap-3 sm:grid-cols-3">
+        <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="flex flex-col gap-1 rounded-card bg-surface p-5 shadow-card sm:p-6">
+            <dt className="text-sm text-ink-muted">{t("total")}</dt>
+            <dd className="text-xl font-semibold text-ink tabular-nums">
+              {money(result.summary.total)}
+            </dd>
+          </div>
           <div className="flex flex-col gap-1 rounded-card bg-surface p-5 shadow-card sm:p-6">
             <dt className="text-sm text-ink-muted">{t("outstanding")}</dt>
             <dd className="text-xl font-semibold text-ink tabular-nums">
               {money(result.summary.outstanding)}
             </dd>
             <dd className="text-xs text-ink-muted">
-              {t("outstandingCount", { count: result.summary.count })}
+              {t("outstandingCount", { count: result.summary.unpaidCount })}
             </dd>
           </div>
           <div className="flex flex-col gap-1 rounded-card bg-surface p-5 shadow-card sm:p-6">
@@ -142,7 +177,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/[local
       <Card className="mb-6">
         <FilterForm
           applyLabel={t("apply")}
-          className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:items-end"
+          className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:items-end xl:grid-cols-6"
         >
           <Field label={t("search")}>
             {(control) => (
@@ -167,6 +202,16 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/[local
                   label: t(`filters.${filter}`),
                 }))}
               />
+            )}
+          </Field>
+          <Field label={t("from")}>
+            {(control) => (
+              <DatePicker {...control} name="from" defaultValue={query.from ?? ""} clearable />
+            )}
+          </Field>
+          <Field label={t("to")}>
+            {(control) => (
+              <DatePicker {...control} name="to" defaultValue={query.to ?? ""} clearable />
             )}
           </Field>
           <ShowArchivedField checked={query.archived === "1"} />
@@ -197,6 +242,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/[local
                 <TableHead>{t("orderDate")}</TableHead>
                 <TableHead>{t("dueDate")}</TableHead>
                 <TableHead>{t("status")}</TableHead>
+                <TableHead>{t("note")}</TableHead>
                 <TableHead>
                   <span className="sr-only">{t("actions")}</span>
                 </TableHead>
@@ -217,6 +263,12 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/[local
                   </TableCell>
                   <TableCell>
                     <PurchaseStatusChip status={purchase.status} />
+                  </TableCell>
+                  <TableCell
+                    className="max-w-48 truncate text-sm text-ink-muted"
+                    title={purchase.note ?? undefined}
+                  >
+                    {purchase.note ?? "—"}
                   </TableCell>
                   <TableCell className="text-right">
                     <span className="flex flex-wrap justify-end gap-3 text-sm">

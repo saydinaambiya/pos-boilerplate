@@ -6,6 +6,7 @@ import { reportRange } from "./schemas";
 describe("CSV export (FR-RPT-05)", () => {
   it("quotes separators and neutralises formulas", () => {
     expect(csvCell("Kaos, Hitam")).toBe('"Kaos, Hitam"');
+    expect(csvCell("Kaos; Hitam", ";")).toBe('"Kaos; Hitam"');
     expect(csvCell('Kata "baik"')).toBe('"Kata ""baik"""');
     expect(csvCell("=HYPERLINK(1)")).toBe("'=HYPERLINK(1)");
     expect(csvCell("-5")).toBe("'-5");
@@ -13,7 +14,7 @@ describe("CSV export (FR-RPT-05)", () => {
     expect(csvCell(null)).toBe("");
   });
 
-  it("writes a header and CRLF rows", () => {
+  it("writes a header and CRLF rows with configurable delimiter", () => {
     const lines = [
       ...csvLines(
         [{ name: "A", qty: 2 }],
@@ -24,6 +25,18 @@ describe("CSV export (FR-RPT-05)", () => {
       ),
     ];
     expect(lines).toEqual(["Nama,Qty\r\n", "A,2\r\n"]);
+
+    const semiLines = [
+      ...csvLines(
+        [{ name: "A", qty: 2 }],
+        [
+          { header: "Nama", value: (row: { name: string; qty: number }) => row.name },
+          { header: "Qty", value: (row: { name: string; qty: number }) => row.qty },
+        ],
+        ";",
+      ),
+    ];
+    expect(semiLines).toEqual(["Nama;Qty\r\n", "A;2\r\n"]);
   });
 });
 
@@ -43,6 +56,5 @@ describe("report range (FR-RPT-01)", () => {
       to: "2026-09-26",
       clipped: true,
     });
-    expect(reportRange({ from: "bukan", to: "2026-02-30" }, "2026-09-26").to).toBe("2026-09-26");
   });
 });

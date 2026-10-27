@@ -127,7 +127,7 @@ describe("sales report (FR-RPT-01..04)", () => {
       [null, 1, 50_000],
     ]);
     const csv = [...reportCsv(report, "brands", "id")].join("").split("\r\n");
-    expect(csv[2]?.startsWith("Tanpa merk,")).toBe(true);
+    expect(csv[2]?.startsWith("Tanpa merk;")).toBe(true);
   });
 
   it("reports sales results only, without cost or profit (ADR-0027)", async () => {
@@ -140,7 +140,7 @@ describe("sales report (FR-RPT-01..04)", () => {
     expect(report.summary).not.toHaveProperty("grossProfit");
     expect(report.products[0]).not.toHaveProperty("margin");
     expect([...reportCsv(report, "products", "id")][0]).toBe(
-      "Merk,Produk,Motif,Ketebalan (mm),Qty,Diskon item,Penjualan\r\n",
+      "Merk;Produk;Motif;Ketebalan (mm);Qty;Diskon item;Penjualan\r\n",
     );
   });
 
@@ -176,7 +176,7 @@ describe("sales report (FR-RPT-01..04)", () => {
       ["DONATION", 1, 10_000],
     ]);
     const csv = [...reportCsv(report, "expenses", "id")].join("").split("\r\n");
-    expect(csv[1]).toBe("Uang makan,1,25000");
+    expect(csv[1]).toBe("Uang makan;1;25000");
   });
 
   it("separates PPN and service, and counts marketplace orders", async () => {

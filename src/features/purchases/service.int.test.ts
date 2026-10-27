@@ -10,6 +10,7 @@ import type { PurchaseCreateInput } from "./schemas";
 import {
   createPurchase,
   deletePurchase,
+  exportPurchases,
   getPurchase,
   listPurchases,
   recordPurchasePayment,
@@ -256,18 +257,36 @@ describe("editing and deleting (FR-PRB-01)", () => {
 });
 
 describe("list and summary (FR-PRB-04)", () => {
-  it("summarises what is owed, flags overdue bills and searches by nota", async () => {
+  it("summarises total tagihan and sisa tagihan, flags overdue bills and searches by nota", async () => {
     const session = await owner();
-    await createPurchase(session, bill({ invoiceNo: "LUNAS-1", term: "CASH" }), testContext());
     await createPurchase(
       session,
-      bill({ invoiceNo: "HUTANG-1", term: "CREDIT", paidNow: 0, dueDate: "2026-09-20" }),
+      bill({ invoiceNo: "LUNAS-1", term: "CASH", note: "Catatan tunai" }),
+      testContext(),
+    );
+    await createPurchase(
+      session,
+      bill({
+        invoiceNo: "HUTANG-1",
+        term: "CREDIT",
+        paidNow: 0,
+        orderDate: "2026-09-15",
+        dueDate: "2026-09-20",
+        note: "Catatan kredit",
+      }),
       testContext(),
     );
 
     const list = await listPurchases(session, { filter: "all", search: "", page: 1 }, NOW);
-    expect(list.summary).toEqual({ outstanding: 1_000_000, count: 1, overdue: 1 });
+    expect(list.summary).toEqual({
+      total: 2_000_000,
+      outstanding: 1_000_000,
+      count: 2,
+      unpaidCount: 1,
+      overdue: 1,
+    });
     expect(list.purchases.map((row) => row.status)).toEqual(["OPEN", "SETTLED"]);
+    expect(list.purchases.map((row) => row.note)).toEqual(["Catatan kredit", "Catatan tunai"]);
     expect(list.purchases[0]).toMatchObject({ due: "overdue" });
 
     expect(
@@ -279,6 +298,48 @@ describe("list and summary (FR-PRB-04)", () => {
     expect(
       (await listPurchases(session, { filter: "all", search: "HUTANG", page: 1 }, NOW)).purchases,
     ).toHaveLength(1);
+
+    // Test date range filter
+    const dateFiltered = await listPurchases(
+      session,
+      {
+        filter: "all",
+        search: "",
+        from: "2026-09-10",
+        to: "2026-09-20",
+        page: 1,
+      },
+      NOW,
+    );
+    expect(dateFiltered.purchases).toHaveLength(1);
+    expect(dateFiltered.purchases[0]?.invoiceNo).toBe("HUTANG-1");
+    expect(dateFiltered.summary).toEqual({
+      total: 1_000_000,
+      outstanding: 1_000_000,
+      count: 1,
+      unpaidCount: 1,
+      overdue: 1,
+    });
+
+    const outOfRange = await listPurchases(
+      session,
+      {
+        filter: "all",
+        search: "",
+        from: "2026-08-01",
+        to: "2026-08-31",
+        page: 1,
+      },
+      NOW,
+    );
+    expect(outOfRange.purchases).toHaveLength(0);
+    expect(outOfRange.summary).toEqual({
+      total: 0,
+      outstanding: 0,
+      count: 0,
+      unpaidCount: 0,
+      overdue: 0,
+    });
   });
 
   it("hides a settled bill marked archived unless asked for (FR-HK-04)", async () => {
@@ -302,5 +363,26 @@ describe("list and summary (FR-PRB-04)", () => {
         )
       ).purchases,
     ).toHaveLength(1);
+  });
+
+  it("exports filtered purchases as CSV lines (FR-PRB-04)", async () => {
+    const session = await owner();
+    await createPurchase(
+      session,
+      bill({ companyName: "PT Maju", invoiceNo: "INV-10", total: 500_000, note: "Nota kain" }),
+      testContext(),
+    );
+    await createPurchase(
+      session,
+      bill({ companyName: "CV Sejahtera", invoiceNo: "INV-20", total: 300_000 }),
+      testContext(),
+    );
+
+    const exported = await exportPurchases(session, { filter: "all", search: "Maju" }, "id", NOW);
+    const lines = [...exported.lines];
+    expect(lines).toHaveLength(2);
+    expect(lines[0]).toContain("Nota Faktur");
+    expect(lines[1]).toContain("PT Maju");
+    expect(lines[1]).toContain("Nota kain");
   });
 });
