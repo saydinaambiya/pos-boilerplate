@@ -3,7 +3,7 @@ import { Preferences } from "@/components/shell/preferences";
 import { Card } from "@/components/ui/card";
 
 /** Standalone frame for sign-in and onboarding pages, outside the app shell. */
-export default function AuthLayout({ children }: LayoutProps<"/[locale]">) {
+export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
     <main
       id="main"

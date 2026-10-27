@@ -315,7 +315,10 @@
     "methods": {
       "CASH": "Tunai",
       "TRANSFER": "Transfer"
-    }
+    },
+    "from": "Dari tanggal",
+    "to": "Sampai tanggal",
+    "exportCsv": "Ekspor CSV"
   },
   "Employees": {
     "title": "Karyawan",

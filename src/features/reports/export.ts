@@ -20,6 +20,8 @@ const field =
 /**
  * CSV lines for one report section in the chosen language (FR-RPT-05).
  * Amounts are plain integer rupiah so spreadsheets can sum them.
+ * In Indonesian Excel, the list separator is semicolon (;) so rows split
+ * into columns properly on open.
  */
 export function reportCsv(report: SalesReport, section: ReportSection, locale: Locale) {
   const t = translatorFor(locale, "Reports");
@@ -117,6 +119,7 @@ export function reportCsv(report: SalesReport, section: ReportSection, locale: L
       ],
     },
   };
+  const delimiter = locale === "id" ? ";" : ",";
   const { rows, columns } = sections[section];
-  return csvLines(rows, columns);
+  return csvLines(rows, columns, delimiter);
 }

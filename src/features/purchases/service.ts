@@ -1,5 +1,6 @@
 import "server-only";
 
+import type { Locale } from "@/config/locales";
 import { db } from "@/db/client";
 import { uniqueViolationConstraint } from "@/db/errors";
 import { recordAudit } from "@/lib/audit/audit";
@@ -10,19 +11,22 @@ import { storeDate } from "@/lib/format/zoned-time";
 import type { RequestContext } from "@/lib/http/request-context";
 import { readSetting } from "@/lib/settings/store";
 
+import { purchasesCsv } from "./export";
 import {
   findPurchaseDetail,
   findPurchasePayment,
   insertPurchase,
   insertPurchasePayment,
   lockPurchase,
-  outstandingPurchases,
+  queryAllPurchases,
   queryPurchases,
   statusFor,
+  summarizePurchases,
   sumPurchasePayments,
   updatePurchase as updatePurchaseRow,
   deletePurchase as deletePurchaseRow,
   deletePurchasePaymentRow,
+  type PurchaseListFilter,
 } from "./repository";
 import type {
   PurchaseCreateInput,
@@ -309,27 +313,37 @@ export async function removePurchasePayment(
   });
 }
 
-/** Supplier bill list with due markers and the outstanding summary (FR-PRB-04). */
+/** Supplier bill list with due markers and the summary (FR-PRB-04). */
 export async function listPurchases(
   session: Session,
-  options: { filter: PurchaseFilter; search: string; page: number; includeArchived?: boolean },
+  options: {
+    filter: PurchaseFilter;
+    search: string;
+    from?: string | undefined;
+    to?: string | undefined;
+    page: number;
+    includeArchived?: boolean;
+  },
   now = new Date(),
 ) {
   assertPermission(session, "page:purchases");
   const { timeZone } = await readSetting("operations");
   const today = storeDate(now, timeZone);
+  const [from, to] =
+    options.from && options.to && options.from > options.to
+      ? [options.to, options.from]
+      : [options.from, options.to];
+  const filters: PurchaseListFilter = {
+    filter: options.filter,
+    search: options.search.trim(),
+    from,
+    to,
+    today,
+    includeArchived: options.includeArchived ?? false,
+  };
   const [rows, summary] = await Promise.all([
-    queryPurchases(
-      {
-        filter: options.filter,
-        search: options.search.trim(),
-        today,
-        includeArchived: options.includeArchived ?? false,
-      },
-      options.page,
-      PURCHASE_PAGE_SIZE,
-    ),
-    outstandingPurchases(today),
+    queryPurchases(filters, options.page, PURCHASE_PAGE_SIZE),
+    summarizePurchases(filters),
   ]);
   return {
     purchases: rows.slice(0, PURCHASE_PAGE_SIZE).map((row) => ({
@@ -339,6 +353,41 @@ export async function listPurchases(
     hasNextPage: rows.length > PURCHASE_PAGE_SIZE,
     summary,
   };
+}
+
+/**
+ * Streams supplier bills matching a filter as CSV lines in the requested locale (FR-PRB-04).
+ */
+export async function exportPurchases(
+  session: Session,
+  options: {
+    filter: PurchaseFilter;
+    search: string;
+    from?: string | undefined;
+    to?: string | undefined;
+    includeArchived?: boolean;
+  },
+  locale: Locale,
+  now = new Date(),
+) {
+  assertPermission(session, "page:purchases");
+  const { timeZone } = await readSetting("operations");
+  const today = storeDate(now, timeZone);
+  const [from, to] =
+    options.from && options.to && options.from > options.to
+      ? [options.to, options.from]
+      : [options.from, options.to];
+  const filters: PurchaseListFilter = {
+    filter: options.filter,
+    search: options.search.trim(),
+    from,
+    to,
+    today,
+    includeArchived: options.includeArchived ?? false,
+  };
+  const rows = await queryAllPurchases(filters);
+  const lines = purchasesCsv(rows, locale);
+  return { lines, range: { from, to, today } };
 }
 
 /** One supplier bill with its installments and due marker (FR-PRB-01/03). */

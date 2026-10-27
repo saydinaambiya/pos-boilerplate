@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { purchaseCreateInput, purchaseUpdateInput } from "./schemas";
+import {
+  purchaseCreateInput,
+  purchaseExportQuery,
+  purchaseListQuery,
+  purchaseUpdateInput,
+} from "./schemas";
 
 const base = {
   companyName: "PT Kain Jaya",
@@ -58,5 +63,49 @@ describe("purchase schemas (FR-PRB-01/02/05)", () => {
   it("keeps the same date rule when a bill is edited", () => {
     expect(purchaseUpdateInput.safeParse(base).success).toBe(true);
     expect(purchaseUpdateInput.safeParse({ ...base, dueDate: "2026-01-01" }).success).toBe(false);
+  });
+
+  it("parses query date range filters", () => {
+    const query = purchaseListQuery.parse({
+      from: "2026-09-01",
+      to: "2026-09-30",
+      filter: "all",
+      q: "Kain",
+      page: "2",
+    });
+    expect(query).toEqual({
+      filter: "all",
+      q: "Kain",
+      from: "2026-09-01",
+      to: "2026-09-30",
+      page: 2,
+      archived: undefined,
+    });
+
+    const invalidDates = purchaseListQuery.parse({
+      from: "invalid",
+      to: "",
+    });
+    expect(invalidDates.from).toBeUndefined();
+    expect(invalidDates.to).toBeUndefined();
+  });
+
+  it("parses export query parameters", () => {
+    const query = purchaseExportQuery.parse({
+      from: "2026-09-01",
+      to: "2026-09-30",
+      filter: "settled",
+      q: "Sumber",
+      archived: "1",
+      lang: "id",
+    });
+    expect(query).toEqual({
+      filter: "settled",
+      q: "Sumber",
+      from: "2026-09-01",
+      to: "2026-09-30",
+      archived: "1",
+      lang: "id",
+    });
   });
 });

@@ -315,7 +315,10 @@
     "methods": {
       "CASH": "Cash",
       "TRANSFER": "Transfer"
-    }
+    },
+    "from": "From",
+    "to": "To",
+    "exportCsv": "Export CSV"
   },
   "Employees": {
     "title": "Employees",

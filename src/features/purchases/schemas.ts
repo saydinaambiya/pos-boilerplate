@@ -78,7 +78,22 @@ export type PurchaseFilter = (typeof purchaseFilters)[number];
 export const purchaseListQuery = z.object({
   filter: z.enum(purchaseFilters).catch("all"),
   q: z.string().trim().max(60).catch(""),
+  from: isoDate.optional().catch(undefined),
+  to: isoDate.optional().catch(undefined),
   page: z.coerce.number().int().min(1).max(1000).catch(1),
   /** Include settled bills marked archived by housekeeping (FR-HK-04). */
   archived: z.literal("1").optional().catch(undefined),
 });
+export type PurchaseListQuery = z.infer<typeof purchaseListQuery>;
+
+/** Query parameters for supplier bill CSV export (FR-PRB-04). */
+export const purchaseExportQuery = z.object({
+  filter: z.enum(purchaseFilters).catch("all"),
+  q: z.string().trim().max(60).catch(""),
+  from: isoDate.optional().catch(undefined),
+  to: isoDate.optional().catch(undefined),
+  /** Include settled bills marked archived by housekeeping (FR-HK-04). */
+  archived: z.literal("1").optional().catch(undefined),
+  lang: z.string().optional().catch(undefined),
+});
+export type PurchaseExportQuery = z.infer<typeof purchaseExportQuery>;
