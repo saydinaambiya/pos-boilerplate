@@ -7,7 +7,7 @@ import { alias } from "drizzle-orm/pg-core";
 import { db, type Executor } from "@/db/client";
 import { cashExpenses, kasbons, payments, sales, shifts, users } from "@/db/schema";
 
-import { depositedDuring } from "./drawer";
+import { depositedDuring, salesHandoverDuring } from "./drawer";
 import type { ShiftKind } from "./kind";
 
 const closers = alias(users, "closer");
@@ -27,6 +27,8 @@ const shiftColumns = {
   countedCash: shifts.countedCash,
   variance: shifts.variance,
   note: shifts.note,
+  handoverToShiftId: shifts.handoverToShiftId,
+  handoverAfterClose: shifts.handoverAfterClose,
 };
 
 /** A drawer shift, or one from before shift kinds, which were all cashier shifts. */
@@ -114,6 +116,8 @@ export async function closeShiftRow(
     variance: number;
     note: string | null;
     closedBy: string;
+    handoverToShiftId?: string | null;
+    handoverAfterClose?: boolean;
   },
 ): Promise<void> {
   await executor
@@ -126,7 +130,8 @@ export async function closeShiftRow(
  * Per-shift figures (FR-SHF-03/04): settled payments per method on
  * non-voided sales, sale and void counts, store credit given, and store
  * credit payments taken in this shift, cash paid out as staff expenses
- * (FR-EXP-03) and cash deposited at the ATM while it was open (ADR-0032). A payment still awaiting approval
+ * (FR-EXP-03), cash handed over from sales shifts (ADR-0054) and cash
+ * deposited at the ATM while it was open (ADR-0032). A payment still awaiting approval
  * counts because the money is already in hand; a rejected one does not
  * (FR-KSB-03/04).
  */
@@ -176,10 +181,12 @@ export async function shiftTotals(executor: Executor, shiftId: string) {
     .where(eq(cashExpenses.shiftId, shiftId));
 
   const deposited = await depositedDuring(executor, shiftId);
+  const salesHandovers = await salesHandoverDuring(executor, shiftId);
 
   return {
     expenses: spent?.total ?? 0,
     deposited,
+    salesHandovers,
     kasbonIssued: credit?.total ?? 0,
     kasbonCollected: Object.fromEntries(collected.map((row) => [row.method, row.total])) as Partial<
       Record<(typeof collected)[number]["method"], number>

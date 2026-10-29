@@ -8,7 +8,14 @@ import { signIn, testContext } from "@/test/sessions";
 
 import type { Session } from "@/lib/auth/session";
 
-import { closeShift, getOpenShift, getShiftReport, listShifts, openShift } from "./service";
+import {
+  closeShift,
+  getDrawerCarry,
+  getOpenShift,
+  getShiftReport,
+  listShifts,
+  openShift,
+} from "./service";
 
 const cashier = () => signIn("kasir", "123456");
 const colleague = () => signIn("kasir-baru", "111111");
@@ -163,5 +170,68 @@ describe("shifts (FR-SHF-01..04)", () => {
 
     expect((await listShifts(await colleague(), "DRAWER", 1)).shifts).toHaveLength(1);
     expect((await listShifts(await owner(), "DRAWER", 1)).shifts).toHaveLength(1);
+  });
+
+  it("transfers sales cash to the drawer when a salesperson closes their shift (ADR-0054)", async () => {
+    const store = await openShift(await cashier(), { openingCash: 100_000 }, testContext());
+    if (!store.ok) throw new Error(store.reason);
+
+    const seller = await salesperson();
+    const own = await openShift(seller, { openingCash: 0 }, testContext());
+    if (!own.ok) throw new Error(own.reason);
+
+    await recordSale(own.id, seller.user.id, [{ method: "CASH", amount: 150_000 }]);
+
+    const closeSales = await closeShift(
+      seller,
+      { countedCash: 150_000, note: "Setor uang penjualan sales" },
+      testContext(),
+    );
+    if (!closeSales.ok) throw new Error(closeSales.reason);
+
+    const [salesRow] = await db.select().from(shifts).where(eq(shifts.id, own.id));
+    expect(salesRow).toMatchObject({
+      handoverToShiftId: store.id,
+      handoverAfterClose: false,
+      countedCash: 150_000,
+      variance: 0,
+    });
+
+    const storeLive = await getOpenShift(await cashier());
+    expect(storeLive?.totals.salesHandovers).toBe(150_000);
+    expect(storeLive?.expectedCash).toBe(250_000);
+  });
+
+  it("carries over sales cash handed over after drawer close into the next drawer shift (ADR-0054)", async () => {
+    const store = await openShift(await cashier(), { openingCash: 50_000 }, testContext());
+    if (!store.ok) throw new Error(store.reason);
+
+    const seller = await salesperson();
+    const own = await openShift(seller, { openingCash: 0 }, testContext());
+    if (!own.ok) throw new Error(own.reason);
+
+    const closeStore = await closeShift(
+      await cashier(),
+      { countedCash: 50_000, note: "" },
+      testContext(),
+    );
+    if (!closeStore.ok) throw new Error(closeStore.reason);
+
+    const closeSales = await closeShift(
+      seller,
+      { countedCash: 80_000, note: "Pulang malam" },
+      testContext(),
+    );
+    if (!closeSales.ok) throw new Error(closeSales.reason);
+
+    const [salesRow] = await db.select().from(shifts).where(eq(shifts.id, own.id));
+    expect(salesRow).toMatchObject({
+      handoverToShiftId: store.id,
+      handoverAfterClose: true,
+      countedCash: 80_000,
+    });
+
+    const carry = await getDrawerCarry(await cashier());
+    expect(carry).toBe(130_000);
   });
 });

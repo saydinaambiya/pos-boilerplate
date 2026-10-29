@@ -1038,6 +1038,10 @@
     "openingNote": "Catatan modal awal",
     "openingNoteHint": "Opsional, misalnya \"uang kecil Rp 50.000 di amplop\".",
     "salesOpenTitle": "Buka shift sales",
+    "salesCloseTitle": "Tutup shift sales",
+    "salesCloseDescription": "Hitung uang tunai yang Anda terima lalu masukkan jumlahnya. Uang fisik langsung diserahkan ke kasir dan masuk ke laci toko.",
+    "salesHandover": "Kas dari sales",
+    "salesHandoverHint": "Diserahkan saat sales tutup shift",
     "openedBy": "Dibuka oleh",
     "closedBy": "Ditutup oleh",
     "salesperson": "Sales",
@@ -1825,7 +1829,9 @@
         "by": "oleh {name}, {time}"
       }
     },
-    "salesCashLine": "Tunai di sales {amount}. Dicatat di menu Sales, tidak masuk laci.",
+    "salesCashLine": "Tunai di sales {amount}. Dicatat di menu Sales, masuk ke laci saat tutup shift.",
+    "salesHandover": "Kas dari sales",
+    "salesHandoverHint": "Diserahkan saat sales tutup shift",
     "floatAdded": "Modal ditambahkan",
     "floatAddedHint": "Diisi kasir saat buka shift",
     "countVariance": "Selisih hitung",

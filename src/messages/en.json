@@ -1038,6 +1038,10 @@
     "openingNote": "Opening cash note",
     "openingNoteHint": "Optional, e.g. \"Rp 50,000 small change in an envelope\".",
     "salesOpenTitle": "Open a sales shift",
+    "salesCloseTitle": "Close sales shift",
+    "salesCloseDescription": "Count the cash you received and enter the amount. The physical cash is handed over to the cashier and enters the drawer.",
+    "salesHandover": "Cash from sales",
+    "salesHandoverHint": "Handed over when sales shift closed",
     "openedBy": "Opened by",
     "closedBy": "Closed by",
     "salesperson": "Salesperson",
@@ -1825,7 +1829,9 @@
         "by": "by {name}, {time}"
       }
     },
-    "salesCashLine": "Salespeople's cash {amount}. Recorded in the Sales menu, not in the drawer.",
+    "salesCashLine": "Salespeople's cash {amount}. Recorded in the Sales menu; enters the drawer upon closing.",
+    "salesHandover": "Cash from sales",
+    "salesHandoverHint": "Handed over when sales shift closed",
     "floatAdded": "Float added",
     "floatAddedHint": "Entered by cashiers when opening a shift",
     "countVariance": "Count variance",

@@ -75,13 +75,14 @@ export async function CloseShiftDialog({
     getTranslations("Common"),
     getLocale(),
   ]);
+  const isSales = shift.kind === "SALES";
   return (
     <RouteDialog
       closeHref={closeHref}
       closeLabel={tCommon("close")}
       size="lg"
-      title={t("closeTitle")}
-      description={t("closeDescription")}
+      title={isSales ? t("salesCloseTitle") : t("closeTitle")}
+      description={isSales ? t("salesCloseDescription") : t("closeDescription")}
     >
       <ShiftFigures shift={{ ...shift, countedCash: null, variance: null }} />
       <ActionForm action={closeShiftAction} locale={locale} className="border-t border-border pt-4">
