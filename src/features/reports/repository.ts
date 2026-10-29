@@ -418,12 +418,13 @@ export async function moneyInByDay(window: ReportWindow) {
 
 /**
  * Drawer movements per store day besides money received (ADR-0032): the
- * float cashiers added when opening, staff expenses paid out, and the
- * variance counted at close. Drawer shifts only.
+ * float cashiers added when opening, staff expenses paid out, cash handed
+ * over from sales shifts (ADR-0054), and the variance counted at close.
+ * Drawer shifts only for float/expenses/variance.
  */
 export async function drawerFlowsByDay(window: ReportWindow) {
   const drawer = eq(shifts.kind, "DRAWER");
-  const [added, spent, counted] = await Promise.all([
+  const [added, spent, counted, salesHandovers] = await Promise.all([
     db
       .select({ day: dayOf(shifts.openedAt, window), total: num(sql`sum(${shifts.openingCash})`) })
       .from(shifts)
@@ -443,8 +444,20 @@ export async function drawerFlowsByDay(window: ReportWindow) {
       .from(shifts)
       .where(and(drawer, isNotNull(shifts.closedAt), within(shifts.closedAt, window)))
       .groupBy(sql`1`),
+    db
+      .select({ day: dayOf(shifts.closedAt, window), total: num(sql`sum(${shifts.countedCash})`) })
+      .from(shifts)
+      .where(
+        and(
+          eq(shifts.kind, "SALES"),
+          isNotNull(shifts.closedAt),
+          isNotNull(shifts.handoverToShiftId),
+          within(shifts.closedAt, window),
+        ),
+      )
+      .groupBy(sql`1`),
   ]);
-  return { added, spent, counted };
+  return { added, spent, counted, salesHandovers };
 }
 
 /** Marketplace orders still counting as sold, per store day. */

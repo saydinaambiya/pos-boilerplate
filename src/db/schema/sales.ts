@@ -69,6 +69,10 @@ export const shifts = pgTable(
     countedCash: money(),
     variance: money(),
     note: text(),
+    /** Drawer shift this sales shift handed over cash to upon closing (ADR-0054). */
+    handoverToShiftId: uuid().references((): AnyPgColumn => shifts.id, { onDelete: "restrict" }),
+    /** Handed over after `handoverToShiftId` closed, so it increases that shift's leftover. */
+    handoverAfterClose: boolean().notNull().default(false),
     ...archival,
     ...timestamps,
   },
@@ -80,6 +84,7 @@ export const shifts = pgTable(
     index("shifts_opened_at_idx").on(table.openedAt),
     uniqueIndex("shifts_carried_from_shift_id_key").on(table.carriedFromShiftId),
     index("shifts_kind_closed_at_idx").on(table.kind, table.closedAt),
+    index("shifts_handover_to_shift_id_idx").on(table.handoverToShiftId),
     check("shifts_opening_cash_non_negative", sql`${table.openingCash} >= 0`),
   ],
 );

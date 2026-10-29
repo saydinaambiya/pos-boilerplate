@@ -7,8 +7,8 @@ import { cashDeposits, shifts } from "@/db/schema";
 
 /**
  * Serialises changes to the store's one cash drawer (ADR-0032): opening or
- * closing a drawer shift and recording or cancelling a deposit. Released
- * when the transaction ends.
+ * closing a drawer shift, closing a sales shift that hands cash over,
+ * and recording or cancelling a deposit. Released when the transaction ends.
  */
 export async function lockDrawer(executor: Executor): Promise<void> {
   await executor.execute(sql`select pg_advisory_xact_lock(hashtext('cash-drawer'))`);
@@ -28,7 +28,8 @@ export async function oldestOpenDrawerShift(executor: Executor) {
 /**
  * The last closed drawer shift, whether a later shift already carried its
  * leftover, and that leftover: the counted cash less deposits taken from
- * the drawer after it closed.
+ * the drawer after it closed, plus cash handed over from sales shifts after
+ * it closed (ADR-0032, ADR-0054).
  */
 export async function lastClosedDrawerShift(executor: Executor) {
   const [row] = await executor
@@ -37,7 +38,7 @@ export async function lastClosedDrawerShift(executor: Executor) {
       closedAt: shifts.closedAt,
       carried: sql<boolean>`exists (select 1 from "shifts" as "carrier" where "carrier"."carried_from_shift_id" = "shifts"."id")`,
       leftover:
-        sql<number>`coalesce("shifts"."counted_cash", 0) - coalesce((select sum("cash_deposits"."amount") from "cash_deposits" where "cash_deposits"."shift_id" = "shifts"."id" and "cash_deposits"."cancelled_at" is null and "cash_deposits"."after_close"), 0)`.mapWith(
+        sql<number>`coalesce("shifts"."counted_cash", 0) - coalesce((select sum("cash_deposits"."amount") from "cash_deposits" where "cash_deposits"."shift_id" = "shifts"."id" and "cash_deposits"."cancelled_at" is null and "cash_deposits"."after_close"), 0) + coalesce((select sum("handovers"."counted_cash") from "shifts" as "handovers" where "handovers"."handover_to_shift_id" = "shifts"."id" and "handovers"."handover_after_close" and "handovers"."closed_at" is not null), 0)`.mapWith(
           Number,
         ),
     })
@@ -69,6 +70,21 @@ export async function depositedDuring(executor: Executor, shiftId: string): Prom
         eq(cashDeposits.shiftId, shiftId),
         isNull(cashDeposits.cancelledAt),
         eq(cashDeposits.afterClose, false),
+      ),
+    );
+  return row?.total ?? 0;
+}
+
+/** Cash handed over from sales shifts to this drawer shift while it was open (ADR-0054). */
+export async function salesHandoverDuring(executor: Executor, shiftId: string): Promise<number> {
+  const [row] = await executor
+    .select({ total: sql<number>`coalesce(sum(${shifts.countedCash}), 0)`.mapWith(Number) })
+    .from(shifts)
+    .where(
+      and(
+        eq(shifts.handoverToShiftId, shiftId),
+        eq(shifts.handoverAfterClose, false),
+        isNotNull(shifts.closedAt),
       ),
     );
   return row?.total ?? 0;

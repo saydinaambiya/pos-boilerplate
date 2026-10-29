@@ -170,10 +170,10 @@ export async function getTodaySales(session: Session, now = new Date()) {
 /**
  * The money recap of one store day or month (FR-RPT-06/07, ADR-0032).
  * Money in splits into bank accounts (transfer, QRIS), the cash drawer and
- * salespeople's cash, which is recorded in the Sales menu and never enters
- * the drawer; marketplace orders are a line of their own. The drawer
- * balance follows the physical cash: the balance before the period, plus
- * the float cashiers added, cash in and the variance counted at close,
+ * salespeople's cash, which is recorded in the Sales menu and enters the
+ * drawer upon shift closing (ADR-0054); marketplace orders are a line of their own.
+ * The drawer balance follows the physical cash: the balance before the period, plus
+ * the float cashiers added, cash in, sales shift handovers and the variance counted at close,
  * minus staff expenses and ATM deposits. It is what the next drawer shift
  * carries over. Shifts from before drawer tracking count as money in but
  * not in the balance.
@@ -222,7 +222,12 @@ export async function getCashRecap(
     cash(rows).filter((row) => row.kind === "DRAWER");
   const storeCash = (rows: readonly Received[]) => cash(rows).filter((row) => row.kind !== "SALES");
   const drawerChange = (rows: readonly Received[], moves: typeof flows, deposited: number) =>
-    sum(drawerCash(rows)) + sum(moves.added) + sum(moves.counted) - sum(moves.spent) - deposited;
+    sum(drawerCash(rows)) +
+    sum(moves.added) +
+    sum(moves.counted) +
+    sum(moves.salesHandovers) -
+    sum(moves.spent) -
+    deposited;
 
   const byAccount = accounts
     .map((account) => ({
@@ -248,6 +253,7 @@ export async function getCashRecap(
       added: onDay(flows.added, day),
       spent: onDay(flows.spent, day),
       counted: onDay(flows.counted, day),
+      salesHandovers: onDay(flows.salesHandovers, day),
     };
     const deposited = sum(onDay(depositedByDay, day));
     balance += drawerChange(dayReceived, moves, deposited);
@@ -259,7 +265,12 @@ export async function getCashRecap(
       deposited,
       balance,
       active:
-        dayReceived.length + moves.added.length + moves.spent.length + moves.counted.length > 0 ||
+        dayReceived.length +
+          moves.added.length +
+          moves.spent.length +
+          moves.counted.length +
+          moves.salesHandovers.length >
+          0 ||
         deposited > 0 ||
         onDay(online, day).length > 0,
     });
@@ -288,6 +299,7 @@ export async function getCashRecap(
       opening,
       added: sum(flows.added),
       cashIn: sum(drawerCash(received)),
+      salesHandover: sum(flows.salesHandovers),
       expenses: sum(flows.spent),
       deposited: sum(depositedByDay),
       variance: sum(flows.counted),

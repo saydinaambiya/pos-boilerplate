@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Landmark, Wallet } from "lucide-react";
+﻿import { ChevronLeft, ChevronRight, Landmark, Wallet } from "lucide-react";
 import type { Metadata } from "next";
 import { getFormatter, getLocale, getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
@@ -149,7 +149,7 @@ export default async function ReportsPage({ searchParams }: PageProps<"/[locale]
     </div>
   );
   const activeDays = recap.days.filter((row) => row.active);
-  const accountLabel = (id: string) => recap.accountLabels[id] ?? "—";
+  const accountLabel = (id: string) => recap.accountLabels[id] ?? "â€”";
   const changesOf = (revision: (typeof recap.deposits)[number]["revisions"][number]) => {
     const { before, after } = revision;
     if (revision.kind === "CANCELLED" || !after) return [t("deposit.history.cancelled")];
@@ -172,7 +172,7 @@ export default async function ReportsPage({ searchParams }: PageProps<"/[locale]
       before.note !== after.note ? t("deposit.history.note") : null,
     ].filter((change) => change !== null);
   };
-  const signed = (amount: number) => `${amount < 0 ? "−" : "+"} ${money(Math.abs(amount))}`;
+  const signed = (amount: number) => `${amount < 0 ? "âˆ’" : "+"} ${money(Math.abs(amount))}`;
 
   return (
     <>
@@ -299,8 +299,13 @@ export default async function ReportsPage({ searchParams }: PageProps<"/[locale]
             )}
             {line(t("floatAdded"), `+ ${money(drawer.added)}`, { hint: t("floatAddedHint") })}
             {line(t("cashIn"), `+ ${money(drawer.cashIn)}`)}
-            {line(t("expenses"), `− ${money(drawer.expenses)}`)}
-            {line(t("deposited"), `− ${money(drawer.deposited)}`)}
+            {drawer.salesHandover > 0
+              ? line(t("salesHandover"), `+ ${money(drawer.salesHandover)}`, {
+                  hint: t("salesHandoverHint"),
+                })
+              : null}
+            {line(t("expenses"), `âˆ’ ${money(drawer.expenses)}`)}
+            {line(t("deposited"), `âˆ’ ${money(drawer.deposited)}`)}
             {drawer.variance !== 0
               ? line(t("countVariance"), signed(drawer.variance), { hint: t("countVarianceHint") })
               : null}
@@ -337,7 +342,7 @@ export default async function ReportsPage({ searchParams }: PageProps<"/[locale]
                           row.note,
                         ]
                           .filter(Boolean)
-                          .join(" · ")}
+                          .join(" Â· ")}
                       </span>
                     </span>
                     {row.cancelledAt ? (
@@ -385,7 +390,7 @@ export default async function ReportsPage({ searchParams }: PageProps<"/[locale]
                         {row.revisions.map((revision) => (
                           <li key={revision.id} className="[overflow-wrap:anywhere] text-ink-muted">
                             <span className="block text-ink">
-                              {changesOf(revision).join(" · ")}
+                              {changesOf(revision).join(" Â· ")}
                             </span>
                             {t("deposit.history.reason", { reason: revision.reason })}
                             <span className="block">

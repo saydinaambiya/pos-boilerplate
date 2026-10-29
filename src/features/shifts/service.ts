@@ -8,7 +8,7 @@ import type { Session } from "@/lib/auth/session";
 import type { RequestContext } from "@/lib/http/request-context";
 import { storeClosedFor } from "@/lib/settings/store-hours-guard";
 
-import { drawerCarry, lockDrawer } from "./drawer";
+import { drawerCarry, lastClosedDrawerShift, lockDrawer, oldestOpenDrawerShift } from "./drawer";
 import { type ShiftKind, shiftKindFor } from "./kind";
 import {
   closeShiftRow,
@@ -29,14 +29,15 @@ export const SHIFT_PAGE_SIZE = 30;
  */
 const SHIFT_HOLDERS = ["page:pos", "consignment:sell"] as const;
 
-type ShiftTotals = Awaited<ReturnType<typeof shiftTotals>>;
+export type ShiftTotals = Awaited<ReturnType<typeof shiftTotals>>;
 
 /**
  * Cash that should be in the drawer: the leftover carried from the last
- * drawer shift, the float, cash sales and cash store-credit payments, less
- * staff expenses paid out and ATM deposits (FR-SHF-03, FR-EXP-03, ADR-0032).
+ * drawer shift, the float, cash sales, cash store-credit payments, cash
+ * handed over from sales shifts (ADR-0054), less staff expenses paid out
+ * and ATM deposits (FR-SHF-03, FR-EXP-03, ADR-0032).
  */
-function expectedCashOf(
+export function expectedCashOf(
   shift: { openingCash: number; carriedCash: number },
   totals: ShiftTotals,
 ): number {
@@ -44,7 +45,8 @@ function expectedCashOf(
     shift.carriedCash +
     shift.openingCash +
     (totals.byMethod.CASH ?? 0) +
-    (totals.kasbonCollected.CASH ?? 0) -
+    (totals.kasbonCollected.CASH ?? 0) +
+    totals.salesHandovers -
     totals.expenses -
     totals.deposited
   );
@@ -139,9 +141,11 @@ export async function openShift(
  * Closes the caller's shift: expected cash as in `expectedCashOf`; the
  * variance against the counted cash is recorded (FR-SHF-03), and the
  * counted cash is what the next drawer shift carries over (ADR-0032).
- * Any cashier may close the shared drawer shift; who did is kept
- * (ADR-0044). The shift row is locked so a concurrent sale cannot slip in
- * unnoticed.
+ * When a sales shift closes, its physical cash is handed over to the
+ * store's drawer (ADR-0054): to the open drawer shift, or to the last
+ * closed one so the next shift carries it over. Any cashier may close the
+ * shared drawer shift; who did is kept (ADR-0044). The shift row is
+ * locked so a concurrent sale cannot slip in unnoticed.
  */
 export async function closeShift(
   session: Session,
@@ -151,18 +155,35 @@ export async function closeShift(
   assertAnyPermission(session, SHIFT_HOLDERS);
   return db.transaction(async (tx) => {
     const kind = shiftKindFor(session);
-    if (kind === "DRAWER") await lockDrawer(tx);
+    await lockDrawer(tx);
     const shift = await lockOpenShift(tx, session.user.id, kind);
     if (!shift) return { ok: false, reason: "no-open-shift" } as const;
     const totals = await shiftTotals(tx, shift.id);
     const expectedCash = expectedCashOf(shift, totals);
     const variance = input.countedCash - expectedCash;
+
+    let handoverToShiftId: string | null = null;
+    let handoverAfterClose = false;
+
+    if (kind === "SALES" && input.countedCash > 0) {
+      const openDrawer = await oldestOpenDrawerShift(tx);
+      const lastDrawer = openDrawer ? undefined : await lastClosedDrawerShift(tx);
+      const targetDrawerId =
+        openDrawer?.id ?? (lastDrawer && !lastDrawer.carried ? lastDrawer.id : null);
+      if (targetDrawerId) {
+        handoverToShiftId = targetDrawerId;
+        handoverAfterClose = !openDrawer;
+      }
+    }
+
     await closeShiftRow(tx, shift.id, {
       expectedCash,
       countedCash: input.countedCash,
       variance,
       note: input.note === "" ? null : input.note,
       closedBy: session.user.id,
+      handoverToShiftId,
+      handoverAfterClose,
     });
     await recordAudit(
       tx,
@@ -171,7 +192,12 @@ export async function closeShift(
         action: "shift.closed",
         entity: "shift",
         entityId: shift.id,
-        diff: { expectedCash, countedCash: input.countedCash, variance },
+        diff: {
+          expectedCash,
+          countedCash: input.countedCash,
+          variance,
+          ...(handoverToShiftId ? { handoverToShiftId, handoverAfterClose } : {}),
+        },
       },
       context,
     );
