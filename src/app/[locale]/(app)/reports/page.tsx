@@ -1,4 +1,4 @@
-﻿import { ChevronLeft, ChevronRight, Landmark, Wallet } from "lucide-react";
+import { ChevronLeft, ChevronRight, Landmark, Wallet } from "lucide-react";
 import type { Metadata } from "next";
 import { getFormatter, getLocale, getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
